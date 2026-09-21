@@ -7,21 +7,18 @@ to paste verbatim. A redeploy of the `generate-copy` and `analyze-company`
 functions picks up changes (run `node scripts/embed-value-proposition.mjs`
 first so the embedded fallback matches).
 
-PLACEHOLDER, 21 September 2026. Every line marked `[Craig to confirm]` is an
-assumption, not a verified claim. The writer is told to skip a marked line
-and never to write the marker; the marker is a banned phrase in the checks.
-Craig replaces this file with the brand, the positioning, the proof points
-and the ask in his own words (docs/TA-SEARCHER-BRIEF.md, questions 1 to 4).
+Confirmed by Craig on 21 September 2026 (brand, the placements, the ask, the
+fee wording). Lines marked `[Craig to confirm]` are still assumptions; the
+writer skips a marked line and never writes the marker.
 
 ## Who we are
 
-- Big Fish Recruitment places Heads of Talent Acquisition and Heads of
-  Recruitment into seed and Series A start-ups in the United Kingdom, London
-  first. [Craig to confirm: the brand that sends and signs, and the
-  positioning line.]
-- The firm is run by Craig Springett, who has spent over twenty years in
-  recruitment running agencies and building recruitment teams. [Craig to
-  confirm: the years and the wording.]
+- Big Fish Recruitment places the first Head of Recruitment or Head of
+  Talent Acquisition into seed and Series A start-ups in the United
+  Kingdom, London first: the "first boots on the ground" talent leader who
+  then builds the team.
+- The firm is run by Craig Springett, who runs the search personally: every
+  candidate is screened and spoken to by him before a founder sees them.
 - The idea in one sentence: a start-up that has raised and is hiring across
   the board needs one person who owns hiring, and we find that person.
 - We place the person who then hires everyone else. We do not fill the
@@ -29,15 +26,24 @@ and the ask in his own words (docs/TA-SEARCHER-BRIEF.md, questions 1 to 4).
 
 ## Proof points (use one or two, never all of them)
 
-- Searchable: a Series A AI company in London with thirteen open roles on
-  its Ashby board when the search began. We placed its Head of Recruitment
-  in 2026. [Craig to confirm: the brief, the time to hire and what the
-  founders said.]
-- Other placements in technology companies. [Craig to confirm: two or three
-  lines each, or remove this line.]
-- Craig's own background: over twenty years in recruitment, having run
-  agencies and built talent functions, so the conversation with a founder is
-  about what the role should own, not about CVs. [Craig to confirm.]
+- Searchable: a Series A AI company in London, five days a week in the
+  office, with thirteen open roles across engineering, sales, marketing and
+  design when the search began. We placed its first talent leader, the Head
+  of Recruitment, in 2026: a role that owns the hiring strategy end to end,
+  from senior engineering and research hires to commercial and go-to-market
+  roles, and shapes the employer brand as the team scales. Five hand-picked
+  candidates, each screened and spoken to personally, presented through our
+  shortlist portal where the founders ranked them and booked interviews in
+  one place.
+- Lottie: Chris Donnelly's scale-up, where we placed the first Head of
+  Talent before the Searchable search. A review from Chris is expected;
+  until it arrives, name the placement and not a quote. [Craig to confirm
+  the wording once the review is in.]
+- Attio: the CRM scale-up that has since grown fast; we placed its first
+  Head of Talent. [Craig to confirm the year.]
+- How it runs: a shortlist of five, never a stream of CVs; call notes and
+  LinkedIn beside each CV; the founders rank the shortlist and request
+  interviews in about ten minutes.
 
 ## How we work
 
@@ -47,20 +53,20 @@ and the ask in his own words (docs/TA-SEARCHER-BRIEF.md, questions 1 to 4).
 - We scope the Head of Talent role with the founders before we search: what
   it owns, where it sits, what the first ninety days look like.
 - We know the people we put forward and we stay close after the placement
-  starts. [Craig to confirm.]
+  starts.
 
 ## The ask
 
-- A fifteen-minute call about the hiring plan for the next twelve months.
-  [Craig to confirm: the ask in his words, or an introduction to the
-  Searchable hire, or a retained-search conversation.]
+- A call with Craig to advise on the best first Head of Recruitment or Head
+  of Talent hire for the company, and then to run that search for them.
+- Fifteen minutes is enough to start: what the raise pays for, what is open,
+  who is hiring today.
 
 ## Never say
 
-- Never quote a fee, a percentage of salary, a retainer figure or a day
-  rate. The commercial shape (retained or contingent) is for the call.
-  [Craig to confirm whether the writer may open the retained-versus-
-  contingent conversation at all.]
+- Never quote a fee, a percentage of salary, a retainer figure, a rebate
+  period or a day rate. The writer may say that we work on a contingent or a
+  retained basis and that the shape is agreed on the call; never a number.
 - Never promise a candidate, a shortlist or availability that is not in
   the input.
 - Never imply the company is failing at hiring. Say what they are doing

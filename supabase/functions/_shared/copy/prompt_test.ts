@@ -18,7 +18,7 @@ Deno.test('the value proposition and the system prompt contain no fee figure, an
   assertEquals(feeFigureViolations(system), []);
   assert(system.includes(FIRM_NAME));
   for (const p of PERSONAS) assert(system.includes(`- ${p}: `), p);
-  assert(system.includes('Never quote a fee, a percentage, a retainer figure or a day rate'));
+  assert(system.includes('Never quote a fee, a percentage, a retainer figure, a rebate period or a day rate'));
   assert(system.includes('Never promise a candidate, a shortlist or availability that is not in the input'));
   assert(system.includes('Never imply the company is failing at hiring'));
   assert(!/supply|pupil premium|Ofsted|headteacher/i.test(system), 'no school wording');
@@ -33,7 +33,7 @@ Deno.test('the placeholder value proposition marks every unconfirmed claim and t
 });
 
 Deno.test('consultant identity from the app tag', () => {
-  assertEquals(consultantFromTag('Craig Springett'), { firstName: 'Craig', fullName: 'Craig Springett', role: 'Managing Director' });
+  assertEquals(consultantFromTag('Craig Springett'), { firstName: 'Craig', fullName: 'Craig Springett', role: 'Founder' });
   assertEquals(consultantFromTag('Anja Cold Targets, Isobel NEW Area').firstName, 'Anja');
   assertEquals(consultantFromTag('Isobel NEW Area'), { firstName: 'Isobel', fullName: null, role: 'Talent Search Consultant' });
   assertEquals(consultantFromTag('House').firstName, null);

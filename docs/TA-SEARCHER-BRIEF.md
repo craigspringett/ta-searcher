@@ -271,7 +271,32 @@ He-Giveth; a daily cadence is one `cron.alter_job` away.
    `notify.` sub-domain of whichever brand sends.
 7. **The name is TA Searcher.**
 
-## Questions for Craig
+## Craig's answers (21 September 2026)
+
+1. **Brand:** Big Fish Recruitment sends and signs.
+2. **Proof points:** the Searchable Head of Recruitment (Series A, AI,
+   London, first talent leader hire, five hand-picked candidates through
+   the shortlist portal at big-fish-portal.onrender.com); the first Head of
+   Talent at Lottie, Chris Donnelly's scale-up, before Searchable (a review
+   from Chris is expected); the first Head of Talent at Attio, the CRM
+   scale-up. All three are in the value proposition and in
+   `_shared/copy/reviews.ts`.
+3. **The ask:** a call with Craig to advise on the best first Head of
+   Recruitment or Head of Talent hire, and then to run that search.
+4. **Fee wording:** figures stay banned; the writer may say the work can be
+   contingent or retained and that the shape is agreed on the call.
+5. **Companies House key:** Craig registers it (instructions in the report).
+6. **Team:** not answered; Craig alone to start.
+7. **First list:** slice 2's funding-news feed proposes companies.
+8. **Outside the UK:** a company with a London office can be added by
+   website alone, with no register record.
+9. **Setup:** Craig creates the repository, the Supabase project and the
+   Netlify site with the instructions in the report; the session's tokens
+   cannot (the GitHub app cannot create repositories, project creation is a
+   billed action the session is not allowed to take, and the Netlify token
+   answers 401).
+
+## Questions for Craig (as first asked)
 
 1. **Which brand sends and signs?** Big Fish Recruitment, WhoFoundWho, or a
    new name. The value proposition, the email footer, the login page and

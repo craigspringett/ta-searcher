@@ -6,12 +6,11 @@
 // keeps the shape of the old module (pickReviews(consultant, ctx) -> Review[])
 // so the prompt and the generator do not change when the real ones arrive.
 //
-// CRAIG SUPPLIES THE REAL ONES (docs/TA-SEARCHER-BRIEF.md, question 2): the
-// Searchable brief, how long it took, what the founders said, any other
-// placements in tech. Until then every entry here is a placeholder and its
-// unconfirmed parts are marked "[Craig to confirm]" so nothing here is
-// mistaken for a verified claim; the writer is told not to use a marked
-// line and the marker is a banned phrase in checks.ts.
+// Craig confirmed the placements on 21 September 2026 (Searchable, Lottie,
+// Attio; docs/TA-SEARCHER-BRIEF.md, question 2). Parts still awaiting his
+// wording (Chris Donnelly's review, the Attio year) are marked
+// "[Craig to confirm]": the writer is told not to use a marked line and the
+// marker is a banned phrase in checks.ts.
 
 export interface Review {
   quote: string;
@@ -26,8 +25,16 @@ export interface Review {
 
 export const PROOF_POINTS: Review[] = [
   {
-    quote: 'Placed the Head of Recruitment at Searchable, a Series A AI company in London, in 2026; the company had thirteen open roles on its Ashby board when the search began. [Craig to confirm: the brief, the time to hire and what the founders said.]',
+    quote: 'Placed the first talent leader, the Head of Recruitment, at Searchable, a Series A AI company in London with thirteen open roles across engineering, sales, marketing and design when the search began. The role owns the hiring strategy end to end, from senior engineering and research hires to commercial roles. Five hand-picked candidates, each screened and spoken to personally, presented through our shortlist portal where the founders ranked them and booked interviews in one place.',
     author: 'Searchable, Series A, AI, London', type: 'Client', consultant: 'Craig Springett', date: '2026', stages: ['series_a', 'seed'], sectors: ['AI', 'Software'],
+  },
+  {
+    quote: 'Placed the first Head of Talent at Lottie, Chris Donnelly\'s scale-up, before the Searchable search. A review from Chris is expected; name the placement, not a quote. [Craig to confirm the wording once the review is in.]',
+    author: 'Lottie, scale-up', type: 'Client', consultant: 'Craig Springett', stages: ['series_a', 'series_b_plus'], sectors: [],
+  },
+  {
+    quote: 'Placed the first Head of Talent at Attio, the CRM scale-up that has since grown fast. [Craig to confirm the year.]',
+    author: 'Attio, CRM', type: 'Client', consultant: 'Craig Springett', stages: ['seed', 'series_a', 'series_b_plus'], sectors: ['Software'],
   },
 ];
 
@@ -36,7 +43,7 @@ export const REVIEWS = PROOF_POINTS;
 
 /** The consultants the emails may be signed by, for matching the app's free-text tags. Craig to confirm the team (brief, question 6). */
 export const TEAM: Array<{ first: string; full: string; role: string }> = [
-  { first: 'Craig', full: 'Craig Springett', role: 'Managing Director' },
+  { first: 'Craig', full: 'Craig Springett', role: 'Founder' },
 ];
 
 /** The role written for a consultant the TEAM list does not name. */
