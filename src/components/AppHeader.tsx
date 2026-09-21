@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { NavLink } from "react-router-dom";
-import { Activity, Bell, Home, Search, Users } from "lucide-react";
+import { Activity, Bell, Home, Radar, Search, Users } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { APP_NAME } from "@/lib/brand";
 import { UserMenu } from "@/components/UserMenu";
@@ -16,6 +16,7 @@ export function AppHeader({ title, subtitle, actions }: { title: string; subtitl
   const items: Array<{ to: string; label: string; icon: typeof Home; managers?: boolean; end?: boolean }> = [
     { to: "/", label: "My patch", icon: Home, end: true },
     { to: "/companies", label: "Companies", icon: Search },
+    { to: "/prospects", label: "Prospects", icon: Radar },
     { to: "/alerts", label: "Alerts", icon: Bell, managers: true },
     { to: "/consultants", label: "Consultants", icon: Users, managers: true },
     { to: "/pipeline-monitoring", label: "Monitoring", icon: Activity, managers: true },

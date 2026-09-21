@@ -1,0 +1,53 @@
+{
+  "etag": "hand-written",
+  "top_hit": null,
+  "hits": 2371,
+  "kind": "search#advanced-search",
+  "items": [
+    {
+      "company_name": "METRIS ENERGY LTD",
+      "company_number": "14567890",
+      "company_status": "active",
+      "company_type": "ltd",
+      "kind": "searchresults#company",
+      "date_of_creation": "2023-02-14",
+      "registered_office_address": {
+        "address_line_1": "12 Example Street",
+        "locality": "London",
+        "postal_code": "EC2A 4NE",
+        "country": "England"
+      },
+      "sic_codes": ["62012", "62020"]
+    },
+    {
+      "company_name": "NUL HEALTH LIMITED",
+      "company_number": "SC789012",
+      "company_status": "active",
+      "company_type": "ltd",
+      "date_of_creation": "2024-11-03",
+      "registered_office_address": {
+        "locality": "London",
+        "postal_code": "N1 7GU"
+      },
+      "sic_codes": ["62012"]
+    },
+    {
+      "company_name": "NO NUMBER HOLDINGS",
+      "company_status": "active",
+      "date_of_creation": "2022-01-01",
+      "registered_office_address": {"locality": "London"},
+      "sic_codes": ["62012"]
+    },
+    {
+      "company_name": "OLD DISSOLVED CO LIMITED",
+      "company_number": "9876543",
+      "company_status": "dissolved",
+      "date_of_creation": "2019-05-20",
+      "registered_office_address": {
+        "locality": "Croydon",
+        "postal_code": "CR0 1AA"
+      },
+      "sic_codes": []
+    }
+  ]
+}

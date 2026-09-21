@@ -12,6 +12,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { BAND_CLASSES, scoreBand } from "@/lib/propensity";
 import { NewRaisesCard } from "@/components/NewRaisesCard";
+import { RadarLine } from "@/components/RadarLine";
 
 type SortKey = "name" | "stage" | "openRoles" | "talentRoles" | "raise" | "lastAnalysed" | "nextCallback" | "propensity";
 
@@ -116,6 +117,8 @@ export default function MyPatch() {
         {isLoading && <p className="text-sm text-muted-foreground" role="status"><Loader2 className="inline h-4 w-4 animate-spin mr-2" aria-hidden="true" />Loading your companies…</p>}
         {error && <p className="text-sm text-destructive" role="alert">Could not load: {(error as Error).message}</p>}
         {data && rows.length === 0 && <p className="text-sm text-muted-foreground">No companies match. Assign companies from the Companies page, or widen the filters.</p>}
+
+        <RadarLine />
 
         {rows.length > 0 && (
           <div className="overflow-x-auto rounded-lg border border-border">

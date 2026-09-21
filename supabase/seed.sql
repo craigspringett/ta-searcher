@@ -9,11 +9,14 @@
 --                          (the notify sub-domain only until the brand's own
 --                          domain is verified in Resend; see the brief's
 --                          question 1 to Craig)
+--   prospecting            the radar's auto-promote score, weekly cap and the
+--                          register walk's watermarks (slice 3)
 
 insert into public.app_settings (key, value) values
   ('brief_copy_recipients', '[]'::jsonb),
   ('engagement_alerts', '{"enabled": true, "opens": true, "clicks": true, "off_for": []}'::jsonb),
-  ('sending_domains', '["notify.bigfishrecruitment.co.uk"]'::jsonb)
+  ('sending_domains', '["notify.bigfishrecruitment.co.uk"]'::jsonb),
+  ('prospecting', '{"autoPromoteScore": 60, "weeklyPromoteCap": 15, "watermarks": {}, "registerCursor": 0}'::jsonb)
 on conflict (key) do nothing;
 
 -- The email queue's one state row (the baseline inserts it too; harmless here).

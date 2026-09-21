@@ -27,6 +27,14 @@
 //   - Company numbers are eight characters: numeric ones zero-padded on the
 //     left (1234567 is 01234567), the others a two-letter prefix (SC, NI,
 //     OC, SO, NC, FC, ...) in upper case and six digits.
+//   - GET /advanced-search/companies?company_status=active&sic_codes=&
+//     incorporated_from=&location=&size=&start_index= (prospecting, 21
+//     September 2026) -> items[] with company_name (not title), company_number,
+//     company_status, date_of_creation, registered_office_address
+//     {locality, postal_code} and sic_codes[], plus `hits`, the total for
+//     the query, which the nightly walk uses to wrap its start_index.
+//     `location` matches on the registered office address; `size` is at
+//     most 5000 and the walk asks for 100.
 //   - There is no website in the register. The URL the consultant gives is
 //     the identity for the website read; the number is the identity here.
 //
@@ -98,6 +106,37 @@ export interface CompanySearchHit {
   incorporationDate: string | null;
   addressSnippet: string | null;
   postcode: string | null;
+}
+
+/** One company from the advanced search (a register walk), with the fields the prospecting pass keeps. */
+export interface AdvancedSearchHit {
+  companyNumber: string;
+  name: string;
+  status: string | null;
+  incorporationDate: string | null;
+  sicCodes: string[];
+  locality: string | null;
+  postcode: string | null;
+  postcodeDistrict: string | null;
+}
+
+export interface AdvancedSearchPage {
+  /** The register's total for the query, whatever the page size. */
+  hits: number;
+  items: AdvancedSearchHit[];
+}
+
+export interface AdvancedSearchParams {
+  sicCodes: string[];
+  /** Matched against the registered office address ("London", "Cambridge"). */
+  location?: string | null;
+  /** ISO date: companies incorporated on or after it. */
+  incorporatedFrom?: string | null;
+  /** Default 'active'. */
+  companyStatus?: string | null;
+  /** Page size, default 100. */
+  size?: number;
+  startIndex?: number;
 }
 
 export const NOTE_KEY_NOT_SET = 'Companies House key not set';
@@ -345,6 +384,30 @@ export function parseSearchResults(json: any, limit = SEARCH_LIMIT): CompanySear
   return out;
 }
 
+/** The advanced search's page: `hits` is the register's total, the items carry the name under company_name. */
+export function parseAdvancedSearchResults(json: any): AdvancedSearchPage {
+  const items = Array.isArray(json?.items) ? json.items : [];
+  const out: AdvancedSearchHit[] = [];
+  for (const it of items) {
+    const companyNumber = normaliseCompanyNumber(str(it?.company_number));
+    const name = str(it?.company_name) ?? str(it?.title);
+    if (!companyNumber || !name) continue;
+    const postcode = str(it?.registered_office_address?.postal_code);
+    out.push({
+      companyNumber,
+      name,
+      status: str(it?.company_status),
+      incorporationDate: isoDate(it?.date_of_creation),
+      sicCodes: Array.isArray(it?.sic_codes) ? it.sic_codes.map((c: unknown) => str(c)).filter((c: string | null): c is string => !!c) : [],
+      locality: str(it?.registered_office_address?.locality),
+      postcode,
+      postcodeDistrict: postcodeDistrict(postcode),
+    });
+  }
+  const hits = Number(json?.hits);
+  return { hits: Number.isFinite(hits) && hits >= 0 ? Math.floor(hits) : out.length, items: out };
+}
+
 export function parseCompanyProfile(json: any, companyNumber: string, fetchedAt = new Date().toISOString()): CompanyRecord {
   const office = json?.registered_office_address;
   const registeredOffice = office && typeof office === 'object'
@@ -494,6 +557,32 @@ export async function searchCompanies(q: string, limit = SEARCH_LIMIT): Promise<
   const answer = await chGet(`/search/companies?q=${encodeURIComponent(query)}&items_per_page=${perPage}`, key);
   if (answer.error) throw new CompaniesHouseError(noteFor(answer.status, answer.error), answer.status);
   return parseSearchResults(answer.json, limit);
+}
+
+/** The query string the advanced search takes, in a fixed order so a test can name the URL. */
+export function advancedSearchQuery(params: AdvancedSearchParams): string {
+  const q = new URLSearchParams();
+  q.set('company_status', params.companyStatus || 'active');
+  for (const code of params.sicCodes || []) if (code) q.append('sic_codes', code);
+  if (params.incorporatedFrom) q.set('incorporated_from', params.incorporatedFrom);
+  if (params.location) q.set('location', params.location);
+  q.set('size', String(Math.max(1, Math.min(Math.floor(params.size ?? 100), 5000))));
+  q.set('start_index', String(Math.max(0, Math.floor(params.startIndex ?? 0))));
+  return q.toString();
+}
+
+/**
+ * One page of the advanced search (a register walk by SIC code, place and
+ * incorporation date). Throws a CompaniesHouseError when the key is missing
+ * or the API does not answer, as searchCompanies does; the prospecting
+ * source catches it and reports the note.
+ */
+export async function advancedSearchCompanies(params: AdvancedSearchParams): Promise<AdvancedSearchPage> {
+  const key = apiKey();
+  if (!key) throw new CompaniesHouseError(NOTE_KEY_NOT_SET, 0);
+  const answer = await chGet(`/advanced-search/companies?${advancedSearchQuery(params)}`, key);
+  if (answer.error) throw new CompaniesHouseError(noteFor(answer.status, answer.error), answer.status);
+  return parseAdvancedSearchResults(answer.json);
 }
 
 function unverifiedRecord(companyNumber: string, note: string, name = ''): CompanyRecord {

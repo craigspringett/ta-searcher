@@ -1,0 +1,49 @@
+{
+  "results": [
+    {
+      "jobId": 55123456,
+      "employerId": 1001,
+      "employerName": "Crimson Legal AI",
+      "jobTitle": "Head of Recruitment",
+      "locationName": "London",
+      "minimumSalary": 85000,
+      "maximumSalary": 100000,
+      "currency": "GBP",
+      "expirationDate": "02/11/2026",
+      "date": "19/09/2026",
+      "jobDescription": "Crimson is a legaltech start-up hiring its first Head of Recruitment ...",
+      "applications": 12,
+      "jobUrl": "https://www.reed.co.uk/jobs/head-of-recruitment/55123456"
+    },
+    {
+      "jobId": 55123457,
+      "employerId": 1002,
+      "employerName": "Acme Talent Partners",
+      "jobTitle": "Head of Talent",
+      "locationName": "London",
+      "date": "18/09/2026",
+      "jobDescription": "Our client, a Series A fintech, is looking for a Head of Talent.",
+      "jobUrl": "https://www.reed.co.uk/jobs/head-of-talent/55123457"
+    },
+    {
+      "jobId": 55123458,
+      "employerId": 1003,
+      "employerName": "Old News Ltd",
+      "jobTitle": "Talent Lead",
+      "locationName": "London",
+      "date": "01/07/2026",
+      "jobDescription": "Posted eleven weeks ago: outside the 30 day window.",
+      "jobUrl": "https://www.reed.co.uk/jobs/talent-lead/55123458"
+    },
+    {
+      "jobId": 55123459,
+      "employerId": 1004,
+      "employerName": "Stoa",
+      "jobTitle": "Head of People",
+      "locationName": "London",
+      "date": "20/09/2026",
+      "jobDescription": "A people role, scored lower.",
+      "jobUrl": null
+    }
+  ]
+}

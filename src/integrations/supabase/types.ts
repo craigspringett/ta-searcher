@@ -1300,6 +1300,83 @@ export type Database = {
         }
         Relationships: []
       }
+      prospects: {
+        Row: {
+          boards: Json | null
+          company_number: string | null
+          dismiss_reason: string | null
+          dismissed_at: string | null
+          first_seen_at: string
+          id: string
+          last_seen_at: string
+          name: string
+          name_key: string
+          promoted_at: string | null
+          promoted_company_id: string | null
+          prospect_score: number | null
+          qualified_at: string | null
+          raise: Json | null
+          register: Json | null
+          score_reasons: Json | null
+          sources: Json
+          status: string
+          talent_postings: Json | null
+          website: string | null
+        }
+        Insert: {
+          boards?: Json | null
+          company_number?: string | null
+          dismiss_reason?: string | null
+          dismissed_at?: string | null
+          first_seen_at?: string
+          id?: string
+          last_seen_at?: string
+          name: string
+          name_key: string
+          promoted_at?: string | null
+          promoted_company_id?: string | null
+          prospect_score?: number | null
+          qualified_at?: string | null
+          raise?: Json | null
+          register?: Json | null
+          score_reasons?: Json | null
+          sources?: Json
+          status?: string
+          talent_postings?: Json | null
+          website?: string | null
+        }
+        Update: {
+          boards?: Json | null
+          company_number?: string | null
+          dismiss_reason?: string | null
+          dismissed_at?: string | null
+          first_seen_at?: string
+          id?: string
+          last_seen_at?: string
+          name?: string
+          name_key?: string
+          promoted_at?: string | null
+          promoted_company_id?: string | null
+          prospect_score?: number | null
+          qualified_at?: string | null
+          raise?: Json | null
+          register?: Json | null
+          score_reasons?: Json | null
+          sources?: Json
+          status?: string
+          talent_postings?: Json | null
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prospects_promoted_company_id_fkey"
+            columns: ["promoted_company_id"]
+            isOneToOne: false
+            referencedRelation: "company_searches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       suppressed_emails: {
         Row: {
           created_at: string

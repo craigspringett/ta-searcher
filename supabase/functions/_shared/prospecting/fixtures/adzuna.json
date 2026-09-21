@@ -1,0 +1,62 @@
+{
+  "count": 4,
+  "mean": 68000,
+  "results": [
+    {
+      "id": "5012345678",
+      "title": "Head of Talent",
+      "company": {"display_name": "Metris Energy", "__CLASS__": "Adzuna::API::Response::Company"},
+      "location": {"display_name": "Shoreditch, Central London", "area": ["UK", "London", "Central London", "Shoreditch"]},
+      "created": "2026-09-18T09:12:44Z",
+      "redirect_url": "https://www.adzuna.co.uk/land/ad/5012345678?se=abc&utm_medium=api",
+      "description": "Metris Energy is hiring its first Head of Talent to build the team from 20 to 60 ...",
+      "salary_min": 80000,
+      "salary_max": 95000
+    },
+    {
+      "id": "5012345679",
+      "title": "Talent Acquisition Partner",
+      "company": {"display_name": "Nul Health"},
+      "location": {"display_name": "London"},
+      "created": "2026-09-20T15:00:00Z",
+      "redirect_url": "https://www.adzuna.co.uk/land/ad/5012345679?se=def",
+      "description": "Join a Series A healthtech as our founding talent partner."
+    },
+    {
+      "id": "5012345680",
+      "title": "Head of Talent Acquisition",
+      "company": {"display_name": "Big Fish Recruitment"},
+      "location": {"display_name": "London"},
+      "created": "2026-09-19T10:00:00Z",
+      "redirect_url": "https://www.adzuna.co.uk/land/ad/5012345680?se=ghi",
+      "description": "Our client, a fintech scale-up, is looking for a Head of Talent Acquisition."
+    },
+    {
+      "id": "5012345681",
+      "title": "Head of Sales",
+      "company": {"display_name": "Sellwell Ltd"},
+      "location": {"display_name": "London"},
+      "created": "2026-09-19T10:00:00Z",
+      "redirect_url": "https://www.adzuna.co.uk/land/ad/5012345681?se=jkl",
+      "description": "A loose match on the phrase: not a talent role."
+    },
+    {
+      "id": "5012345682",
+      "title": "Recruiter",
+      "company": {"display_name": "Bigco plc"},
+      "location": {"display_name": "London"},
+      "created": "2026-09-19T10:00:00Z",
+      "redirect_url": "https://www.adzuna.co.uk/land/ad/5012345682?se=mno",
+      "description": "A seat on an existing team: not kept."
+    },
+    {
+      "id": "5012345683",
+      "title": "Head of Talent",
+      "company": {"display_name": "Metris Energy"},
+      "location": {"display_name": "London"},
+      "created": "2026-09-17T09:12:44Z",
+      "redirect_url": "https://www.adzuna.co.uk/land/ad/5012345683?se=pqr",
+      "description": "The same posting again from another phrase."
+    }
+  ]
+}
