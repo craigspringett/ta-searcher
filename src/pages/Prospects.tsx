@@ -28,6 +28,15 @@ import {
   sourceKeyStates,
   sourceLines,
   websiteHost,
+  prospectSector,
+  stageLine,
+  prospectStage,
+  filterProspects,
+  filterCounts,
+  NO_FILTERS,
+  type ProspectFilters,
+  type Sector,
+  type Stage,
   type Prospect,
 } from "@/lib/prospects";
 import { discoverProspects, dismissProspect, loadProspect, loadProspectsPage, qualifyProspects, replyError, saveProspectingSettings } from "@/lib/prospectsData";
@@ -46,6 +55,13 @@ export default function Prospects() {
   const { toast } = useToast();
   const { data, error, isLoading, refetch } = useQuery({ queryKey: ["prospects-page"], queryFn: () => loadProspectsPage(), staleTime: 60_000 });
   const groups = useMemo(() => groupProspects(data?.prospects || []), [data]);
+  // Sector and stage filters over the ready list (21 September 2026).
+  const [filters, setFilters] = useState<ProspectFilters>(NO_FILTERS);
+  const counts = useMemo(() => filterCounts(groups.ready), [groups.ready]);
+  const ready = useMemo(() => filterProspects(groups.ready, filters), [groups.ready, filters]);
+  const toggleSector = (v: Sector) => setFilters((f) => ({ ...f, sectors: f.sectors.includes(v) ? f.sectors.filter((x) => x !== v) : [...f.sectors, v] }));
+  const toggleStage = (v: Stage) => setFilters((f) => ({ ...f, stages: f.stages.includes(v) ? f.stages.filter((x) => x !== v) : [...f.stages, v] }));
+  const filtering = filters.sectors.length > 0 || filters.stages.length > 0;
   const reload = async () => {
     await refetch();
     void queryClient.invalidateQueries({ queryKey: ["radar-counts"] });
@@ -185,14 +201,46 @@ export default function Prospects() {
               <div className="mb-2 flex items-center gap-2">
                 <h2 className="text-base font-bold text-foreground">Ready to add</h2>
                 <SourceNote text={PROSPECTS_SOURCE} />
-                <span className="text-xs text-muted-foreground">{groups.ready.length} qualified, best first</span>
+                <span className="text-xs text-muted-foreground">{filtering ? `${ready.length} of ${groups.ready.length}` : groups.ready.length} qualified, best first</span>
               </div>
+              {groups.ready.length > 0 && (
+                <div className="mb-3 space-y-2" aria-label="Filters">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="mr-1 text-xs text-muted-foreground">Sector</span>
+                    {counts.sectors.map((c) => {
+                      const on = filters.sectors.includes(c.value);
+                      return (
+                        <button key={c.value} type="button" aria-pressed={on} onClick={() => toggleSector(c.value)} className={`rounded-full border px-2.5 py-0.5 text-xs transition-colors ${on ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-foreground hover:bg-muted"}`}>
+                          {c.value} <span className={on ? "opacity-80" : "text-muted-foreground"}>{c.count}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="mr-1 text-xs text-muted-foreground">Stage</span>
+                    {counts.stages.map((c) => {
+                      const on = filters.stages.includes(c.value);
+                      return (
+                        <button key={c.value} type="button" aria-pressed={on} onClick={() => toggleStage(c.value)} className={`rounded-full border px-2.5 py-0.5 text-xs transition-colors ${on ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-foreground hover:bg-muted"}`}>
+                          {c.value} <span className={on ? "opacity-80" : "text-muted-foreground"}>{c.count}</span>
+                        </button>
+                      );
+                    })}
+                    {filtering && (
+                      <Button type="button" variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setFilters(NO_FILTERS)}>Clear filters</Button>
+                    )}
+                  </div>
+                </div>
+              )}
               {groups.ready.length === 0 && (
                 <p className="text-sm text-muted-foreground">Nothing is waiting. The radar qualifies its newest prospects every morning at 05:40 UTC and adds the best on its own; the rest appear here.</p>
               )}
-              {groups.ready.length > 0 && (
+              {groups.ready.length > 0 && ready.length === 0 && (
+                <p className="text-sm text-muted-foreground">No prospect matches those filters.</p>
+              )}
+              {ready.length > 0 && (
                 <ul className="divide-y divide-border/60" aria-label="Prospects ready to add">
-                  {groups.ready.map((p) => {
+                  {ready.map((p) => {
                     const band = scoreBand(p.score);
                     const chips = scoreChips(p.scoreReasons);
                     const sources = sourceLines(p.sources);
@@ -217,6 +265,11 @@ export default function Prospects() {
                                 <span className="text-xs text-warning">website not found</span>
                               )}
                               {p.companyNumber && p.register?.status && <span className="text-xs text-muted-foreground">{p.register.status} on the register{p.register.incorporationDate ? `, incorporated ${p.register.incorporationDate.slice(0, 4)}` : ""}</span>}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                              <span className="rounded-md border border-border bg-muted px-1.5 py-0.5 font-medium text-foreground">{prospectSector(p)}</span>
+                              <span className="rounded-md border border-border bg-muted px-1.5 py-0.5 font-medium text-foreground">{prospectStage(p)}</span>
+                              <span className="text-muted-foreground">{stageLine(p)}</span>
                             </div>
                             {!p.website && (
                               <form className="flex flex-wrap items-center gap-2" onSubmit={(e) => { e.preventDefault(); void saveWebsite(p); }}>

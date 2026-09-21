@@ -5,6 +5,13 @@ import {
   groupProspects,
   normaliseWebsite,
   parseProspectRow,
+  shortDate,
+  prospectSector,
+  prospectStage,
+  stageLine,
+  filterProspects,
+  filterCounts,
+  NO_FILTERS,
   parseScoreReason,
   parseSettingInput,
   postingLine,
@@ -205,5 +212,57 @@ describe("settings, websites and small helpers", () => {
     expect(shortDateTime("2026-09-21T05:30:00Z")).toBe("05:30 UTC, 21 Sep");
     expect(shortDateTime("nope")).toBe("");
     expect(DISMISS_REASONS.map((r) => r.value)).toEqual(["not_a_startup", "agency", "already_client", "wrong_country", "other"]);
+  });
+});
+
+describe("sector and stage", () => {
+  const base = parseProspectRow(row);
+  const withSources = (titles: string[], extra: Partial<typeof base> = {}) => ({ ...base, ...extra, sources: titles.map((t) => ({ source: "funding_news", url: null, title: t, at: null, note: null })) });
+  it("reads the sector from the headline words, the more specific first", () => {
+    expect(prospectSector(withSources(["London fintech Sprive raises $10m Series A"]))).toBe("Fintech");
+    expect(prospectSector(withSources(["AI litigation legaltech start-up Crimson raises $2.5m"]))).toBe("Legaltech");
+    expect(prospectSector(withSources(["Magnitude Biosciences raises £1.3m to scale drug discovery platform"]))).toBe("Healthtech");
+    expect(prospectSector(withSources(["Metris Energy raises €4.35 million to scale AI platform for managing renewable energy assets"]))).toBe("Climate and energy");
+    expect(prospectSector(withSources(["Magentic raises $18M to build AI agents that diagnose, plan and fix"]))).toBe("AI");
+    expect(prospectSector(withSources(["Exein raises $270m to fight AI hackers"]))).toBe("Cybersecurity");
+    expect(prospectSector(withSources(["Soul Padel raises £3.6m to triple UK club count"]))).toBe("Ecommerce and consumer");
+  });
+  it("falls back to the domain, then the register, then Other", () => {
+    expect(prospectSector(withSources(["Head of Talent"], { website: "https://geosurge.ai/", talentPostings: [] }))).toBe("AI");
+    expect(prospectSector(withSources(["Head of Talent"], { website: "https://x.com/", register: { ...base.register!, sector: "Financial services" } }))).toBe("Fintech");
+    expect(prospectSector(withSources(["Head of Talent"], { website: "https://x.com/", register: null, name: "Blank Ltd" }))).toBe("Other");
+  });
+  it("reads the stage from the round, else the amount, else an SH01", () => {
+    const today = new Date("2026-09-21T00:00:00Z");
+    const raise = (round: string | null, amountGbp: number | null) => ({ ...base, raise: { amountText: null, amountGbp, round, date: "2026-09-01", url: null }, register: null });
+    expect(prospectStage(raise("pre-seed", null), today)).toBe("Pre-seed");
+    expect(prospectStage(raise("seed", null), today)).toBe("Seed");
+    expect(prospectStage(raise("Series A", null), today)).toBe("Series A");
+    expect(prospectStage(raise("Series C", null), today)).toBe("Series B or later");
+    expect(prospectStage(raise(null, 4_000_000), today)).toBe("Seed");
+    expect(prospectStage(raise(null, 20_000_000), today)).toBe("Series A");
+    expect(prospectStage(raise(null, 100_000_000), today)).toBe("Series B or later");
+    expect(prospectStage(raise(null, null), today)).toBe("Unknown");
+    const sh01 = { ...base, raise: null, register: { ...base.register!, capitalFilings: [{ date: "2026-07-23", type: "SH01", description: "Statement of capital" }] } };
+    expect(prospectStage(sh01, today)).toBe("Unannounced raise");
+    expect(stageLine(sh01, today)).toBe(`shares allotted ${shortDate("2026-07-23")}, no raise in the news`);
+    expect(prospectStage({ ...base, raise: null, register: null }, today)).toBe("Unknown");
+    expect(stageLine({ ...base, raise: null, register: null }, today)).toBe("no raise found");
+    expect(stageLine({ ...base, raise: { amountText: "£2m", amountGbp: 2_000_000, round: "seed", date: "2026-09-01", url: null } }, today)).toBe(`£2m seed, ${shortDate("2026-09-01")}`);
+  });
+  it("filters and counts", () => {
+    const today = new Date("2026-09-21T00:00:00Z");
+    const rows = [
+      withSources(["Fintech Sprive raises $10m Series A"], { id: "a", raise: { amountText: "$10m", amountGbp: 7_500_000, round: "Series A", date: "2026-09-01", url: null } }),
+      withSources(["Crimson legaltech raises $2.5m seed"], { id: "b", raise: { amountText: "$2.5m", amountGbp: 1_900_000, round: "seed", date: "2026-09-01", url: null } }),
+      withSources(["Head of Talent"], { id: "c", raise: null, register: null, website: "https://x.com/", name: "Blank" }),
+    ];
+    expect(filterProspects(rows, NO_FILTERS, today).map((p) => p.id)).toEqual(["a", "b", "c"]);
+    expect(filterProspects(rows, { sectors: ["Fintech"], stages: [] }, today).map((p) => p.id)).toEqual(["a"]);
+    expect(filterProspects(rows, { sectors: [], stages: ["Seed", "Unknown"] }, today).map((p) => p.id)).toEqual(["b", "c"]);
+    expect(filterProspects(rows, { sectors: ["Legaltech"], stages: ["Series A"] }, today)).toEqual([]);
+    const counts = filterCounts(rows, today);
+    expect(counts.sectors).toEqual([{ value: "Fintech", count: 1 }, { value: "Legaltech", count: 1 }, { value: "Other", count: 1 }]);
+    expect(counts.stages).toEqual([{ value: "Seed", count: 1 }, { value: "Series A", count: 1 }, { value: "Unknown", count: 1 }]);
   });
 });
