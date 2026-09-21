@@ -3,23 +3,16 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUpDown, Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import { loadPatch, formatMoney, formatWhen, OUTCOME_LABELS, type PatchCompany } from "@/lib/patch";
+import { loadPatch, formatWhen, latestRaiseDetail, latestRaiseLine, OUTCOME_LABELS, stageLabel, type PatchCompany } from "@/lib/patch";
+import { companyIsClosed, companyStatusLabel, STAGE_LABELS, STAGE_ORDER } from "@/lib/analysis";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AppHeader } from "@/components/AppHeader";
-import { NewCompaniesCard } from "@/components/NewCompaniesCard";
-import { WarmNowCard } from "@/components/WarmNowCard";
-import { FollowUpsDueCard } from "@/components/FollowUpsDueCard";
-import { hasFeature } from "@/lib/features";
 import { supabase } from "@/integrations/supabase/client";
 import { BAND_CLASSES, scoreBand } from "@/lib/propensity";
-import { DIRECTION_ARROW, DIRECTION_CLASS, DIRECTION_LABEL, pct } from "@/lib/spend";
-import { SourceNote } from "@/components/SourceNote";
 
-const PP_TAS_SOURCE = "Our estimate from the company's own pupil premium strategy statement: the full-time-equivalent teaching assistants, HLTAs, mentors, tutors and intervention staff its pupil premium lines amount to in a week. Bold when the company states hours, FTE or a number of staff; 'est.' when only a pound figure is given, divided by the day rate on the Alerts page and 190 company days; blank when the statement gives nothing to work from. Open the company for the arithmetic and the quotes.";
-
-type SortKey = "name" | "openVacancies" | "agencySpend" | "spendChange" | "ppTas" | "lastAnalysed" | "nextCallback" | "propensity";
+type SortKey = "name" | "stage" | "openRoles" | "talentRoles" | "raise" | "lastAnalysed" | "nextCallback" | "propensity";
 
 /**
  * My patch: the signed-in consultant's companies, sortable by what matters
@@ -28,8 +21,6 @@ type SortKey = "name" | "openVacancies" | "agencySpend" | "spendChange" | "ppTas
 export default function MyPatch() {
   const { profile } = useAuth();
   const navigate = useNavigate();
-  // Follow-ups slice 1, behind profiles.features.follow_ups: "Warm right now".
-  const followUps = hasFeature(profile, "follow_ups");
   const { data, error, isLoading, refetch } = useQuery({ queryKey: ["patch"], queryFn: loadPatch, staleTime: 60_000 });
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "propensity", dir: "desc" });
   const [rescoring, setRescoring] = useState<string | null>(null);
@@ -39,8 +30,8 @@ export default function MyPatch() {
     setRescoring(error ? `Could not recompute: ${error.message}` : `Scored ${data?.companies ?? 0} companies`);
     await refetch();
   };
-  const [la, setLa] = useState("all");
-  const [phase, setPhase] = useState("all");
+  const [stage, setStage] = useState("all");
+  const [sector, setSector] = useState("all");
   const [consultant, setConsultant] = useState<string>("mine");
   const [q, setQ] = useState("");
 
@@ -60,24 +51,24 @@ export default function MyPatch() {
     let list = data.companies;
     if (consultant === "mine") list = list.filter((s) => s.consultantIds.some((id) => myConsultantIds.includes(id)));
     else if (consultant !== "all") list = list.filter((s) => s.consultantIds.includes(consultant));
-    if (la !== "all") list = list.filter((s) => s.laName === la);
-    if (phase !== "all") list = list.filter((s) => s.phase === phase);
+    if (stage !== "all") list = list.filter((s) => s.stage === stage);
+    if (sector !== "all") list = list.filter((s) => s.sector === sector);
     if (q.trim()) { const needle = q.trim().toLowerCase(); list = list.filter((s) => s.name.toLowerCase().includes(needle)); }
     const dir = sort.dir === "asc" ? 1 : -1;
     const val = (s: PatchCompany): number | string => {
       switch (sort.key) {
         case "name": return s.name.toLowerCase();
-        case "openVacancies": return s.openVacancies;
-        case "agencySpend": return s.agencySpend ?? -1;
-        case "spendChange": return s.spendChange === null ? -999 : Number.isFinite(s.spendChange) ? s.spendChange : 999;
-        case "ppTas": return s.ppTasPerWeek ?? -1;
+        case "stage": return STAGE_ORDER.indexOf(s.stage);
+        case "openRoles": return s.openRoles;
+        case "talentRoles": return s.talentRoles;
+        case "raise": return s.latestRaise?.amountGbp ?? (s.latestRaise ? 0 : -1);
         case "lastAnalysed": return s.lastAnalysed || "";
         case "nextCallback": return s.nextCallback || (sort.dir === "asc" ? "9999" : "");
         case "propensity": return s.propensity ?? -1;
       }
     };
     return [...list].sort((a, b) => { const x = val(a), y = val(b); return x < y ? -dir : x > y ? dir : a.name.localeCompare(b.name); });
-  }, [data, consultant, la, phase, q, sort, myConsultantIds]);
+  }, [data, consultant, stage, sector, q, sort, myConsultantIds]);
 
   const header = (key: SortKey, label: string, align = "text-left") => (
     <th className={`py-2 pr-3 ${align}`}>
@@ -98,14 +89,14 @@ export default function MyPatch() {
             <Input id="patch-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Company name" />
           </div>
           <div>
-            <label htmlFor="patch-la" className="text-xs text-muted-foreground block">Local authority</label>
-            <Select value={la} onValueChange={setLa}><SelectTrigger id="patch-la" className="w-52"><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value="all">All</SelectItem>{(data?.las || []).map((x) => <SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select>
+            <label htmlFor="patch-stage" className="text-xs text-muted-foreground block">Stage</label>
+            <Select value={stage} onValueChange={setStage}><SelectTrigger id="patch-stage" className="w-44"><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="all">All</SelectItem>{STAGE_ORDER.map((x) => <SelectItem key={x} value={x}>{STAGE_LABELS[x]}</SelectItem>)}</SelectContent></Select>
           </div>
           <div>
-            <label htmlFor="patch-phase" className="text-xs text-muted-foreground block">Phase</label>
-            <Select value={phase} onValueChange={setPhase}><SelectTrigger id="patch-phase" className="w-40"><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value="all">All</SelectItem>{(data?.phases || []).map((x) => <SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select>
+            <label htmlFor="patch-sector" className="text-xs text-muted-foreground block">Sector</label>
+            <Select value={sector} onValueChange={setSector}><SelectTrigger id="patch-sector" className="w-52"><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="all">All</SelectItem>{(data?.sectors || []).map((x) => <SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select>
           </div>
           <div>
             <label htmlFor="patch-consultant" className="text-xs text-muted-foreground block">Consultant</label>
@@ -125,9 +116,6 @@ export default function MyPatch() {
         {error && <p className="text-sm text-destructive" role="alert">Could not load: {(error as Error).message}</p>}
         {data && rows.length === 0 && <p className="text-sm text-muted-foreground">No companies match. Assign companies from the Companies page, or widen the filters.</p>}
 
-        {followUps && data && rows.length > 0 && <FollowUpsDueCard companies={rows} />}
-        {followUps && data && rows.length > 0 && <WarmNowCard companies={rows} />}
-
         {rows.length > 0 && (
           <div className="overflow-x-auto rounded-lg border border-border">
             <table className="w-full text-sm">
@@ -135,64 +123,50 @@ export default function MyPatch() {
               <thead className="bg-muted/40 text-xs text-muted-foreground">
                 <tr>
                   {header("name", "Company")}
-                  <th className="py-2 pr-3 text-left font-medium">LA</th>
-                  <th className="py-2 pr-3 text-left font-medium">Phase</th>
+                  {header("stage", "Stage")}
+                  <th className="py-2 pr-3 text-left font-medium">Sector</th>
                   {consultant !== "mine" && <th className="py-2 pr-3 text-left font-medium">Consultants</th>}
-                  {header("openVacancies", "Open vacancies", "text-right")}
-                  {header("agencySpend", "Agency spend", "text-right")}
-                  {header("spendChange", "Trend", "text-left")}
-                  <th className="py-2 pr-2 text-right whitespace-nowrap">
-                    <button type="button" className="inline-flex items-center gap-1 font-medium hover:text-foreground" onClick={() => setSort((s) => ({ key: "ppTas", dir: s.key === "ppTas" && s.dir === "desc" ? "asc" : "desc" }))} aria-sort={sort.key === "ppTas" ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}>
-                      TAs a week (PP)<ArrowUpDown className="h-3 w-3 opacity-60" aria-hidden="true" />
-                    </button>
-                    <SourceNote text={PP_TAS_SOURCE} label="How TAs a week is worked out" />
-                  </th>
+                  {header("openRoles", "Open roles", "text-right")}
+                  {header("talentRoles", "Talent roles", "text-right")}
+                  {header("raise", "Latest raise", "text-left")}
                   {header("lastAnalysed", "Last analysed", "text-right")}
                   {header("nextCallback", "Next call", "text-right")}
                   {header("propensity", "Likely to buy", "text-right")}
                 </tr>
               </thead>
               <tbody>
-                {rows.map((s) => (
-                  <tr key={s.id} className="border-t border-border/60 hover:bg-muted/30">
-                    <td className="py-2 pr-3 pl-3">
-                      <button type="button" className="text-left font-medium text-foreground hover:underline" onClick={() => navigate(`/companies/${s.id}`)}>{s.name}</button>
-                      {s.websiteAccess ? <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground" title="The site challenges every automated reader; the DfE record, the job boards and the spend still come through">{s.websiteAccess}</span> : s.degraded && <span className="ml-2 rounded bg-warning/15 px-1.5 py-0.5 text-[10px] text-warning">website unreachable</span>}
-                      {s.lastOutcome && <span className="block text-xs text-muted-foreground">{OUTCOME_LABELS[s.lastOutcome.kind] || s.lastOutcome.kind} {formatWhen(s.lastOutcome.at)}</span>}
-                    </td>
-                    <td className="py-2 pr-3 text-muted-foreground">{s.laName || ""}</td>
-                    <td className="py-2 pr-3 text-muted-foreground">{s.phase || ""}</td>
-                    {consultant !== "mine" && <td className="py-2 pr-3 text-muted-foreground">{s.consultantNames.join(", ")}</td>}
-                    <td className="py-2 pr-3 text-right tabular-nums">{s.openVacancies || ""}</td>
-                    <td className="py-2 pr-3 text-right tabular-nums" title={s.agencySpendYear ? `Supply and agency teaching staff, ${s.agencySpendYear}${s.spendPerPupil ? `; ${formatMoney(s.spendPerPupil)} per pupil` : ""} (DfE benchmarking)` : undefined}>{formatMoney(s.agencySpend)}</td>
-                    <td className="py-2 pr-3 text-xs" title={s.spendSummary || undefined}>
-                      {s.spendDirection ? <span className={`font-semibold ${DIRECTION_CLASS[s.spendDirection]}`}><span aria-hidden="true">{DIRECTION_ARROW[s.spendDirection]} </span>{s.spendChange !== null && Number.isFinite(s.spendChange) ? pct(s.spendChange) : DIRECTION_LABEL[s.spendDirection]}{s.spendRisingTwoYears ? <span className="text-muted-foreground"> ×2</span> : ""}</span> : <span className="text-muted-foreground">–</span>}
-                    </td>
-                    <td className="py-2 pr-2 text-right tabular-nums whitespace-nowrap" title={s.ppTasPerWeek !== null ? `${s.ppWorking.join(" ")}${s.ppYear ? ` Statement ${s.ppYear}.` : ""}` : undefined}>
-                      {s.ppTasPerWeek === null ? "" : s.ppConfidence === "high" ? <span className="font-semibold text-foreground">{s.ppTasPerWeek}</span> : <span className="text-foreground">{s.ppTasPerWeek}<span className="ml-0.5 text-[10px] text-muted-foreground">est.</span></span>}
-                    </td>
-                    <td className="py-2 pr-3 text-right text-muted-foreground">{formatWhen(s.lastAnalysed)}</td>
-                    <td className="py-2 pr-3 text-right">{s.nextCallback ? <span className="text-primary font-medium">{formatWhen(s.nextCallback)}</span> : ""}</td>
-                    <td className="py-2 pr-3 text-right">
-                      {s.propensity === null ? <span className="text-muted-foreground">–</span> : (
-                        <span className={`inline-block min-w-9 rounded-md border px-1.5 py-0.5 text-center text-xs font-semibold tabular-nums ${BAND_CLASSES[scoreBand(s.propensity)!]}`} title={s.propensityReasons.join("\n") || undefined}>{s.propensity}</span>
-                      )}
-                      {s.propensityReason && <span className="block max-w-72 truncate text-[11px] text-muted-foreground" title={s.propensityReason}>{s.propensityReason}</span>}
-                    </td>
-                  </tr>
-                ))}
+                {rows.map((s) => {
+                  const raise = latestRaiseLine(s.latestRaise);
+                  const raiseDetail = latestRaiseDetail(s.latestRaise);
+                  return (
+                    <tr key={s.id} className="border-t border-border/60 hover:bg-muted/30">
+                      <td className="py-2 pr-3 pl-3">
+                        <button type="button" className="text-left font-medium text-foreground hover:underline" onClick={() => navigate(`/companies/${s.id}`)}>{s.name}</button>
+                        {companyIsClosed(s.status) ? <span className="ml-2 rounded bg-critical/15 px-1.5 py-0.5 text-[10px] text-critical" title="Companies House lists the company as closed; it is not refreshed, alerted or scored again">{companyStatusLabel(s.status).toLowerCase()}</span> : s.websiteAccess ? <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground" title="The site challenges every automated reader; the register and the careers feeds still come through">{s.websiteAccess}</span> : s.degraded && <span className="ml-2 rounded bg-warning/15 px-1.5 py-0.5 text-[10px] text-warning">website unreachable</span>}
+                        {s.lastOutcome && <span className="block text-xs text-muted-foreground">{OUTCOME_LABELS[s.lastOutcome.kind] || s.lastOutcome.kind} {formatWhen(s.lastOutcome.at)}</span>}
+                      </td>
+                      <td className="py-2 pr-3 text-muted-foreground" title={s.stageEvidence || undefined}>{s.stage === "unknown" ? "" : stageLabel(s.stage)}</td>
+                      <td className="py-2 pr-3 text-muted-foreground">{s.sector || ""}</td>
+                      {consultant !== "mine" && <td className="py-2 pr-3 text-muted-foreground">{s.consultantNames.join(", ")}</td>}
+                      <td className="py-2 pr-3 text-right tabular-nums">{s.openRoles || ""}</td>
+                      <td className="py-2 pr-3 text-right tabular-nums">{s.talentRoles ? <span className="font-semibold text-warning">{s.talentRoles}</span> : ""}</td>
+                      <td className="py-2 pr-3 text-xs whitespace-nowrap" title={raiseDetail || undefined}>{raise || (s.latestRaise ? <span className="text-muted-foreground">round, size not stated</span> : "")}</td>
+                      <td className="py-2 pr-3 text-right text-muted-foreground">{formatWhen(s.lastAnalysed)}</td>
+                      <td className="py-2 pr-3 text-right">{s.nextCallback ? <span className="text-primary font-medium">{formatWhen(s.nextCallback)}</span> : ""}</td>
+                      <td className="py-2 pr-3 text-right">
+                        {s.propensity === null ? <span className="text-muted-foreground">–</span> : (
+                          <span className={`inline-block min-w-9 rounded-md border px-1.5 py-0.5 text-center text-xs font-semibold tabular-nums ${BAND_CLASSES[scoreBand(s.propensity)!]}`} title={s.propensityReasons.join("\n") || undefined}>{s.propensity}</span>
+                        )}
+                        {s.propensityReason && <span className="block max-w-72 truncate text-[11px] text-muted-foreground" title={s.propensityReason}>{s.propensityReason}</span>}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
-        {data && (
-          <NewCompaniesCard
-            las={consultant === "all" ? null : Array.from(new Set(rows.map((s) => s.laName).filter((x): x is string => !!x)))}
-            trackedUrns={new Set(data.companies.map((s) => s.urn).filter((x): x is string => !!x))}
-            title={consultant === "all" ? "New companies in the patch" : "New companies in your patch"}
-          />
-        )}
-        <p className="text-xs text-muted-foreground">{rows.length} companies. "Agency spend" is supply plus agency supply teaching staff in the latest published year (DfE benchmarking); "Trend" is the change on the year before, with ×2 when it has risen two years running. "Likely to buy" is the propensity score (0 to 100) from the company's signals and your call outcomes, recomputed after each analysis and every morning; open the company to see every line that made it. "TAs a week (PP)" is our estimate from the company's own pupil premium statement (bold when the company states hours or numbers, "est." from a pound figure, blank when nothing is stated).</p>
+        <p className="text-xs text-muted-foreground">{rows.length} companies. "Stage" is the round the company describes itself as being at, from its own words, the funding news and the register (hover for the evidence). "Open roles" counts every live role on its careers feeds and careers page; "Talent roles" counts the ones in the people and talent family (a recruiter, a talent partner, a head of people), the roles this team places. "Latest raise" is the most recent round the evidence found; hover for the date and the investors. "Likely to buy" is the propensity score (0 to 100) from the company's signals and your call outcomes, recomputed after each analysis and every morning; open the company to see every line that made it.</p>
       </main>
     </div>
   );

@@ -1,71 +1,68 @@
-# WhoFoundWho value proposition (reference for script and email generation)
+# Big Fish Recruitment value proposition (reference for script and email generation)
 
 This file is read by the copy generator before every call. Edit it freely:
-plain sentences, one idea per line, no figures for margins or fees. Anything
-here is reference material for the writer, never text to paste verbatim.
-A redeploy of the `generate-copy` and `analyze-school` functions picks up
-changes.
+plain sentences, one idea per line, no figures for fees, retainers or
+percentages. Anything here is reference material for the writer, never text
+to paste verbatim. A redeploy of the `generate-copy` and `analyze-company`
+functions picks up changes (run `node scripts/embed-value-proposition.mjs`
+first so the embedded fallback matches).
+
+PLACEHOLDER, 21 September 2026. Every line marked `[Craig to confirm]` is an
+assumption, not a verified claim. The writer is told to skip a marked line
+and never to write the marker; the marker is a banned phrase in the checks.
+Craig replaces this file with the brand, the positioning, the proof points
+and the ask in his own words (docs/TA-SEARCHER-BRIEF.md, questions 1 to 4).
 
 ## Who we are
 
-- WhoFoundWho is an education recruitment agency in London and the Home
-  Counties, part of the Big Fish Recruitment group.
-- We place teachers, leaders and support staff in primary, secondary, SEN,
-  FE and HE settings, on long-term, fixed-term and permanent terms, and we
-  arrange planned cover that a school tells us about in advance.
-- We do not do daily supply. No same-day or short-notice cover, no 6.30am
-  calls: never offer it, never mention it.
-- Positioning in our own words: "Education recruitment, London, built on real
-  partnerships." "We consult, listen and take care." "We match, not just
-  fill." "Compliance handled, feedback shared, and a real relationship
-  maintained long after the placement starts."
-- The team has over 30 years of combined experience; every consultant has
-  eight to eighteen years in education recruitment and knows the setting and
-  its safeguarding expectations.
+- Big Fish Recruitment places Heads of Talent Acquisition and Heads of
+  Recruitment into seed and Series A start-ups in the United Kingdom, London
+  first. [Craig to confirm: the brand that sends and signs, and the
+  positioning line.]
+- The firm is run by Craig Springett, who has spent over twenty years in
+  recruitment running agencies and building recruitment teams. [Craig to
+  confirm: the years and the wording.]
+- The idea in one sentence: a start-up that has raised and is hiring across
+  the board needs one person who owns hiring, and we find that person.
+- We place the person who then hires everyone else. We do not fill the
+  engineering, sales or operations roles ourselves. [Craig to confirm.]
 
 ## Proof points (use one or two, never all of them)
 
-- Framework approved: WhoFoundWho is a DfE-approved Lot 1 agency on RM6376,
-  the framework for supply teachers and education recruitment. From October
-  2026 academy trusts must engage agency staff through an approved framework
-  agency. This is the strongest current hook for trusts and their schools.
-- Rates barely moved: most agencies had to cut their margins sharply to get
-  on the framework; ours were already close to the cap. Framework rates apply
-  to every school, new and existing, from September 2026, a month before
-  required. A school can check that against any invoice we have sent.
-- Compliance: 99% APSCo compliance score, independently audited on
-  safeguarding and vetting, in the top 5% of the entire APSCo body, achieved
-  before the framework required it.
-- Reputation: 4.97 average review score across 947 reviews, Net Promoter
-  Score of 98.
-- Wellbeing community: around 500 teachers and support staff receive a weekly
-  wellbeing message, video or practical read from us. Staff who feel looked
-  after stay, which matters to schools that care about supply quality and
-  consistency.
-- Technology: matching, screening and compliance checks run in the
-  background so consultants spend their time on the school and the person.
+- Searchable: a Series A AI company in London with thirteen open roles on
+  its Ashby board when the search began. We placed its Head of Recruitment
+  in 2026. [Craig to confirm: the brief, the time to hire and what the
+  founders said.]
+- Other placements in technology companies. [Craig to confirm: two or three
+  lines each, or remove this line.]
+- Craig's own background: over twenty years in recruitment, having run
+  agencies and built talent functions, so the conversation with a founder is
+  about what the role should own, not about CVs. [Craig to confirm.]
 
 ## How we work
 
-- We listen first: the setting, the pupils, the culture, the timescales.
-- We match, not just fill: we know the people we put forward, so they fit in
-  the classroom, not just on paper.
-- We stay close: compliance handled, feedback shared, and a relationship kept
-  long after the placement starts.
-- Values: Be Excellent, Be Human, Collaboration, Own It.
+- We start with the hiring plan: the roles open now, the ones the raise pays
+  for, who is running hiring today and how much of the founders' time it
+  takes.
+- We scope the Head of Talent role with the founders before we search: what
+  it owns, where it sits, what the first ninety days look like.
+- We know the people we put forward and we stay close after the placement
+  starts. [Craig to confirm.]
 
 ## The ask
 
-- Fifteen minutes is all it takes to see our margin and our compliance file.
-- Schools can find WhoFoundWho on the DfE agency selection tool, or call.
+- A fifteen-minute call about the hiring plan for the next twelve months.
+  [Craig to confirm: the ask in his words, or an introduction to the
+  Searchable hire, or a retained-search conversation.]
 
 ## Never say
 
-- Never offer daily supply, day-to-day supply, same-day, short-notice,
-  last-minute or emergency cover. We place long-term, fixed-term and
-  permanent staff, and planned cover agreed in advance.
-- Never quote a margin, a fee, a percentage or a daily rate. Refer to
-  framework rates and transparency, and invite the school to see the margin
-  on a call.
-- Never claim a candidate, a shortlist or availability that is not in the
-  input.
+- Never quote a fee, a percentage of salary, a retainer figure or a day
+  rate. The commercial shape (retained or contingent) is for the call.
+  [Craig to confirm whether the writer may open the retained-versus-
+  contingent conversation at all.]
+- Never promise a candidate, a shortlist or availability that is not in
+  the input.
+- Never imply the company is failing at hiring. Say what they are doing
+  and ask how it is going.
+- Never write "[Craig to confirm]" or use a claim that carries it.

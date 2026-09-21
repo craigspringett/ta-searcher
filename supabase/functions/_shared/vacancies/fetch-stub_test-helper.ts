@@ -1,5 +1,6 @@
-// Replace globalThis.fetch for one test: a map of URL (or URL prefix) to the
-// answer, and a log of what was asked for. Restored by `restore()`.
+// Replace globalThis.fetch for one test: a map of URL to the answer (a key
+// ending in /, ? or = matches as a prefix), and a log of what was asked for.
+// Restored by `restore()`.
 export interface StubAnswer {
   status?: number;
   body?: string | object;
@@ -12,7 +13,7 @@ export function stubFetch(answers: Record<string, StubAnswer | ((url: string, in
   globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
     calls.push({ url, method: init?.method || 'GET' });
-    const key = Object.keys(answers).find((k) => url === k || url.startsWith(k));
+    const key = Object.keys(answers).find((k) => url === k) ?? Object.keys(answers).find((k) => /[/?=]$/.test(k) && url.startsWith(k));
     const a = key ? (typeof answers[key] === 'function' ? (answers[key] as any)(url, init) : answers[key]) : { status: 404, body: 'not stubbed' };
     const body = typeof a.body === 'string' ? a.body : a.body === undefined ? '' : JSON.stringify(a.body);
     return Promise.resolve(new Response(body, { status: a.status ?? 200, headers: a.headers ?? {} }));

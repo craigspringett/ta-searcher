@@ -13,7 +13,7 @@
 insert into public.app_settings (key, value) values
   ('brief_copy_recipients', '[]'::jsonb),
   ('engagement_alerts', '{"enabled": true, "opens": true, "clicks": true, "off_for": []}'::jsonb),
-  ('sending_domains', '["notify.whofoundwho.co.uk"]'::jsonb)
+  ('sending_domains', '["notify.bigfishrecruitment.co.uk"]'::jsonb)
 on conflict (key) do nothing;
 
 -- The email queue's one state row (the baseline inserts it too; harmless here).

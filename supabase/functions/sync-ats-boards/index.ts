@@ -113,7 +113,7 @@ Deno.serve(async (req) => {
   const dryRun = body.dryRun === true;
   const today = new Date();
   const startedAt = today.toISOString();
-  const { data: run } = await supabase.from('pipeline_runs').insert({ phase: 'ats_sync', started_at: startedAt, status: 'running', details: { dryRun, companyIds: companyIds?.length ?? 'all', limit } }).select('id').maybeSingle();
+  const { data: run } = await supabase.from('pipeline_runs').insert({ phase: 'ats_boards', started_at: startedAt, status: 'running', details: { dryRun, companyIds: companyIds?.length ?? 'all', limit } }).select('id').maybeSingle();
   const runId = run?.id;
   let failed: string | null = null;
   const details: Record<string, unknown> = { dryRun };

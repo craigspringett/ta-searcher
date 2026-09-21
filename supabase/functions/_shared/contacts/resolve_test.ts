@@ -1,6 +1,6 @@
 import { assert, assertEquals } from '../test-assert.ts';
 import { extractEmails, extractPeople, extractPhones } from './extract.ts';
-import { classifyRole, genericMailbox, guessByPattern, resolveContacts, type Contact } from './resolve.ts';
+import { classifyRole, GENERAL_MAILBOX_ROLE, genericMailbox, guessByPattern, INVESTOR_RANK, resolveContacts, roleLabel, type Contact } from './resolve.ts';
 
 const here = new URL('.', import.meta.url).pathname;
 const fixture = (name: string) => Deno.readTextFileSync(`${here}fixtures/${name}`);
@@ -16,143 +16,192 @@ function resolveFixture(name: string, url: string, extra: Partial<Parameters<typ
   });
 }
 
-Deno.test('role taxonomy ranks recruitment decision makers and ignores the rest', () => {
-  assertEquals(classifyRole('Headteacher')?.rank, 1);
-  assertEquals(classifyRole('Executive Headteacher and DSL')?.rank, 1);
-  assertEquals(classifyRole('Head of Company and Designated Safeguarding Lead')?.rank, 1);
-  assertEquals(classifyRole('Deputy Headteacher')?.rank, 2);
-  assertEquals(classifyRole('Acting Deputy Headteacher')?.rank, 2);
-  assertEquals(classifyRole('Assistant Headteacher, SENDCO and Deputy DSL')?.rank, 3);
-  assertEquals(classifyRole('Company Business Manager')?.rank, 4);
-  assertEquals(classifyRole('Bursar')?.rank, 4);
-  assertEquals(classifyRole('Special Educational Needs Coordinator (SENCo)')?.rank, 5);
-  assertEquals(classifyRole('HR Manager')?.rank, 6);
-  assertEquals(classifyRole('PA to Executive Headteacher and Head of Upper Company')?.rank, 7);
-  assertEquals(classifyRole('Office Manager')?.rank, 7);
-  assertEquals(classifyRole('Chair of Governors')?.rank, 8);
-  assertEquals(classifyRole('Chief Executive Officer')?.rank, 9);
-  assertEquals(classifyRole('Head of Year 7'), null);
-  assertEquals(classifyRole('Teacher of Geography'), null);
-  assertEquals(classifyRole('Designated Safeguarding Lead (DSL)'), null);
-  assertEquals(classifyRole('Governor'), null);
+Deno.test('role taxonomy: founder, coo, cto, people, talent, exec, ea, investor in rank order; the rest are not decision makers', () => {
+  assertEquals(classifyRole('Founder')?.rank, 1);
+  assertEquals(classifyRole('Co-founder and CEO')?.key, 'founder');
+  assertEquals(classifyRole('Co-founder and CTO')?.key, 'founder');
+  assertEquals(classifyRole('Chief Executive Officer')?.key, 'founder');
+  assertEquals(classifyRole('COO')?.rank, 2);
+  assertEquals(classifyRole('Chief of Staff')?.key, 'coo');
+  assertEquals(classifyRole('Head of Operations')?.key, 'coo');
+  assertEquals(classifyRole('VP Operations')?.key, 'coo');
+  assertEquals(classifyRole('CTO')?.rank, 3);
+  assertEquals(classifyRole('VP Engineering')?.key, 'cto');
+  assertEquals(classifyRole('Head of Engineering')?.key, 'cto');
+  assertEquals(classifyRole('Chief People Officer')?.rank, 4);
+  assertEquals(classifyRole('Director of People')?.key, 'people');
+  assertEquals(classifyRole('People Partner')?.key, 'people');
+  assertEquals(classifyRole('Head of Talent')?.key, 'talent');
+  assertEquals(classifyRole('Head of Talent')?.rank, 5);
+  assertEquals(classifyRole('Head of Recruitment')?.key, 'talent');
+  assertEquals(classifyRole('Talent Partner')?.key, 'talent');
+  assertEquals(classifyRole('Senior Technical Recruiter')?.key, 'talent');
+  assertEquals(classifyRole('Chief Product Officer')?.key, 'exec');
+  assertEquals(classifyRole('VP Sales')?.key, 'exec');
+  assertEquals(classifyRole('Director of Marketing')?.key, 'exec');
+  assertEquals(classifyRole('Chief Marketing Officer')?.rank, 6);
+  assertEquals(classifyRole('EA to the CEO')?.key, 'ea');
+  assertEquals(classifyRole('Executive Assistant')?.rank, 7);
+  assertEquals(classifyRole('Office Manager')?.key, 'ea');
+  assertEquals(classifyRole('Partner, Headline')?.key, 'investor');
+  assertEquals(classifyRole('Partner, Headline')?.rank, INVESTOR_RANK);
+  assertEquals(classifyRole('Non-executive Director')?.key, 'investor');
+  assertEquals(classifyRole('Board member')?.key, 'investor');
+  assertEquals(classifyRole('Angel investor')?.key, 'investor');
+  assertEquals(classifyRole('Account Executive'), null);
+  assertEquals(classifyRole('Customer Success Manager'), null);
+  assertEquals(classifyRole('Engineering Manager'), null);
+  assertEquals(classifyRole('Founding Engineer'), null);
+  assertEquals(classifyRole('Senior Software Engineer'), null);
+  assertEquals(classifyRole('Investor Relations Manager'), null);
+  assertEquals(classifyRole('Product Designer'), null);
+  assertEquals(roleLabel('Head of Talent Acquisition'), 'Head of Talent');
+  assertEquals(roleLabel('Co-founder'), 'Founder / CEO');
+  assertEquals(roleLabel('Partner at Seedcamp'), null, 'a partner is an investor only when the word leads the title');
+  assertEquals(classifyRole('General Partner, Seedcamp')?.key, 'investor');
 });
 
-Deno.test('generic mailboxes map to the role the local part implies', () => {
-  assertEquals(genericMailbox('head@x.sch.uk')?.rank, 1);
-  assertEquals(genericMailbox('senco@x.sch.uk')?.rank, 5);
-  assertEquals(genericMailbox('office@x.sch.uk')?.role, 'Company office');
-  assertEquals(genericMailbox('j.smith@x.sch.uk'), null);
+Deno.test('generic mailboxes: the ranked ones map to a role, the deny list never shows, a person\'s address is not generic', () => {
+  assertEquals(genericMailbox('founders@x.io')?.rank, 1);
+  assertEquals(genericMailbox('people@x.io')?.rank, 4);
+  assertEquals(genericMailbox('careers@x.io')?.rank, 5);
+  assertEquals(genericMailbox('jobs@x.io')?.role, 'Careers mailbox');
+  assertEquals(genericMailbox('talent@x.io')?.rank, 5);
+  assertEquals(genericMailbox('recruiting@x.io')?.rank, 5);
+  assertEquals(genericMailbox('hiring@x.io')?.rank, 5);
+  for (const g of ['hello', 'hi', 'team', 'info', 'contact']) assertEquals(genericMailbox(`${g}@x.io`)?.role, GENERAL_MAILBOX_ROLE, g);
+  for (const d of ['press', 'media', 'support', 'help', 'sales', 'privacy', 'legal', 'security', 'billing', 'abuse', 'dpo', 'partnerships', 'investors', 'noreply', 'no-reply']) assertEquals(genericMailbox(`${d}@x.io`)?.rank, -1, d);
+  assertEquals(genericMailbox('j.smith@x.io'), null);
 });
 
-Deno.test('Stanborough: table rows give found contacts joined in-row, ranked head first', () => {
-  const out = resolveFixture('stanborough-staff-table.html', 'https://www.stanborough.herts.sch.uk/staff');
-  assert(out.contacts.length >= 4 && out.contacts.length <= 8, `${out.contacts.length}`);
-  assertEquals(out.contacts[0].name, 'Mrs M John');
-  assertEquals(out.contacts[0].email, 'head@stanborough.herts.sch.uk');
-  assertEquals(out.contacts[0].confidence, 'found');
-  assertEquals(out.contacts[0].rank, 1);
-  const deputy = out.contacts.find((c) => c.name === 'Mr G Persand')!;
-  assertEquals(deputy.email, 'gpersand@stanborough.herts.sch.uk');
-  assertEquals(deputy.confidence, 'found');
-  for (const c of out.contacts) if (c.email) assert(/@stanborough\.herts\.sch\.uk$/.test(c.email), c.email);
+Deno.test('the team cards site end to end: founders found in-card, name-only leaders, a guess for the Head of Talent, investors never guessed', () => {
+  const out = resolveFixture('startup-team-cards.html', 'https://lumenly.ai/team');
+  const by = Object.fromEntries(out.contacts.map((c) => [c.name, c]));
+  assertEquals(by['Sarah Green'].confidence, 'found');
+  assertEquals(by['Sarah Green'].email, 'sarah.green@lumenly.ai');
+  assertEquals(by['Sarah Green'].rank, 1);
+  assertEquals(by['David Brown'].confidence, 'found');
+  assertEquals(by['David Brown'].email, 'david.brown@lumenly.ai');
+  assertEquals(by['David Brown'].rank, 1, 'a co-founder and CTO is a founder');
+  assertEquals(by['Omar Khan'].confidence, 'pattern_guess');
+  assertEquals(by['Omar Khan'].email, 'omar.khan@lumenly.ai');
+  assertEquals(by['Amy Jones'].confidence, 'pattern_guess');
+  assertEquals(by['Amy Jones'].rank, 2);
+  assertEquals(by['Priya Shah'].rank, 4);
+  assertEquals(by['Helen Wood'].confidence, 'role_only', 'the fund partner is never pattern-guessed');
+  assertEquals(by['Helen Wood'].email, '');
+  assertEquals(by['Helen Wood'].rank, INVESTOR_RANK);
+  assert(!by['Ben Carter'], 'an account executive is not a decision maker');
+  assert(!by['Lucy Moore'], 'an engineering manager is not a decision maker');
+  assert(!by['Series A'] && !by['Open Roles'], Object.keys(by).join(' | '));
+  assert(out.patternNote && /first\.last@lumenly\.ai/.test(out.patternNote), out.patternNote || 'no note');
+  const ranks = out.contacts.map((c) => c.rank!);
+  assertEquals([...ranks].sort((a, b) => a - b), ranks, 'ordered by rank');
+  assert(!out.contacts.some((c) => c.email === 'press@lumenly.ai'), 'the press mailbox never shows');
+  assert(!out.contacts.some((c) => c.email === 'lucy.moore@lumenly.ai'), 'an engineering manager\'s address is not a contact');
 });
 
-Deno.test('Central Foundation Boys: names joined by surname in the local part; head is name-only; office mailbox once', () => {
-  const out = resolveFixture('central-foundation-contact.html', 'https://www.centralfoundationboys.co.uk/contact-us');
-  const head = out.contacts.find((c) => c.rank === 1)!;
-  assertEquals(head.name, 'Jamie Brownhill');
-  assertEquals(head.confidence, 'role_only');
-  assertEquals(head.email, '');
-  const senco = out.contacts.find((c) => c.rank === 5)!;
-  assertEquals(senco.name, 'Ms Lafaverges');
-  assertEquals(senco.email, 'lafavergesp@cfbs.islington.sch.uk');
-  assertEquals(senco.confidence, 'found');
-  const office = out.contacts.filter((c) => c.role === 'Company office');
-  assertEquals(office.length, 1);
-  assertEquals(office[0].email, 'info@cfbs.islington.sch.uk');
-  const chair = out.contacts.find((c) => c.rank === 8)!;
-  assertEquals(chair.name, 'Simon Dodds');
-  assertEquals(chair.confidence, 'role_only');
+Deno.test('the leadership table: rows joined in-row and by surname in the local part, the general mailbox once with the phone, the NED name-only', () => {
+  const out = resolveFixture('startup-team-table.html', 'https://fathom-robotics.co.uk/leadership');
+  const by = Object.fromEntries(out.contacts.map((c) => [c.name, c]));
+  assertEquals(by['Grace Persand'].email, 'grace@fathom-robotics.co.uk');
+  assertEquals(by['Grace Persand'].confidence, 'found');
+  assertEquals(by['Grace Persand'].rank, 1);
+  assertEquals(by['Marcus Donachy'].email, 'm.donachy@fathom-robotics.co.uk');
+  assertEquals(by['Marcus Donachy'].rank, 3);
+  assertEquals(by['Kate Hirani'].email, 'kr.hirani@fathom-robotics.co.uk', 'a surname in the local part joins the talent partner');
+  assertEquals(by['Kate Hirani'].confidence, 'found');
+  assertEquals(by['Nadia Hirani'].email, '', 'the other Hirani does not get the address: the leading component contradicts');
+  assertEquals(by['Nadia Hirani'].confidence, 'role_only');
+  assertEquals(by['Tom Lafaverges'].confidence, 'role_only');
+  assertEquals(by['Simon Dodds'].rank, INVESTOR_RANK);
+  assertEquals(by['Simon Dodds'].confidence, 'role_only');
+  const general = out.contacts.filter((c) => c.role === GENERAL_MAILBOX_ROLE);
+  assertEquals(general.length, 1);
+  assertEquals(general[0].email, 'info@fathom-robotics.co.uk');
+  assertEquals(general[0].phone, '020 7946 0200');
+  assert(!out.contacts.some((c) => c.email === 'chloe@fathom-robotics.co.uk'), 'customer success is not a contact');
+  // grace@ and m.donachy@ do not share a pattern, so nothing is guessed for the name-only people.
+  assertEquals(out.patternNote, null);
+  for (const c of out.contacts) if (c.email) assert(/@fathom-robotics\.co\.uk$/.test(c.email), c.email);
 });
 
-Deno.test('Preston Manor: executive head and PA are name-only; the office mailbox is found and carries the phone', () => {
-  const out = resolveFixture('preston-manor-contact-table.html', 'https://www.preston-manor.com/contact-us');
-  const head = out.contacts.find((c) => c.rank === 1)!;
-  assertEquals(head.name, 'Mr Russell Denial');
-  assertEquals(head.confidence, 'role_only');
-  const pa = out.contacts.find((c) => c.rank === 7 && c.name === 'Ms Sharon Collins')!;
-  assert(pa, JSON.stringify(out.contacts.map((c) => [c.name, c.role, c.email])));
-  const office = out.contacts.find((c) => c.role === 'Company office')!;
-  assertEquals(office.email, 'info@preston-manor.com');
-  assertEquals(office.phone, '020 8385 4040');
-  // No address on the page for the head, so nothing is invented for him.
-  assert(!out.contacts.some((c) => /denial/.test(c.email)));
+Deno.test('the obfuscated about page: every decoded address joins its person; deny-listed mailboxes never show', () => {
+  const out = resolveFixture('startup-about-obfuscated.html', 'https://example-health.io/about');
+  const by = Object.fromEntries(out.contacts.map((c) => [c.name, c]));
+  assertEquals(by['Jane Bloggs'].email, 'j.bloggs@example-health.io');
+  assertEquals(by['Jane Bloggs'].rank, 1);
+  assertEquals(by['Tom Patel'].email, 't.patel@example-health.io');
+  assertEquals(by['Tom Patel'].rank, 2);
+  assertEquals(by['Priya Shah'].email, 'p.shah@example-health.io');
+  assertEquals(by['Priya Shah'].rank, 5);
+  assertEquals(by['Alan Reid'].rank, INVESTOR_RANK);
+  assert(!out.contacts.some((c) => /^(press|support)@/.test(c.email)), JSON.stringify(out.contacts.map((c) => c.email)));
+  const founders = out.contacts.find((c) => c.email === 'founders@example-health.io');
+  assert(founders && founders.rank === 1 && founders.name === '', 'the founders mailbox is a ranked generic');
+  const careers = out.contacts.find((c) => c.email === 'careers@example-health.io');
+  assert(careers && careers.rank === 5, 'the careers mailbox ranks with talent');
+  assert(out.patternNote && /f\.last@example-health\.io/.test(out.patternNote), out.patternNote || 'no note');
 });
 
 Deno.test('no pattern guess from a single found address', () => {
   const contacts: Contact[] = [
-    { name: 'Mrs Sarah Green', role: 'Headteacher', email: 'sarah.green@example-primary.org', confidence: 'found', source_url: 'https://example-primary.org/team', evidence: '', rank: 1 },
-    { name: 'Mr Omar Khan', role: 'Company Business Manager', email: '', confidence: 'role_only', source_url: 'https://example-primary.org/team', evidence: '', rank: 4 },
+    { name: 'Sarah Green', role: 'CEO', email: 'sarah.green@lumenly.ai', confidence: 'found', source_url: 'https://lumenly.ai/team', evidence: '', rank: 1 },
+    { name: 'Omar Khan', role: 'Head of Talent', email: '', confidence: 'role_only', source_url: 'https://lumenly.ai/team', evidence: '', rank: 5 },
   ];
-  const r = guessByPattern(contacts, 'example-primary.org', new Set());
+  const r = guessByPattern(contacts, 'lumenly.ai', new Set());
   assertEquals(r.guessed, 0);
   assertEquals(contacts[1].email, '');
 });
 
 Deno.test('two found addresses sharing first.last produce a labelled guess on the same domain only', () => {
   const contacts: Contact[] = [
-    { name: 'Mrs Sarah Green', role: 'Headteacher', email: 'sarah.green@example-primary.org', confidence: 'found', source_url: 'https://example-primary.org/team', evidence: '', rank: 1 },
-    { name: 'Mr David Brown', role: 'Deputy Headteacher', email: 'david.brown@example-primary.org', confidence: 'found', source_url: 'https://example-primary.org/team', evidence: '', rank: 2 },
-    { name: 'Mr Omar Khan', role: 'Company Business Manager', email: '', confidence: 'role_only', source_url: 'https://example-primary.org/team', evidence: 'card', rank: 4 },
-    { name: 'Miss A Jones', role: 'SENCO', email: '', confidence: 'role_only', source_url: 'https://example-primary.org/team', evidence: 'card', rank: 5 },
-    { name: 'Ms Pat Lee', role: 'Director of People', email: '', confidence: 'role_only', source_url: 'https://trust.org/people', evidence: 'card', rank: 9, level: 'trust' },
-    { name: 'Mr Rob Hill', role: 'Headteacher', email: '', confidence: 'role_only', source_url: 'DfE GIAS record', evidence: 'record', rank: 1 },
+    { name: 'Sarah Green', role: 'CEO', email: 'sarah.green@lumenly.ai', confidence: 'found', source_url: 'https://lumenly.ai/team', evidence: '', rank: 1 },
+    { name: 'David Brown', role: 'CTO', email: 'david.brown@lumenly.ai', confidence: 'found', source_url: 'https://lumenly.ai/team', evidence: '', rank: 3 },
+    { name: 'Omar Khan', role: 'Head of Talent', email: '', confidence: 'role_only', source_url: 'https://lumenly.ai/team', evidence: 'card', rank: 5 },
+    { name: 'A Jones', role: 'COO', email: '', confidence: 'role_only', source_url: 'https://lumenly.ai/team', evidence: 'card', rank: 2 },
+    { name: 'Helen Wood', role: 'Partner, Headline', email: '', confidence: 'role_only', source_url: 'https://lumenly.ai/team', evidence: 'card', rank: INVESTOR_RANK },
+    { name: 'Rob Hill', role: 'Director', email: '', confidence: 'role_only', source_url: 'Companies House register', evidence: 'record', rank: 6 },
+    { name: 'Kim Park', role: 'Talent Partner', email: '', confidence: 'role_only', source_url: 'https://jobs.ashbyhq.com/lumenly', evidence: 'board', rank: 5, level: 'careers' },
   ];
-  const r = guessByPattern(contacts, 'example-primary.org', new Set(['omar.khan@example-primary.org']));
-  assertEquals(r.guessed, 0, 'suppressed address is never guessed, and an initial cannot make first.last');
-  const r2 = guessByPattern(contacts, 'example-primary.org', new Set());
-  assertEquals(r2.guessed, 1);
-  assertEquals(contacts[2].email, 'omar.khan@example-primary.org');
-  assertEquals(contacts[2].confidence, 'pattern_guess');
-  assert(/first\.last@example-primary\.org/.test(contacts[2].evidence) && /sarah\.green/.test(contacts[2].evidence), contacts[2].evidence);
-  assertEquals(contacts[3].email, '', 'an initial cannot fill a first.last pattern');
-  assertEquals(contacts[4].email, '', 'trust-level roles are never guessed from the company pattern');
-  assertEquals(contacts[5].email, '', 'the DfE record head is never guessed');
+  const r = guessByPattern(contacts, 'lumenly.ai', new Set(['omar.khan@lumenly.ai']));
+  assertEquals(r.guessed, 1, 'a suppressed address is never guessed; the careers-page person still is');
+  assertEquals(contacts[2].email, '');
+  const fresh = contacts.map((c) => ({ ...c, email: c.confidence === 'role_only' ? '' : c.email, confidence: c.confidence === 'pattern_guess' ? 'role_only' as const : c.confidence }));
+  const r2 = guessByPattern(fresh, 'lumenly.ai', new Set());
+  assertEquals(r2.guessed, 2);
+  assertEquals(fresh[2].email, 'omar.khan@lumenly.ai');
+  assertEquals(fresh[2].confidence, 'pattern_guess');
+  assert(/first\.last@lumenly\.ai/.test(fresh[2].evidence) && /sarah\.green/.test(fresh[2].evidence), fresh[2].evidence);
+  assertEquals(fresh[3].email, '', 'an initial cannot fill a first.last pattern');
+  assertEquals(fresh[4].email, '', 'an investor is never guessed');
+  assertEquals(fresh[5].email, '', 'a register officer is never guessed');
+  assertEquals(fresh[6].email, 'kim.park@lumenly.ai', 'a person named on the careers page is company staff and may be guessed');
 });
 
-Deno.test('the synthetic cards site end to end: found, role_only, and a guess for the SBM', () => {
-  const out = resolveFixture('synthetic-cards.html', 'https://example-primary.org/team');
-  const by = Object.fromEntries(out.contacts.map((c) => [c.name, c]));
-  assertEquals(by['Mrs Sarah Green'].confidence, 'found');
-  assertEquals(by['Mr David Brown'].confidence, 'found');
-  assertEquals(by['Mr Omar Khan'].confidence, 'pattern_guess');
-  assertEquals(by['Mr Omar Khan'].email, 'omar.khan@example-primary.org');
-  assertEquals(by['Miss Amy Jones'].confidence, 'pattern_guess');
-  assertEquals(by['Miss Amy Jones'].email, 'amy.jones@example-primary.org');
-  assertEquals(by['Mrs Helen Wood'].confidence, 'role_only', 'the chair of governors is never pattern-guessed');
-  assertEquals(by['Mrs Helen Wood'].email, '');
-  assert(out.patternNote && /first\.last/.test(out.patternNote), out.patternNote || 'no note');
-  // ordered by rank
-  const ranks = out.contacts.map((c) => c.rank!);
-  assertEquals([...ranks].sort((a, b) => a - b), ranks);
-});
-
-Deno.test('DfE record head: added as name-only when absent, flagged when the website differs', () => {
-  const absent = resolveFixture('synthetic-obfuscation.html', 'https://example-high.sch.uk/contact', { recordHead: { name: 'Jane Bloggs', jobTitle: 'Headteacher', source: 'DfE GIAS record' } });
-  const head = absent.contacts.find((c) => c.rank === 1 && c.name)!;
-  assert(head, 'head present');
-  const differs = resolveFixture('stanborough-staff-table.html', 'https://www.stanborough.herts.sch.uk/staff', { recordHead: { name: 'Peter Someone', jobTitle: 'Headteacher', source: 'DfE GIAS record' } });
-  assertEquals(differs.contacts[0].name, 'Mrs M John');
-  assert(/Peter Someone/.test(differs.contacts[0].evidence), differs.contacts[0].evidence);
-  const none = resolveContacts({ emails: [], people: [], phones: [], siteHost: 'x.sch.uk', recordHead: { name: 'Peter Someone', jobTitle: 'Headteacher', source: 'DfE GIAS record' } });
+Deno.test('Companies House officers: added as name-only when absent, noted on the website\'s entry when present', () => {
+  const officers = [{ name: 'Sarah Green', jobTitle: 'Director', source: 'Companies House register', appointedOn: '2024-03-01' }, { name: 'Peter Someone', jobTitle: 'Director', source: 'Companies House register', appointedOn: '2025-01-10' }];
+  const out = resolveFixture('startup-team-cards.html', 'https://lumenly.ai/team', { recordOfficers: officers });
+  const sarah = out.contacts.find((c) => c.name === 'Sarah Green')!;
+  assertEquals(sarah.email, 'sarah.green@lumenly.ai', 'the website entry wins');
+  assert(/Director since 2024-03-01 on the Companies House register/.test(sarah.evidence), sarah.evidence);
+  const peter = out.contacts.find((c) => c.name === 'Peter Someone')!;
+  assert(peter, 'the officer the website does not name is listed');
+  assertEquals(peter.confidence, 'role_only');
+  assertEquals(peter.email, '', 'never guessed: the register is not a page');
+  assertEquals(peter.rank, 6, 'a director is an executive');
+  const none = resolveContacts({ emails: [], people: [], phones: [], siteHost: 'x.io', recordOfficers: [{ name: 'Peter Someone', jobTitle: 'Director', source: 'Companies House register' }] });
   assertEquals(none.contacts.length, 1);
   assertEquals(none.contacts[0].confidence, 'role_only');
-  assertEquals(none.contacts[0].email, '');
+  const secretary = resolveContacts({ emails: [], people: [], phones: [], siteHost: 'x.io', recordOfficers: [{ name: 'Law Firm Nominees', jobTitle: 'Company secretary', source: 'Companies House register' }] });
+  assertEquals(secretary.contacts.length, 0, 'a company secretary does not rank');
 });
 
 Deno.test('feedback suppression removes the contact and its address', () => {
-  const out = resolveFixture('stanborough-staff-table.html', 'https://www.stanborough.herts.sch.uk/staff', { suppressedEmails: new Set(['gpersand@stanborough.herts.sch.uk']) });
-  assert(!out.contacts.some((c) => c.email === 'gpersand@stanborough.herts.sch.uk'));
+  const out = resolveFixture('startup-team-table.html', 'https://fathom-robotics.co.uk/leadership', { suppressedEmails: new Set(['m.donachy@fathom-robotics.co.uk']) });
+  assert(!out.contacts.some((c) => c.email === 'm.donachy@fathom-robotics.co.uk'));
+  const named = resolveFixture('startup-team-table.html', 'https://fathom-robotics.co.uk/leadership', { suppressedNames: new Set(['gracepersand']) });
+  assert(!named.contacts.some((c) => c.name === 'Grace Persand'));
 });
 
 import { mergePeople, samePerson, surnameInLocal } from './resolve.ts';
@@ -167,79 +216,74 @@ Deno.test('surname joins need a whole component: John is not in djohnson', () =>
   assert(!surnameInLocal('johnsonville', 'john'));
 });
 
-Deno.test('the same person on two pages is one contact, with the address from the row that had it', () => {
+Deno.test('the same person on two pages is one contact, with the address from the card that had it', () => {
   assert(samePerson("Mrs O'Reilly", "Mrs E O'Reilly"));
-  assert(samePerson("Emma O'Reilly", "Mrs E O'Reilly"));
-  assert(!samePerson('Ms Charles', 'Mr John Charles') === false || true);
-  assert(!samePerson('Mrs M John', 'Mr D Johnson'));
+  assert(samePerson("Emma O'Reilly", "E O'Reilly"));
+  assert(!samePerson('M John', 'D Johnson'));
   const merged = mergePeople([
-    { name: 'Mrs M John', role: 'Headteacher', context: 'DofE page', source_url: 'https://s/dofe', },
-    { name: 'Mrs M John', role: 'Headteacher', context: 'row', email: 'head@s.sch.uk', source_url: 'https://s/staff' },
+    { name: 'Sarah Green', role: 'CEO', context: 'blog byline', source_url: 'https://s/blog' },
+    { name: 'Sarah Green', role: 'Co-founder and CEO', context: 'card', email: 'sarah@s.io', source_url: 'https://s/team' },
   ]);
   assertEquals(merged.length, 1);
-  assertEquals(merged[0].email, 'head@s.sch.uk');
+  assertEquals(merged[0].email, 'sarah@s.io');
   const out = resolveContacts({
     emails: [
-      { email: 'head@s.sch.uk', context: 'Headteacher Mrs M John head@s.sch.uk', source_url: 'https://s/staff', how: 'mailto' },
-      { email: 'djohnson@s.sch.uk', context: 'Teacher of Art Mr D Johnson djohnson@s.sch.uk', source_url: 'https://s/staff', how: 'mailto' },
+      { email: 'sarah@s.io', context: 'Co-founder and CEO Sarah Green sarah@s.io', source_url: 'https://s/team', how: 'mailto' },
+      { email: 'djohnson@s.io', context: 'Software Engineer D Johnson djohnson@s.io', source_url: 'https://s/team', how: 'mailto' },
     ],
     people: [
-      { name: 'Mrs M John', role: 'Headteacher', context: 'DofE page', source_url: 'https://s/dofe' },
-      { name: 'Mrs M John', role: 'Headteacher', context: 'row', email: 'head@s.sch.uk', source_url: 'https://s/staff' },
-      { name: 'Mr D Johnson', role: 'Teacher of Art', context: 'row', email: 'djohnson@s.sch.uk', source_url: 'https://s/staff' },
+      { name: 'Sarah Green', role: 'CEO', context: 'blog byline', source_url: 'https://s/blog' },
+      { name: 'Sarah Green', role: 'Co-founder and CEO', context: 'card', email: 'sarah@s.io', source_url: 'https://s/team' },
+      { name: 'D Johnson', role: 'Software Engineer', context: 'card', email: 'djohnson@s.io', source_url: 'https://s/team' },
     ],
-    phones: [], siteHost: 's.sch.uk',
+    phones: [], siteHost: 's.io',
   });
-  const head = out.contacts.find((c) => c.rank === 1)!;
-  assertEquals(head.email, 'head@s.sch.uk');
-  assertEquals(out.contacts.filter((c) => /john/i.test(c.name)).length, 1);
+  const founder = out.contacts.find((c) => c.rank === 1)!;
+  assertEquals(founder.email, 'sarah@s.io');
+  assertEquals(out.contacts.filter((c) => /green/i.test(c.name)).length, 1);
+  assert(!out.contacts.some((c) => /johnson/i.test(c.name)), 'an engineer is not a contact');
 });
 
-Deno.test('"Head of Learning" and "Assistant Head of Year 7" are not the head or an assistant head; the company name is not a person', () => {
-  assertEquals(classifyRole('Head of Learning, Year 7'), null);
-  assertEquals(classifyRole('Assistant Head of Year 7'), null);
-  assertEquals(classifyRole('Deputy Head of Sixth Form'), null);
-  assertEquals(classifyRole('Finance Officer and Head of Company Support'), null);
-  assertEquals(classifyRole('Head of Company and Designated Safeguarding Lead')?.rank, 1);
-  assertEquals(classifyRole('Deputy Headteacher and Head of Sixth Form')?.rank, 2);
-  assertEquals(classifyRole('Assistant Headteacher - SEND and Designated Safeguarding Lead')?.rank, 3);
+Deno.test('the company name is not a person; "Head of Sales" and "Founding Engineer" are not decision makers', () => {
+  assertEquals(classifyRole('Head of Sales'), null);
+  assertEquals(classifyRole('Founding Engineer'), null);
+  assertEquals(classifyRole('Head of Talent and People')?.key, 'people', 'head of people wins the tie by rank');
   const out = resolveContacts({
-    emails: [], phones: [], siteHost: 'preston-manor.com', companyName: 'Preston Manor Company',
+    emails: [], phones: [], siteHost: 'lumenly.ai', companyName: 'Lumenly Ltd',
     people: [
-      { name: 'Preston Manor', role: 'Executive Headteacher', context: 'welcome', source_url: 'https://preston-manor.com/welcome' },
-      { name: 'Mr Russell Denial', role: 'Executive Headteacher', context: 'row', source_url: 'https://preston-manor.com/contact-us' },
+      { name: 'Lumenly Ltd', role: 'Founder', context: 'welcome', source_url: 'https://lumenly.ai/about' },
+      { name: 'Sarah Green', role: 'Founder', context: 'card', source_url: 'https://lumenly.ai/team' },
     ],
   });
-  assertEquals(out.contacts.map((c) => c.name), ['Mr Russell Denial']);
+  assertEquals(out.contacts.map((c) => c.name), ['Sarah Green']);
 });
 
 Deno.test('a found address is never pushed out by name-only entries, and at most three name-only people per rank', () => {
   const people = [
-    { name: 'Jamie Brownhill', role: 'Headteacher', context: '', source_url: 'https://c/contact' },
-    { name: 'Mr Barker', role: 'Deputy Headteacher', context: '', source_url: 'https://c/staff' },
-    { name: 'Mr Dilley', role: 'Deputy Headteacher', context: '', source_url: 'https://c/staff' },
-    { name: 'Ms Harries', role: 'Deputy Headteacher', context: '', source_url: 'https://c/staff' },
-    { name: 'Ms Careswell', role: 'Assistant Headteacher', context: '', source_url: 'https://c/staff' },
-    { name: 'Ms Chawluk', role: 'Assistant Headteacher', context: '', source_url: 'https://c/staff' },
-    { name: 'Ms Kennedy', role: 'Assistant Headteacher', context: '', source_url: 'https://c/staff' },
-    { name: 'Ms Patel', role: 'Assistant Headteacher', context: '', source_url: 'https://c/staff' },
-    { name: 'Ms Lafaverges', role: 'SENCo', context: '', email: 'lafavergesp@c.sch.uk', source_url: 'https://c/contact' },
+    { name: 'Sarah Green', role: 'CEO', context: '', source_url: 'https://c/team' },
+    { name: 'A Barker', role: 'VP Sales', context: '', source_url: 'https://c/team' },
+    { name: 'B Dilley', role: 'VP Marketing', context: '', source_url: 'https://c/team' },
+    { name: 'C Harries', role: 'VP Product', context: '', source_url: 'https://c/team' },
+    { name: 'D Careswell', role: 'VP Finance', context: '', source_url: 'https://c/team' },
+    { name: 'E Chawluk', role: 'Chief Revenue Officer', context: '', source_url: 'https://c/team' },
+    { name: 'F Kennedy', role: 'Chief Marketing Officer', context: '', source_url: 'https://c/team' },
+    { name: 'G Patel', role: 'Chief Financial Officer', context: '', source_url: 'https://c/team' },
+    { name: 'Kate Lafaverges', role: 'Head of Talent', context: '', email: 'lafavergesp@c.io', source_url: 'https://c/team' },
   ];
-  const out = resolveContacts({ emails: [{ email: 'lafavergesp@c.sch.uk', context: 'SENCo Ms Lafaverges lafavergesp@c.sch.uk', source_url: 'https://c/contact', how: 'mailto' }], people, phones: [], siteHost: 'c.sch.uk' });
-  const senco = out.contacts.find((c) => c.rank === 5)!;
-  assert(senco && senco.email === 'lafavergesp@c.sch.uk', JSON.stringify(out.contacts.map((c) => [c.name, c.email])));
-  assertEquals(out.contacts.filter((c) => c.rank === 3 && c.confidence === 'role_only').length, 3);
-  assertEquals(out.contacts.length, 8);
-  // display order is still by rank
+  const out = resolveContacts({ emails: [{ email: 'lafavergesp@c.io', context: 'Head of Talent Kate Lafaverges lafavergesp@c.io', source_url: 'https://c/team', how: 'mailto' }], people, phones: [], siteHost: 'c.io' });
+  const talent = out.contacts.find((c) => c.rank === 5)!;
+  assert(talent && talent.email === 'lafavergesp@c.io', JSON.stringify(out.contacts.map((c) => [c.name, c.email])));
+  assertEquals(out.contacts.filter((c) => c.rank === 6 && c.confidence === 'role_only').length, 3);
+  assertEquals(out.contacts.length, 5);
   const ranks = out.contacts.map((c) => c.rank!);
   assertEquals([...ranks].sort((a, b) => a - b), ranks);
 });
 
 import { leadingComponent, leadingComponentContradicts } from './resolve.ts';
 
-const staffPage = 'https://oak.sch.uk/staff';
-const person = (name: string, role: string, context = '', email?: string) => ({ name, role, context, email, source_url: staffPage });
-const emailHit = (email: string, context: string) => ({ email, context, source_url: staffPage, how: 'mailto' as const });
+const teamPage = 'https://oak.io/team';
+const person = (name: string, role: string, context = '', email?: string) => ({ name, role, context, email, source_url: teamPage });
+const emailHit = (email: string, context: string) => ({ email, context, source_url: teamPage, how: 'mailto' as const });
 
 Deno.test('leading component of a local part and whether it contradicts the person (H3)', () => {
   assertEquals(leadingComponent('emma.brown', 'brown'), 'emma');
@@ -263,56 +307,63 @@ Deno.test('leading component of a local part and whether it contradicts the pers
 });
 
 Deno.test('a surname join is rejected when the address carries a different first name, and kept when it agrees (H3)', () => {
-  const ctx = 'Contact the company office on 020 7946 0000 or email emma.brown@oak.sch.uk for admissions.';
-  const mismatch = resolveContacts({ emails: [emailHit('emma.brown@oak.sch.uk', ctx)], people: [person('Mr A Brown', 'Deputy Headteacher', 'Mr A Brown Deputy Headteacher')], phones: [], siteHost: 'oak.sch.uk' });
-  const brown = mismatch.contacts.find((c) => c.name === 'Mr A Brown')!;
+  const ctx = 'Contact the team on 020 7946 0000 or email emma.brown@oak.io for partnerships.';
+  const mismatch = resolveContacts({ emails: [emailHit('emma.brown@oak.io', ctx)], people: [person('A Brown', 'COO', 'A Brown COO')], phones: [], siteHost: 'oak.io' });
+  const brown = mismatch.contacts.find((c) => c.name === 'A Brown')!;
   assertEquals(brown.confidence, 'role_only');
   assertEquals(brown.email, '');
-  const match = resolveContacts({ emails: [emailHit('emma.brown@oak.sch.uk', ctx)], people: [person('Mrs E Brown', 'Deputy Headteacher', 'Mrs E Brown Deputy Headteacher')], phones: [], siteHost: 'oak.sch.uk' });
-  assertEquals(match.contacts.find((c) => c.name === 'Mrs E Brown')?.email, 'emma.brown@oak.sch.uk');
-  assertEquals(match.contacts.find((c) => c.name === 'Mrs E Brown')?.confidence, 'found');
-  const full = resolveContacts({ emails: [emailHit('emma.brown@oak.sch.uk', ctx)], people: [person('Emma Brown', 'Deputy Headteacher', 'Emma Brown Deputy Headteacher')], phones: [], siteHost: 'oak.sch.uk' });
-  assertEquals(full.contacts.find((c) => c.name === 'Emma Brown')?.email, 'emma.brown@oak.sch.uk');
+  const match = resolveContacts({ emails: [emailHit('emma.brown@oak.io', ctx)], people: [person('E Brown', 'COO', 'E Brown COO')], phones: [], siteHost: 'oak.io' });
+  assertEquals(match.contacts.find((c) => c.name === 'E Brown')?.email, 'emma.brown@oak.io');
+  assertEquals(match.contacts.find((c) => c.name === 'E Brown')?.confidence, 'found');
+  const full = resolveContacts({ emails: [emailHit('emma.brown@oak.io', ctx)], people: [person('Emma Brown', 'COO', 'Emma Brown COO')], phones: [], siteHost: 'oak.io' });
+  assertEquals(full.contacts.find((c) => c.name === 'Emma Brown')?.email, 'emma.brown@oak.io');
   // Even on the same line, the contradicting first name wins over proximity.
-  const sameLine = resolveContacts({ emails: [emailHit('emma.brown@oak.sch.uk', 'Mr A Brown, Deputy Headteacher, via his PA emma.brown@oak.sch.uk')], people: [person('Mr A Brown', 'Deputy Headteacher', 'Mr A Brown, Deputy Headteacher')], phones: [], siteHost: 'oak.sch.uk' });
-  assertEquals(sameLine.contacts.find((c) => c.name === 'Mr A Brown')?.email, '');
+  const sameLine = resolveContacts({ emails: [emailHit('emma.brown@oak.io', 'A Brown, COO, via his EA emma.brown@oak.io')], people: [person('A Brown', 'COO', 'A Brown, COO')], phones: [], siteHost: 'oak.io' });
+  assertEquals(sameLine.contacts.find((c) => c.name === 'A Brown')?.email, '');
 });
 
 Deno.test('a nearby address goes to the name before it, not the name after it (H4)', () => {
-  const line = 'Mr A Brown, Deputy Head deputy.head@oak.sch.uk Mrs C Davis, SENCO senco@oak.sch.uk';
-  const people = [person('Mr A Brown', 'Deputy Head', 'Mr A Brown, Deputy Head'), person('Mrs C Davis', 'SENCO', 'Mrs C Davis, SENCO')];
-  const out = resolveContacts({ emails: [emailHit('deputy.head@oak.sch.uk', line)], people, phones: [], siteHost: 'oak.sch.uk' });
-  assertEquals(out.contacts.find((c) => c.name === 'Mr A Brown')?.email, 'deputy.head@oak.sch.uk');
-  assertEquals(out.contacts.find((c) => c.name === 'Mrs C Davis')?.email, '');
+  const line = 'Ava Brown, COO ops@oak.io Chloe Davis, Head of Talent talent@oak.io';
+  const people = [person('Ava Brown', 'COO', 'Ava Brown, COO'), person('Chloe Davis', 'Head of Talent', 'Chloe Davis, Head of Talent')];
+  const out = resolveContacts({ emails: [emailHit('ops@oak.io', line)], people, phones: [], siteHost: 'oak.io' });
+  assertEquals(out.contacts.find((c) => c.name === 'Ava Brown')?.email, 'ops@oak.io');
+  assertEquals(out.contacts.find((c) => c.name === 'Chloe Davis')?.email, '');
   // The same with the people in the other order: the nearest preceding name still wins.
-  const out2 = resolveContacts({ emails: [emailHit('deputy.head@oak.sch.uk', line)], people: [people[1], people[0]], phones: [], siteHost: 'oak.sch.uk' });
-  assertEquals(out2.contacts.find((c) => c.name === 'Mr A Brown')?.email, 'deputy.head@oak.sch.uk');
-  assertEquals(out2.contacts.find((c) => c.name === 'Mrs C Davis')?.email, '');
-  // A name after the address still joins when it is the only name in the window ("email: x@ Mrs C Davis").
-  const only = resolveContacts({ emails: [emailHit('inclusion.lead@oak.sch.uk', 'Email: inclusion.lead@oak.sch.uk Mrs C Davis, SENCO')], people: [person('Mrs C Davis', 'SENCO', 'Mrs C Davis, SENCO')], phones: [], siteHost: 'oak.sch.uk' });
-  assertEquals(only.contacts.find((c) => c.name === 'Mrs C Davis')?.email, 'inclusion.lead@oak.sch.uk');
+  const out2 = resolveContacts({ emails: [emailHit('ops@oak.io', line)], people: [people[1], people[0]], phones: [], siteHost: 'oak.io' });
+  assertEquals(out2.contacts.find((c) => c.name === 'Ava Brown')?.email, 'ops@oak.io');
+  assertEquals(out2.contacts.find((c) => c.name === 'Chloe Davis')?.email, '');
+  // A name after the address still joins when it is the only name in the window ("email: x@ Chloe Davis").
+  const only = resolveContacts({ emails: [emailHit('hiring.lead@oak.io', 'Email: hiring.lead@oak.io Chloe Davis, Head of Talent')], people: [person('Chloe Davis', 'Head of Talent', 'Chloe Davis, Head of Talent')], phones: [], siteHost: 'oak.io' });
+  assertEquals(only.contacts.find((c) => c.name === 'Chloe Davis')?.email, 'hiring.lead@oak.io');
   // ... but not when another name is in the window, even if that name has its own address.
-  const notOnly = resolveContacts({ emails: [emailHit('inclusion.lead@oak.sch.uk', 'Mr A Brown, Deputy Head. Email: inclusion.lead@oak.sch.uk Mrs C Davis, SENCO')], people, phones: [], siteHost: 'oak.sch.uk' });
-  assertEquals(notOnly.contacts.find((c) => c.name === 'Mrs C Davis')?.email, '');
-  assertEquals(notOnly.contacts.find((c) => c.name === 'Mr A Brown')?.email, 'inclusion.lead@oak.sch.uk');
+  const notOnly = resolveContacts({ emails: [emailHit('hiring.lead@oak.io', 'Ava Brown, COO. Email: hiring.lead@oak.io Chloe Davis, Head of Talent')], people, phones: [], siteHost: 'oak.io' });
+  assertEquals(notOnly.contacts.find((c) => c.name === 'Chloe Davis')?.email, '');
+  assertEquals(notOnly.contacts.find((c) => c.name === 'Ava Brown')?.email, 'hiring.lead@oak.io');
   // Two preceding names: the nearer one wins.
-  const two = resolveContacts({ emails: [emailHit('deputy.head@oak.sch.uk', 'Mrs C Davis, SENCO. Mr A Brown, Deputy Head deputy.head@oak.sch.uk')], people, phones: [], siteHost: 'oak.sch.uk' });
-  assertEquals(two.contacts.find((c) => c.name === 'Mr A Brown')?.email, 'deputy.head@oak.sch.uk');
+  const two = resolveContacts({ emails: [emailHit('ops@oak.io', 'Chloe Davis, Head of Talent. Ava Brown, COO ops@oak.io')], people, phones: [], siteHost: 'oak.io' });
+  assertEquals(two.contacts.find((c) => c.name === 'Ava Brown')?.email, 'ops@oak.io');
 });
 
-Deno.test('trust-level addresses never seed a pattern guess for company staff (H9)', () => {
+Deno.test('careers-page addresses and investors never seed a pattern guess for company staff (H9)', () => {
   const contacts: Contact[] = [
-    { name: 'Ms Pat Lee', role: 'Chief Executive Officer', email: 'pat.lee@trust.org', confidence: 'found', source_url: 'https://trust.org/people', evidence: '', rank: 9, level: 'trust' },
-    { name: 'Mr Sam Cole', role: 'Director of People', email: 'sam.cole@trust.org', confidence: 'found', source_url: 'https://trust.org/people', evidence: '', rank: 9, level: 'trust' },
-    { name: 'Mr Omar Khan', role: 'Company Business Manager', email: '', confidence: 'role_only', source_url: 'https://example-primary.org/team', evidence: 'card', rank: 4, level: 'company' },
+    { name: 'Pat Lee', role: 'Talent Partner', email: 'pat.lee@lumenly.ai', confidence: 'found', source_url: 'https://jobs.ashbyhq.com/lumenly', evidence: '', rank: 5, level: 'careers' },
+    { name: 'Sam Cole', role: 'Recruiter', email: 'sam.cole@lumenly.ai', confidence: 'found', source_url: 'https://jobs.ashbyhq.com/lumenly', evidence: '', rank: 5, level: 'careers' },
+    { name: 'Omar Khan', role: 'Head of Talent', email: '', confidence: 'role_only', source_url: 'https://lumenly.ai/team', evidence: 'card', rank: 5, level: 'company' },
   ];
-  const r = guessByPattern(contacts, 'example-primary.org', new Set());
+  const r = guessByPattern(contacts, 'lumenly.ai', new Set());
   assertEquals(r.guessed, 0);
   assertEquals(r.note, null);
   assertEquals(contacts[2].email, '');
   // The same two addresses at company level still count as evidence.
   const company = contacts.map((c) => ({ ...c, level: 'company' as const }));
-  const r2 = guessByPattern(company, 'example-primary.org', new Set());
+  const r2 = guessByPattern(company, 'lumenly.ai', new Set());
   assertEquals(r2.guessed, 1);
-  assertEquals(company[2].email, 'omar.khan@trust.org');
+  assertEquals(company[2].email, 'omar.khan@lumenly.ai');
+  // Two investors' addresses on the company domain do not seed either.
+  const investors: Contact[] = [
+    { name: 'Helen Wood', role: 'Partner, Headline', email: 'helen.wood@lumenly.ai', confidence: 'found', source_url: 'https://lumenly.ai/team', evidence: '', rank: INVESTOR_RANK },
+    { name: 'Ann Lee', role: 'Board member', email: 'ann.lee@lumenly.ai', confidence: 'found', source_url: 'https://lumenly.ai/team', evidence: '', rank: INVESTOR_RANK },
+    { name: 'Omar Khan', role: 'Head of Talent', email: '', confidence: 'role_only', source_url: 'https://lumenly.ai/team', evidence: 'card', rank: 5 },
+  ];
+  assertEquals(guessByPattern(investors, 'lumenly.ai', new Set()).guessed, 0);
 });

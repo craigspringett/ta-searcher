@@ -554,8 +554,8 @@ Deno.test('syncRegisterDetails inserts everything on the first run and only the 
     assertEquals(first.filings.length, 3);
     assertEquals(first.newFilings.length, 3);
     assertEquals(db.rows('ch_officers').length, 4);
-    assertEquals(db.rows('ch_officers')[0].first_seen, '2026-09-21');
-    assertEquals(db.rows('ch_officers')[0].last_seen, '2026-09-21');
+    assertEquals(String(db.rows('ch_officers')[0].first_seen_at).slice(0, 10), '2026-09-21');
+    assertEquals(String(db.rows('ch_officers')[0].last_seen_at).slice(0, 10), '2026-09-21');
     assertEquals(db.rows('ch_officers').find((r) => r.name === "Ms Siobhan O'Brien-Jones")?.resigned_on, '2024-02-29');
     assertEquals(db.rows('ch_filings').length, 3);
     assertEquals(db.rows('ch_filings')[0].transaction_id, 'MzQwMDAwMDAwMWFkaXF6a2N4');
@@ -566,8 +566,8 @@ Deno.test('syncRegisterDetails inserts everything on the first run and only the 
     assertEquals(second.newOfficers, []);
     assertEquals(second.newFilings, []);
     assertEquals(db.rows('ch_officers').length, 4, 'no duplicates');
-    assertEquals(db.rows('ch_officers')[0].first_seen, '2026-09-21', 'first_seen is kept');
-    assertEquals(db.rows('ch_officers')[0].last_seen, '2026-09-28');
+    assertEquals(String(db.rows('ch_officers')[0].first_seen_at).slice(0, 10), '2026-09-21', 'first_seen_at is kept');
+    assertEquals(String(db.rows('ch_officers')[0].last_seen_at).slice(0, 10), '2026-09-28');
     assertEquals(db.rows('ch_filings').length, 3);
   } finally {
     reset();
@@ -580,13 +580,13 @@ Deno.test('syncRegisterDetails reports a newly appointed officer and a new filin
     const today = new Date(Date.UTC(2026, 8, 21));
     const db = fakeDb({
       ch_officers: [
-        { company_number: '12345678', name: 'Dr John Andrew Smith', role: 'director', appointed_on: '2021-03-15', first_seen: '2026-01-01', last_seen: '2026-01-01' },
-        { company_number: '12345678', name: 'ACME SECRETARIES LIMITED', role: 'corporate-secretary', appointed_on: '2021-03-15', first_seen: '2026-01-01', last_seen: '2026-01-01' },
-        { company_number: '12345678', name: "Ms Siobhan O'Brien-Jones", role: 'director', appointed_on: '2021-03-15', resigned_on: null, first_seen: '2026-01-01', last_seen: '2026-01-01' },
+        { company_number: '12345678', officer_key: 'dr john andrew smith|director|2021-03-15', name: 'Dr John Andrew Smith', role: 'director', appointed_on: '2021-03-15', first_seen_at: '2026-01-01T00:00:00Z', last_seen_at: '2026-01-01T00:00:00Z' },
+        { company_number: '12345678', officer_key: 'acme secretaries limited|corporate-secretary|2021-03-15', name: 'ACME SECRETARIES LIMITED', role: 'corporate-secretary', appointed_on: '2021-03-15', first_seen_at: '2026-01-01T00:00:00Z', last_seen_at: '2026-01-01T00:00:00Z' },
+        { company_number: '12345678', officer_key: "ms siobhan o'brien-jones|director|2021-03-15", name: "Ms Siobhan O'Brien-Jones", role: 'director', appointed_on: '2021-03-15', resigned_on: null, first_seen_at: '2026-01-01T00:00:00Z', last_seen_at: '2026-01-01T00:00:00Z' },
       ],
       ch_filings: [
-        { company_number: '12345678', transaction_id: 'MzM5OTk5OTk5OWFkaXF6a2N4', date: '2023-01-17', type: 'SH06', category: 'capital', description: 'x', first_seen: '2026-01-01' },
-        { company_number: '12345678', transaction_id: 'MzM5OTk5OTk5OGFkaXF6a2N4', date: '2021-04-02', type: '88(2)', category: 'capital', description: 'x', first_seen: '2026-01-01' },
+        { company_number: '12345678', filing_key: 'MzM5OTk5OTk5OWFkaXF6a2N4', transaction_id: 'MzM5OTk5OTk5OWFkaXF6a2N4', date: '2023-01-17', type: 'SH06', category: 'capital', description: 'x', first_seen_at: '2026-01-01T00:00:00Z' },
+        { company_number: '12345678', filing_key: 'MzM5OTk5OTk5OGFkaXF6a2N4', transaction_id: 'MzM5OTk5OTk5OGFkaXF6a2N4', date: '2021-04-02', type: '88(2)', category: 'capital', description: 'x', first_seen_at: '2026-01-01T00:00:00Z' },
       ],
     });
     const out = await syncRegisterDetails(db, '12345678', today);

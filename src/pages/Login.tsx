@@ -6,14 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { isAllowedEmail, useAuth } from "@/lib/auth";
+import { ALLOWED_DOMAINS, ALLOWED_DOMAINS_TEXT, isAllowedEmail, useAuth } from "@/lib/auth";
+import { APP_NAME, FIRM_NAME } from "@/lib/brand";
 
 const CODE_LENGTH = 6;
 
 /**
  * Sign in with a work email address: we send a code (and a link) by email,
- * the consultant types the code. No passwords. Domain rule is enforced by
- * Auth itself; the client check only saves a round trip.
+ * the consultant types the code. No passwords. The domain rule is enforced
+ * by Auth itself; the client check only saves a round trip.
  */
 export default function Login() {
   const { session, loading } = useAuth();
@@ -41,7 +42,7 @@ export default function Login() {
     setError(null);
     const addr = email.trim().toLowerCase();
     if (!isAllowedEmail(addr)) {
-      setError("Use your whofoundwho.co.uk or bigfishrecruitment.co.uk address.");
+      setError(`Use your ${ALLOWED_DOMAINS_TEXT} address.`);
       return;
     }
     setBusy(true);
@@ -54,7 +55,7 @@ export default function Login() {
       setError(friendlyError(err.message));
       return;
     }
-    setNotice(`We have emailed a ${CODE_LENGTH}-digit code to ${addr}. It arrives from notify.whofoundwho.co.uk and lasts an hour.`);
+    setNotice(`We have emailed a ${CODE_LENGTH}-digit code to ${addr}. It arrives from ${FIRM_NAME} and lasts an hour.`);
     setStep("code");
   };
 
@@ -74,10 +75,10 @@ export default function Login() {
     <div className="flex min-h-screen items-center justify-center bg-background px-6">
       <div className="w-full max-w-sm space-y-6">
         <div className="flex items-center gap-3">
-          <img src="/whofoundwho-logo.png" alt="WhoFoundWho" className="h-10 w-10 rounded-lg object-contain" />
+          <span className="inline-flex h-10 items-center rounded-lg bg-primary px-3 text-base font-bold tracking-tight text-primary-foreground" aria-hidden="true">{APP_NAME}</span>
           <div>
-            <h1 className="text-xl font-bold text-foreground">He-Giveth</h1>
-            <p className="text-xs text-muted-foreground">Company intelligence for WhoFoundWho consultants</p>
+            <h1 className="text-xl font-bold text-foreground">{APP_NAME}</h1>
+            <p className="text-xs text-muted-foreground">Start-up hiring intelligence for {FIRM_NAME} consultants</p>
           </div>
         </div>
 
@@ -91,7 +92,7 @@ export default function Login() {
                 autoComplete="email"
                 autoFocus
                 required
-                placeholder="you@whofoundwho.co.uk"
+                placeholder={`you@${ALLOWED_DOMAINS[0]}`}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
@@ -153,6 +154,6 @@ function friendlyError(message: string): string {
   if (m.includes("whofoundwho") || m.includes("bigfish")) return message;
   if (m.includes("rate limit") || m.includes("security purposes") || m.includes("after")) return "Too many requests. Wait a minute and try again.";
   if (m.includes("expired") || m.includes("invalid")) return "That code is wrong or has expired. Send a new one.";
-  if (m.includes("signups not allowed") || m.includes("not allowed")) return "That address is not allowed. Use your whofoundwho.co.uk or bigfishrecruitment.co.uk email.";
+  if (m.includes("signups not allowed") || m.includes("not allowed")) return `That address is not allowed. Use your ${ALLOWED_DOMAINS_TEXT} email.`;
   return message;
 }

@@ -5,7 +5,7 @@
 export interface UsageRecord {
   provider: 'anthropic' | 'gemini';
   model: string;
-  purpose: 'evidence' | 'departures' | 'pupil_premium' | 'copy' | 'copy_retry' | 'follow_up' | 'follow_up_retry' | 'shortlist' | 'candidate_email' | 'role_parse' | 'other';
+  purpose: 'evidence' | 'departures' | 'copy' | 'copy_retry' | 'follow_up' | 'follow_up_retry' | 'shortlist' | 'candidate_email' | 'role_parse' | 'other';
   companySearchId: string | null;
   inputTokens: number;
   cachedInputTokens?: number;

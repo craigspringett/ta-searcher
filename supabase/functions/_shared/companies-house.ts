@@ -666,24 +666,30 @@ export async function syncRegisterDetails(supabase: any, companyNumber: string, 
   const number = normaliseCompanyNumber(companyNumber);
   const empty: RegisterDetails = { officers: [], newOfficers: [], filings: [], newFilings: [] };
   if (!number || !companiesHouseConfigured()) return empty;
-  const todayIso = today.toISOString().slice(0, 10);
   const [officers, filings] = await Promise.all([fetchOfficers(number), fetchCapitalFilings(number)]);
 
   // Officers: which of the register's rows are already stored.
   let newOfficers: Officer[] = [];
   if (officers.length) {
-    const { data: stored, error } = await supabase.from('ch_officers').select('id, name, role, appointed_on').eq('company_number', number);
+    const { data: stored, error } = await supabase.from('ch_officers').select('id, officer_key, name, role, appointed_on').eq('company_number', number);
     if (error) throw new Error(`ch_officers read failed: ${error.message}`);
-    const known = new Set<string>((stored || []).map((r: any) => officerKey({ name: r.name, role: r.role, appointedOn: r.appointed_on ?? null })));
-    newOfficers = officers.filter((o) => !known.has(officerKey(o)));
-    const existing = officers.filter((o) => known.has(officerKey(o)));
-    const rowOf = (o: Officer) => ({ company_number: number, officer_id: o.officerId, name: o.name, role: o.role, appointed_on: o.appointedOn, resigned_on: o.resignedOn, last_seen: todayIso });
+    // officer_key is the table's conflict key: the register's officer id when it gives one, else name, role and appointment date (the same rule as the fill trigger).
+    const keyOf = (o: Officer) => o.officerId || `${o.name.toLowerCase()}|${o.role.toLowerCase()}|${o.appointedOn ?? ''}`;
+    const known = new Set<string>((stored || []).map((r: any) => String(r.officer_key || keyOf({ officerId: null, name: r.name, role: r.role, appointedOn: r.appointed_on ?? null, resignedOn: null }))));
+    // A row stored before the register gave an id is still the same person:
+    // match on the name key as well, and keep the stored key so the upsert
+    // updates that row instead of adding a second one.
+    const storedKeyByName = new Map<string, string>((stored || []).map((r: any) => [officerKey({ name: r.name, role: r.role, appointedOn: r.appointed_on ?? null }), String(r.officer_key || '')]));
+    const isKnown = (o: Officer) => known.has(keyOf(o)) || storedKeyByName.has(officerKey(o));
+    newOfficers = officers.filter((o) => !isKnown(o));
+    const existing = officers.filter((o) => isKnown(o));
+    const rowOf = (o: Officer) => ({ company_number: number, officer_key: (known.has(keyOf(o)) ? keyOf(o) : storedKeyByName.get(officerKey(o))) || keyOf(o), officer_id: o.officerId, name: o.name, role: o.role, appointed_on: o.appointedOn, resigned_on: o.resignedOn, last_seen_at: today.toISOString() });
     if (newOfficers.length) {
-      const { error: insErr } = await supabase.from('ch_officers').upsert(newOfficers.map((o) => ({ ...rowOf(o), first_seen: todayIso })), { onConflict: 'company_number,name,role,appointed_on' });
+      const { error: insErr } = await supabase.from('ch_officers').upsert(newOfficers.map((o) => ({ ...rowOf(o), first_seen_at: today.toISOString() })), { onConflict: 'company_number,officer_key' });
       if (insErr) throw new Error(`ch_officers insert failed: ${insErr.message}`);
     }
     if (existing.length) {
-      const { error: updErr } = await supabase.from('ch_officers').upsert(existing.map(rowOf), { onConflict: 'company_number,name,role,appointed_on' });
+      const { error: updErr } = await supabase.from('ch_officers').upsert(existing.map(rowOf), { onConflict: 'company_number,officer_key' });
       if (updErr) throw new Error(`ch_officers upsert failed: ${updErr.message}`);
     }
   }
@@ -697,8 +703,8 @@ export async function syncRegisterDetails(supabase: any, companyNumber: string, 
     const known = new Set<string>((stored || []).map((r: any) => String(r.transaction_id)));
     newFilings = keyed.filter((f) => !known.has(f.transactionId!));
     if (newFilings.length) {
-      const rows = newFilings.map((f) => ({ company_number: number, transaction_id: f.transactionId, date: f.date, type: f.type, category: f.category, description: f.description, first_seen: todayIso }));
-      const { error: insErr } = await supabase.from('ch_filings').upsert(rows, { onConflict: 'transaction_id' });
+      const rows = newFilings.map((f) => ({ company_number: number, filing_key: f.transactionId, transaction_id: f.transactionId, date: f.date, type: f.type, category: f.category, description: f.description, first_seen_at: today.toISOString() }));
+      const { error: insErr } = await supabase.from('ch_filings').upsert(rows, { onConflict: 'company_number,filing_key' });
       if (insErr) throw new Error(`ch_filings insert failed: ${insErr.message}`);
     }
   }

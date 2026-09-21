@@ -68,7 +68,7 @@ export function greenhouseWorkplaceType(locationName: string | null): string | n
   if (!locationName) return null;
   const l = locationName.toLowerCase();
   if (/\bhybrid\b/.test(l)) return 'hybrid';
-  if (/\bremote\b/.test(l) && !/,|\bor\b|\/|\band\b/.test(l.replace(/\(.*?\)/g, ''))) return 'remote';
+  if (/\bremote\b/.test(l) && !/[,;/]|\bor\b|\band\b/.test(l.replace(/\(.*?\)/g, ''))) return 'remote';
   return null;
 }
 

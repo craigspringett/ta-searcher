@@ -69,8 +69,11 @@ function familyOfDepartment(department: string | null | undefined): RoleFamily |
 /** Titles whose words say nothing about the discipline: the department decides, or "other". */
 const AMBIGUOUS_RE = /^(?:(?:senior|junior|lead|principal|staff|associate|graduate|head of|chief|intern|apprentice|trainee|entry[- ]level|mid[- ]level|experienced|founding|first|early careers?)\s+)*(?:analyst|manager|associate|specialist|lead|intern|internship|apprentice|apprenticeship|graduate|coordinator|co-ordinator|executive|assistant|consultant|advisor|adviser|officer|generalist|fellow|team member|hire|role|position|scientist|partner|principal|director)s?(?:\s*[-,(:]\s*.*)?$/i;
 
+/** "Executive Assistant to the CEO", "EA to the founders", "Chief of Staff to the CTO": the leader is the boss, not the post. */
+const REPORTS_TO_RE = /\b(?:to|for|supporting)\s+(?:the\s+|our\s+)?(?:ceo|cto|coo|cfo|cpo|cmo|cro|founders?|co-founders?|founding team|chief [a-z]+ officer|executive team|leadership team|senior leadership|c-suite|exec(?:utive)?s?|vp[\w ]*|head of [a-z]+|directors?)\b|\b(?:ceo|cto|coo|cfo|founders?|co-founders?)['’]s\b/gi;
+
 export function roleFamily(title: string, department?: string | null): RoleFamily {
-  const t = cleanTitle(title);
+  const t = cleanTitle(title).replace(REPORTS_TO_RE, ' ').replace(/\s+/g, ' ').trim();
   if (!t) return 'other';
   const fromDepartment = familyOfDepartment(department);
   if (PEOPLE_TALENT_RE.test(t) && !PEOPLE_FALSE_POSITIVE_RE.test(t)) return 'people_talent';
@@ -97,5 +100,5 @@ export function isTalentRole(title: string): boolean {
 export function isTalentLeadRole(title: string): boolean {
   const t = cleanTitle(title);
   if (!t) return false;
-  return /\b(?:head of|director of|vp,? (?:of )?|vice president,? (?:of )?|chief)\s+(?:talent|recruit\w*|people (?:and|&) talent|talent (?:and|&) people)\b|\b(?:talent|recruit(?:ing|ment)|\bta\b)\s+(?:lead|leader|director|head)\b|\btalent acquisition (?:lead|leader|manager|director|head)\b|\blead (?:recruiter|talent partner)\b/i.test(t);
+  return /\b(?:head of|director of|vp,?(?: of)?|vice president,?(?: of)?|chief)\s+(?:talent|recruit\w*|people (?:and|&) talent|talent (?:and|&) people)\b|\b(?:talent|recruit(?:ing|ment)|\bta\b)\s+(?:lead|leader|director|head)\b|\btalent acquisition (?:lead|leader|manager|director|head)\b|\blead (?:recruiter|talent partner)\b/i.test(t);
 }

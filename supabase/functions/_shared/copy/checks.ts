@@ -1,7 +1,6 @@
-// Post-generation checks on scripts and emails (docs/PHASE-3-BRIEF.md,
-// deliverable 3). Each check returns quality flags; the generator regenerates
-// once with a correction when any flag is raised and stores whatever flags
-// remain.
+// Post-generation checks on scripts and emails. Each check returns quality
+// flags; the generator regenerates once with a correction when any flag is
+// raised and stores whatever flags remain.
 
 export interface CallCopy {
   opener: string;
@@ -22,24 +21,15 @@ export interface PersonaCopy {
   email: EmailCopy;
 }
 
+/**
+ * The name the emails are signed with. Craig has not confirmed the brand
+ * (docs/TA-SEARCHER-BRIEF.md, question 1: Big Fish Recruitment, WhoFoundWho
+ * or a new name); Big Fish Recruitment is assumed until he does.
+ */
+export const FIRM_NAME = 'Big Fish Recruitment';
+
 export const BANNED_PHRASES = [
-  // Services we do not offer (Craig, 15 September 2026): long-term, fixed-term, permanent and planned cover only.
-  'daily supply',
-  'day-to-day supply',
-  'day to day supply',
-  'daily cover',
-  'day-to-day cover',
-  'same-day cover',
-  'same day cover',
-  'short-notice cover',
-  'short notice cover',
-  'last-minute cover',
-  'last minute cover',
-  'ad hoc cover',
-  'ad-hoc cover',
-  'emergency cover',
-  '6.30am',
-  '6:30am',
+  // Model tells and marketing words.
   'hope this finds you well',
   'hope this email finds you well',
   'hope you are well',
@@ -55,11 +45,22 @@ export const BANNED_PHRASES = [
   'leverage',
   'best-in-class',
   'world-class',
+  'world-class talent',
   'unlock',
   'seamless',
   'cutting-edge',
   'as a valued',
   'i wanted to',
+  'i\'d love to',
+  // Start-up recruiting cliches.
+  'rockstar',
+  'rock star',
+  'ninja',
+  '10x',
+  'war for talent',
+  'unicorn',
+  // A placeholder marker from the value proposition must never reach a draft.
+  'craig to confirm',
 ];
 
 export const WORD_LIMITS = {
@@ -79,18 +80,18 @@ export function splitSentences(text: string): string[] {
 }
 
 /**
- * A pound sign next to a number, with "margin", "fee" or "%" in the same
- * sentence, is a fee figure. So is a percentage next to "margin", "fee",
- * "rate" or "charge". Both are refused whatever the wording around them.
+ * A pound sign next to a number, with "margin", "fee", "retainer" or "%" in
+ * the same sentence, is a fee figure. So is a percentage within six words of
+ * a fee word (fee, margin, retainer, placement fee, per hire, our rates).
+ * Both are refused whatever the wording around them.
  */
 export function feeFigureViolations(text: string): string[] {
   const out: string[] = [];
-  const FEE = '(?:margins?|fees?|commission|mark-?up|our rates?|daily rate|day rate|charge rate|we charge|placement (?:fee|rate))';
+  const FEE = '(?:margins?|fees?|commission|mark-?up|retainers?|our rates?|daily rate|day rate|charge rate|we charge|placement (?:fee|rate)|per hire|cost per hire|success fee|contingen(?:t|cy) fee)';
   const NEAR = '(?:\\W+\\w+){0,6}\\W+';
-  // A pound figure with margin, fee or a percentage anywhere in the sentence.
-  const poundRule = (s: string) => (/£\s?\d/.test(s) || /\d\s?(?:pounds|gbp)\b/i.test(s)) && /\b(margin|margins|fee|fees|%)/i.test(s);
-  // A percentage within six words of a fee word, either way round, so
-  // "99% APSCo compliance ... our margin is visible" in one sentence passes.
+  // A pound figure with margin, fee, retainer or a percentage anywhere in the sentence.
+  const poundRule = (s: string) => (/£\s?\d/.test(s) || /\d\s?(?:pounds|gbp)\b/i.test(s)) && /\b(margin|margins|fee|fees|retainer|retainers|per hire|%)/i.test(s);
+  // A percentage within six words of a fee word, either way round.
   const pctNearFee = new RegExp(`\\b${FEE}${NEAR}\\d+(?:\\.\\d+)?\\s?(?:%|per ?cent)|\\d+(?:\\.\\d+)?\\s?(?:%|per ?cent)${NEAR}${FEE}\\b`, 'i');
   for (const s of splitSentences(text)) {
     if (poundRule(s) || pctNearFee.test(s)) out.push(s);
@@ -99,7 +100,7 @@ export function feeFigureViolations(text: string): string[] {
 }
 
 export function bannedPhraseHits(text: string): string[] {
-  const lower = (text || '').toLowerCase();
+  const lower = (text || '').toLowerCase().replace(/[’]/g, "'");
   return BANNED_PHRASES.filter((p) => lower.includes(p));
 }
 
@@ -153,7 +154,7 @@ export function styleFlags(copy: PersonaCopy): string[] {
 const TITLE_NAME_RE = /\b(?:Mr|Mrs|Ms|Miss|Mx|Dr|Prof|Professor|Sir|Dame|Rev|Fr)\.?[ \t]+(?:[A-Z][a-z'’-]+[ \t]+(?=[A-Z]))?([A-Z][A-Za-z'’-]+)/g;
 const PAIR_RE = /\b([A-Z][a-z'’-]{1,})[ \t]+([A-Z][a-z'’-]{1,})\b/g;
 
-const NOT_A_NAME = new Set(['The', 'This', 'That', 'These', 'Those', 'Our', 'Your', 'We', 'If', 'When', 'What', 'Which', 'Who', 'How', 'Why', 'Where', 'One', 'Two', 'Three', 'Head', 'Deputy', 'Assistant', 'Teaching', 'Teacher', 'Company', 'Business', 'Manager', 'Senco', 'SENCO', 'Trust', 'Ofsted', 'DfE', 'Good', 'Outstanding', 'Requires', 'Improvement', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December', 'Autumn', 'Spring', 'Summer', 'Term', 'Lot', 'Framework', 'Best', 'Kind', 'Many', 'Thanks', 'Thank', 'Dear', 'Hello', 'Hi', 'Morning', 'Afternoon', 'Subject', 'Re', 'From', 'To', 'On', 'In', 'At', 'For', 'With', 'Of', 'And', 'But', 'Or', 'Not', 'No', 'Yes', 'It', 'Is', 'Are', 'Was', 'Were', 'Have', 'Has', 'Had', 'Will', 'Would', 'Could', 'Should', 'Can', 'May', 'Might', 'Do', 'Does', 'Did', 'Also', 'Just', 'Only', 'Very', 'Every', 'Each', 'Some', 'Any', 'All', 'Most', 'More', 'Less', 'Fifteen', 'Ten', 'Five', 'A', 'An', 'I', 'You', 'They', 'He', 'She', 'Then', 'Now', 'Today', 'Tomorrow', 'Next', 'Last', 'First', 'Second', 'Third', 'New', 'Old', 'Live', 'Open', 'Long', 'Short', 'Please', 'Sorry', 'Great', 'Happy', 'Glad', 'Warm', 'Regards', 'Sincerely', 'Cheers', 'Ps', 'PS', 'Nb', 'NB']);
+const NOT_A_NAME = new Set(['The', 'This', 'That', 'These', 'Those', 'Our', 'Your', 'We', 'If', 'When', 'What', 'Which', 'Who', 'How', 'Why', 'Where', 'One', 'Two', 'Three', 'Head', 'Chief', 'Founder', 'Talent', 'People', 'Engineering', 'Product', 'Series', 'Seed', 'Companies', 'House', 'Ashby', 'Greenhouse', 'Lever', 'Workable', 'Big', 'Fish', 'Recruitment', 'London', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December', 'Best', 'Kind', 'Many', 'Thanks', 'Thank', 'Dear', 'Hello', 'Hi', 'Morning', 'Afternoon', 'Subject', 'Re', 'From', 'To', 'On', 'In', 'At', 'For', 'With', 'Of', 'And', 'But', 'Or', 'Not', 'No', 'Yes', 'It', 'Is', 'Are', 'Was', 'Were', 'Have', 'Has', 'Had', 'Will', 'Would', 'Could', 'Should', 'Can', 'Might', 'Do', 'Does', 'Did', 'Also', 'Just', 'Only', 'Very', 'Every', 'Each', 'Some', 'Any', 'All', 'Most', 'More', 'Less', 'Fifteen', 'Ten', 'Five', 'A', 'An', 'I', 'You', 'They', 'He', 'She', 'Then', 'Now', 'Today', 'Tomorrow', 'Next', 'Last', 'First', 'Second', 'Third', 'New', 'Old', 'Live', 'Open', 'Long', 'Short', 'Please', 'Sorry', 'Great', 'Happy', 'Glad', 'Warm', 'Regards', 'Sincerely', 'Cheers', 'Ps', 'PS', 'Nb', 'NB']);
 
 function words(s: string): Set<string> {
   return new Set((s || '').toLowerCase().replace(/[’']/g, "'").split(/[^a-z0-9']+/).filter(Boolean));
@@ -170,7 +171,7 @@ export function namedPeopleFlags(copy: PersonaCopy, input: { contactNames: strin
   for (const n of [...input.contactNames, input.consultantName || '']) {
     for (const w of n.split(/\s+/)) if (w) allowedSurnames.add(w.toLowerCase().replace(/[^a-z'’-]/g, ''));
   }
-  const inputWords = words(input.inputText + ' ' + input.contactNames.join(' ') + ' ' + (input.consultantName || ''));
+  const inputWords = words(input.inputText + ' ' + input.contactNames.join(' ') + ' ' + (input.consultantName || '') + ' ' + FIRM_NAME);
   const flags = new Set<string>();
   for (const m of all.matchAll(TITLE_NAME_RE)) {
     const surname = m[1].toLowerCase().replace(/[^a-z'’-]/g, '');
@@ -189,12 +190,14 @@ export function namedPeopleFlags(copy: PersonaCopy, input: { contactNames: strin
   return Array.from(flags);
 }
 
-/** The email must be signed with the consultant's first name (or "WhoFoundWho" when no consultant is assigned). */
+/** The email must be signed with the consultant's first name or the firm's name (FIRM_NAME) in its last lines. */
 export function signatureFlags(copy: PersonaCopy, consultantFirstName: string | null): string[] {
   const body = copy.email?.body || '';
   const tail = body.trim().split('\n').slice(-4).join('\n').toLowerCase();
-  const name = (consultantFirstName || 'WhoFoundWho').toLowerCase();
-  return tail.includes(name) ? [] : [`email not signed by ${consultantFirstName || 'WhoFoundWho'}`];
+  const first = (consultantFirstName || '').toLowerCase();
+  if (first && tail.includes(first)) return [];
+  if (tail.includes(FIRM_NAME.toLowerCase())) return [];
+  return [`email not signed by ${consultantFirstName || FIRM_NAME}`];
 }
 
 export function allFlags(copy: PersonaCopy, input: { contactNames: string[]; consultantName: string | null; consultantFirstName?: string | null; inputText: string }): string[] {

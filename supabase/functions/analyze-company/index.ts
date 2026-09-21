@@ -38,7 +38,8 @@ import { isDefunctStatus, normaliseCompanyNumber, resolveCompanyRecord, sectorFr
 import { todayIso } from '../_shared/dates.ts';
 import { normaliseOrgName } from '../_shared/vacancies/employer-match.ts';
 import { groundLlmVacancies } from '../_shared/vacancies/llm-grounding.ts';
-import { collectBoardVacancies, collectVacancies, mergeVacancies, persistVacancies, summariseRun, toCurrentVacancies, SOURCE_LABELS, type PersistedVacancy } from '../_shared/vacancies/pipeline.ts';
+import { boardSources, collectBoardVacancies, collectVacancies, mergeVacancies, persistVacancies, summariseRun, toCurrentVacancies, SOURCE_LABELS, type PersistedVacancy } from '../_shared/vacancies/pipeline.ts';
+import type { CareersPageResult } from '../_shared/vacancies/source-careers-page.ts';
 import type { AtsBoard, CompanyContext, VacancyRunSummary } from '../_shared/vacancies/types.ts';
 import { confirmBoard, detectAtsBoards } from '../_shared/vacancies/ats-detect.ts';
 
@@ -546,6 +547,27 @@ Deno.serve(async (req) => {
     await setStage('vacancies');
     console.log('Collecting open roles...');
     const sourceResults = await collectVacancies(supabaseClient, ctx, mainPageHtml, today);
+    // A board the careers page itself links to (not the homepage) is
+    // confirmed now and read in the same run.
+    const careersResult = sourceResults.find((r) => r.source === 'careers_page') as (CareersPageResult | undefined);
+    for (const b of careersResult?.detectedBoards ?? []) {
+      if (boards.some((x) => x.provider === b.provider && x.slug === b.slug)) continue;
+      if (detected.has(`${b.provider}:${b.slug}`)) continue;
+      detected.set(`${b.provider}:${b.slug}`, b);
+      const check = await confirmBoard(b, officialName);
+      if (existingRow) {
+        await supabaseClient.from('ats_boards').upsert({
+          company_search_id: existingRow.id, provider: b.provider, slug: b.slug, board_url: b.boardUrl,
+          confirmed_at: check.ok ? new Date().toISOString() : null, last_checked_at: new Date().toISOString(), last_ok_at: check.ok ? new Date().toISOString() : null, last_count: check.ok ? check.count : null, note: check.note,
+        }, { onConflict: 'company_search_id,provider' });
+      }
+      console.log(`Board ${b.provider}/${b.slug} (from the careers page): ${check.ok ? `confirmed, ${check.count} roles` : `not confirmed (${check.note})`}`);
+      if (check.ok) {
+        boards.push(b);
+        sourceResults.push(...await Promise.all(boardSources([b], today)));
+      }
+    }
+    (boardsNote as Record<string, unknown>).detected = Array.from(detected.keys());
     for (const r of sourceResults) console.log(`  ${r.source}: ${r.ok ? 'ok' : 'FAILED'} ${r.vacancies.length} found in ${r.ms}ms${r.note ? ` (${r.note})` : ''}`);
     const verifiedCandidates = sourceResults.flatMap((r) => r.vacancies);
     const verifiedMerge = mergeVacancies(verifiedCandidates, ctx, today);

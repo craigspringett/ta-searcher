@@ -121,7 +121,9 @@ export function stageFromText(text: string): StageLabel | null {
 }
 
 const LIST_TRIGGER_RE = /\b(?:led by|co-led by|from|with participation from|with support from|alongside|backed by|joined by|including|investors? (?:include|included|are|were|such as)|with)\s+/gi;
-const LIST_STOP_RE = /\s+(?:to|in|as|for|at|on|following|bringing|taking|valuing|which|that|who|announced|today|this|last|earlier|will|via)\b|[.;:()!?]|$/;
+const LIST_STOP_RE = /\s+(?:to|in|as|for|at|on|with|alongside|following|bringing|taking|valuing|which|that|who|announced|today|this|last|earlier|will|via)\b|[.;:()!?]|$/;
+/** "angels from Monzo", "operators at Stripe": people, not a fund; the company name after them is not an investor. */
+const PEOPLE_FROM_RE = /\b(angels?|angel investors?|founders?|operators?|executives?|execs|leaders|alumni|people|team|veterans) (?:from|at|of) [A-Z][\w&.'’-]*(?:\s+[A-Z][\w&.'’-]*)*/g;
 /** "existing investors Seedcamp" and "new investor Headline" carry the name after the label. */
 const INVESTOR_LABEL_RE = /^(?:(?:its |our |the |several |a number of |other )?(?:existing|new|previous|current|returning|strategic|lead|angel|prominent|leading|notable|institutional)?\s*(?:investors?|backers?|funds?|angels?|vcs?)\s+)/i;
 const NOT_A_NAME_RE = /^(?:existing investors?|new investors?|angels?|angel investors?|others?|several|a number of|our|the|its|strategic investors?|investors?|backers?|funds?|vcs?|family and friends|friends and family|customers?|employees|founders?|management)$/i;
@@ -139,7 +141,8 @@ function cleanName(part: string): string | null {
 }
 
 /** Investor names in a text, from "led by X", "from X, Y and Z", "with participation from X" and "X led the round". */
-export function investorsFromText(text: string): string[] {
+export function investorsFromText(raw: string): string[] {
+  const text = raw.replace(PEOPLE_FROM_RE, '$1');
   const out: string[] = [];
   const add = (n: string | null) => { if (n && !out.some((o) => o.toLowerCase() === n.toLowerCase())) out.push(n); };
   const lead = text.match(LEAD_NAME_RE);

@@ -9,7 +9,7 @@ export interface VacancyLike {
   pageUrl?: string | null;
 }
 
-const SOURCE_SUFFIX = /\s*\((?:posted on|from|via)?\s*(?:the\s+)?(?:company website|company site|tes|teaching vacancies|gov teaching vacancies|gov\.uk|eteach|mynewterm|my new term|reed|indeed|academics|hays|teaching personnel|randstad|llm|ai)[^)]*\)\s*$/i;
+const SOURCE_SUFFIX = /\s*\((?:posted on|from|via)?\s*(?:the\s+)?(?:company website|company site|careers page|careers site|ashby|greenhouse|lever|workable|linkedin|indeed|otta|llm|ai)[^)]*\)\s*$/i;
 
 export function decodeEntities(s: string): string {
   return s

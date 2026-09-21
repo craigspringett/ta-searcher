@@ -1,4 +1,4 @@
-// Copy generation with Claude (docs/PHASE-3-BRIEF.md, deliverable 3).
+// Copy generation with Claude.
 //
 // One call per company per persona. The stable system prompt (rules, persona
 // notes, value proposition) carries a cache breakpoint so repeated calls pay
@@ -115,7 +115,7 @@ export async function generatePersonaCopy(input: CopyInput, companySearchId: str
   const vp = await loadValueProposition();
   const system = buildSystemPrompt(vp.text);
   const { text: userText } = buildUserMessage(input);
-  const checkInput = { contactNames: input.contacts.map((c) => c.name).filter(Boolean), consultantName: input.consultant.fullName || input.consultant.firstName, consultantFirstName: input.consultant.firstName, inputText: userText + '\n' + system };
+  const checkInput = { contactNames: [input.contact, ...input.otherContacts].filter((c): c is NonNullable<typeof c> => !!c).map((c) => c.name).filter(Boolean), consultantName: input.consultant.fullName || input.consultant.firstName, consultantFirstName: input.consultant.firstName, inputText: userText + '\n' + system };
   const usage: UsageRecord[] = [];
   const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: 'user', content: userText }];
   let first: Awaited<ReturnType<typeof callModel>>;

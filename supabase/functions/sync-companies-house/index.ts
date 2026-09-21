@@ -4,7 +4,7 @@
 // and the capital filings into ch_officers and ch_filings
 // (_shared/companies-house.ts), and copy the record and the officers into
 // analysis_result (companyRecord, officers) when they changed. One
-// pipeline_runs row per run, phase 'companies_house_sync'.
+// pipeline_runs row per run, phase 'companies_house'.
 //
 // Service role only (the schedule); a signed-in user may run it with
 // {"dryRun":true}, which reads the register but writes nothing. Body:
@@ -36,7 +36,7 @@ const corsHeaders = {
 };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
-const PHASE = 'companies_house_sync';
+const PHASE = 'companies_house';
 const DEFAULT_MAX_AGE_DAYS = 7;
 const CONCURRENCY = 4;
 const PAGE = 500;

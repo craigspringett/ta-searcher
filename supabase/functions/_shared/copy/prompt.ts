@@ -1,30 +1,33 @@
 // The copy prompt: a stable system block (rules, persona notes, the value
 // proposition file) that is cached across calls, and a company-specific user
-// message built from the signals, facts, vacancies, spend, contacts and the
-// consultant. docs/COPY-STYLE.md describes the rules in plain language.
+// message built from the register line, the stage and the latest raise, the
+// signals, facts, open roles, contacts and the consultant.
+// docs/COPY-STYLE.md describes the rules in plain language.
 
 import type { Fact } from '../facts/types.ts';
+import type { StageGuess, LatestRaise } from '../facts/derive.ts';
 import type { Signal } from '../signals/compute.ts';
-import { currentTerm } from '../signals/calendar.ts';
-import { BANNED_PHRASES, WORD_LIMITS } from './checks.ts';
+import { BANNED_PHRASES, FIRM_NAME, WORD_LIMITS } from './checks.ts';
 import { type ConsultantIdentity, pickReviews, type Review } from './reviews.ts';
 import { VALUE_PROPOSITION_DEFAULT } from './value-proposition.default.ts';
 
-export type Persona = 'headteacher' | 'sbm' | 'senco' | 'trust_hr';
-export const PERSONAS: Persona[] = ['headteacher', 'sbm', 'senco', 'trust_hr'];
+export type Persona = 'founder' | 'coo' | 'people' | 'cto' | 'investor';
+export const PERSONAS: Persona[] = ['founder', 'coo', 'people', 'cto', 'investor'];
 
 export const PERSONA_LABELS: Record<Persona, string> = {
-  headteacher: 'Headteacher',
-  sbm: 'Company Business Manager',
-  senco: 'SENCO',
-  trust_hr: 'Trust HR',
+  founder: 'Founder / CEO',
+  coo: 'COO / Chief of Staff',
+  people: 'Head of People',
+  cto: 'CTO / VP Engineering',
+  investor: 'Investor talent partner',
 };
 
 export const PERSONA_NOTES: Record<Persona, string> = {
-  headteacher: 'The headteacher cares about the quality of who stands in front of the class and whether they fit the company. Lead with the specific role or pressure, the match-not-fill approach and the consultant\'s knowledge of the setting. Wellbeing community is relevant when supply consistency or retention is the issue. Compliance is a one-line reassurance, not the pitch. When a pupil premium fact names the teaching assistants, tutors or mentors the statement funds, or a named programme (Read Write Inc, Lexia, NELI, Third Space Learning), the opener may refer to that plan in the company\'s own words as the reason for calling, offering staff who know the programme; quote the statement\'s year. When the input gives a pupil premium "TAs a week" figure (only present when the company stated the hours or numbers), you may name it as the size of the team the premium funds; never our TA-days estimate.',
-  sbm: 'The company business manager cares about compliance, cost transparency and admin. Lead with the framework (RM6376 Lot 1), rates already at framework level and visible on any invoice, the APSCo audit, and the fifteen-minute look at the margin and the compliance file. Never a figure. Quality of staff is the second point, not the first.',
-  senco: 'The SENCO cares about SEN experience, consistency of the same person, and safeguarding. Lead with the SEND-specific signal (support vacancies, resource base, EHCP growth), staff with SEN experience and consistency of placement, the wellbeing community as a reason staff stay. Compliance in one line. Do not talk about margins beyond transparency. When a pupil premium fact names a literacy, speech and language or EAL programme, or TAs, HLTAs, ELSAs or intervention staff the statement funds, lead with it: staff trained in that programme or role, consistent for the pupils it serves. When the input gives a pupil premium "TAs a week" figure (only present when the company stated the hours or numbers), you may name it as the size of the team the premium funds; never our TA-days estimate.',
-  trust_hr: 'Trust HR cares about the framework, volume across companies, consistency of process and compliance at scale. Lead with RM6376 Lot 1 and the October 2026 requirement, the APSCo audit, the ability to cover several companies, and one company-level signal as the concrete example. Offer a trust-level conversation rather than a single vacancy.',
+  founder: 'The founder is running the company and the hiring at the same time, and hiring is eating the calendar: every open role is screening, interviews and offers they are doing themselves or through whoever is nearest. What they want is their time back and a partner who has built a talent function before, not another agency sending CVs. Lead with the specific hiring load in the input (the open roles, the raise, the plan they stated) and the idea that one good Head of Talent is the hire that makes the other hires happen. Offer the Searchable placement as the one proof point when it is in the reference material. Do not tell them their hiring is broken; describe what they are doing and ask how it feels from the inside. Never quote a fee.',
+  coo: 'The COO or chief of staff owns the process and the numbers: time to hire, cost per hire, offer acceptance, how many roles each person can carry, how the plan lands against the runway. Lead with process, speed and predictability: a Head of Talent who sets up the pipeline, the tooling and the reporting so hiring stops being a fire drill. Use the open-roles count and the raise as the concrete frame. Say nothing about fee levels or percentages; the conversation about the commercial shape happens on the call.',
+  people: 'The Head of People has usually inherited recruiting on top of everything else, or is about to. They want a peer who has done the build-out: someone who knows what a first talent hire at this stage looks like, what the role should own, how it fits beside them rather than under or over them. Lead with the shape of the team in the input (the roles open, the departments hiring, whether a talent person exists yet) and speak as one professional to another. Do not imply they are failing; the point is that the function is being built and the sequencing matters. Never a fee.',
+  cto: 'The CTO wants engineers hired without losing their own calendar to it: sourcing, technical screens and closing take engineering time that should go on the product. Lead with the engineering roles in the input (count them, name the disciplines), how long they have been open, and the idea of a Head of Talent who can run technical hiring so the engineering leads only see the final loop. Keep it concrete and short; no marketing words. Say nothing about fees.',
+  investor: 'The investor talent partner sits on a fund\'s platform team and wants the portfolio staffed and to be the person who made the useful introduction. Lead with the specific portfolio company in the input (the raise, the round, the roles open, no talent lead in post) and offer an introduction that makes them look good: a Head of Talent placement they can point to, and a short note they can forward to the founder. Speak about the company by name and by the facts; never claim to know the fund\'s other companies unless the input says so. No fee talk.',
 };
 
 export const COPY_SCHEMA = {
@@ -63,33 +66,35 @@ export const COPY_SCHEMA = {
 
 /** The stable part of the prompt. Cached; keep anything company-specific out of it. */
 export function buildSystemPrompt(valueProposition: string): string {
-  return `You write short, specific outreach for WhoFoundWho, an education recruitment agency in London and the Home Counties. A consultant will read the call script aloud on the phone today and send the email as written. You are given one company, one persona (the person being contacted), computed signals with their evidence, validated facts with quotes from the company's own website, live vacancies, agency spend with a peer comparison, the consultant's name, and today's date and term.
+  return `You write short, specific outreach for ${FIRM_NAME}, a recruitment firm that places Heads of Talent Acquisition and Heads of Recruitment into seed and Series A start-ups in the United Kingdom, London first. A consultant will read the call script aloud on the phone today and send the email as written. You are given one company, one persona (the person being contacted), the Companies House register line, the stage and the latest raise as far as they are known, computed signals with their evidence, validated facts with quotes from the company's own website, the open roles grouped by family, the consultant's name, and today's date.
 
 Style rules:
 - British English, plain, warm and direct. Short sentences. No jargon, no marketing words, no exclamation marks.
 - The reason for contact is always a specific signal with its evidence, named plainly in the first two sentences. Never a generic compliment, never "I came across your website".
-- Do not invent anything not in the input: no names, titles, roles, vacancies, numbers, dates, awards, Ofsted grades or claims about the company that the input does not contain. If you are not sure something is in the input, leave it out. Never add a title (Mr, Mrs, Ms, Dr) the input does not give; a contact given as "Holly Churchill" is "Holly", never "Mrs Churchill".
-- Do not make claims about what other companies, trusts or agencies are doing ("many companies are aligning early", "most companies keep two agencies"); say only what the reference material or the input supports.
-- Use at most one or two proof points about WhoFoundWho, chosen for the persona. Refer to framework rates and transparency; never quote a margin, a fee, a percentage of salary or a daily rate. "Fifteen minutes to see the margin and the compliance file" is the ask.
-- WhoFoundWho places long-term, fixed-term and permanent staff, and planned cover a company arranges with us in advance. Never offer or mention daily supply, day-to-day supply, same-day, short-notice, last-minute or emergency cover, or early-morning calls; if a vacancy or fact is about cover, treat it as planned cover.
-- Mention the wellbeing community, compliance or the framework only when relevant to the persona (see the persona notes).
-- If the input has no strong signal (no live vacancy, no leadership change, no spend or pressure evidence), say so honestly in the opener ("no live vacancy that I can see, so this is a short introduction") and keep everything shorter. Never pad.
-- Address the named contact when one is given: by title and surname when the input gives a title ("Mrs M John" is addressed as "Mrs John", never with the initial), by first name when the input gives a full name without a title; if no contact is given, write for "the headteacher" (or the persona's role) without inventing a name.
-- Sign the email body with the consultant's first name on its own line, then "WhoFoundWho" and "[phone number]" on the next lines. The follow-up is signed with the first name only.
+- Do not invent anything not in the input: no names, titles, roles, open roles, numbers, dates, funding figures, investors, awards or claims about the company that the input does not contain. If you are not sure something is in the input, leave it out. Never add a title (Mr, Mrs, Ms, Dr) the input does not give; a contact given as "Sarah Green" is "Sarah".
+- Do not make claims about what other companies, funds or agencies are doing ("most Series A companies hire a Head of Talent within six months"); say only what the reference material or the input supports.
+- Use at most one or two proof points about ${FIRM_NAME}, chosen for the persona. Never quote a fee, a percentage, a retainer figure or a day rate; the commercial shape is for the call.
+- Never promise a candidate, a shortlist or availability that is not in the input.
+- Never imply the company is failing at hiring; say what they are doing (the roles open, the plan they stated, the raise) and ask how it is going.
+- Lines in the reference material marked "[Craig to confirm]" are placeholders awaiting confirmation: do not use the claim they carry and never write the marker.
+- If the input has no strong signal (no open roles, no raise, no leadership change, no stated hiring plan), say so honestly in the opener ("no open role that I can see, so this is a short introduction") and keep everything shorter. Never pad.
+- Address the named contact when one is given: by title and surname when the input gives a title, by first name when the input gives a full name without a title; if no contact is given, write for "the founder" (or the persona's role) without inventing a name.
+- Sign the email body with the consultant's first name on its own line, then "${FIRM_NAME}" and "[phone number]" on the next lines. The follow-up is signed with the first name only.
 - The call opener is spoken: contractions are fine, no bullet points, no headings. Say who you are and where from in the first sentence, the reason in the second, then the one-line proof point, then a question.
-- Discovery questions are open and specific to the signals. Objections are the ones this persona actually raises (existing agency, budget, framework, no need right now, send an email) with a calm response each.
-- The voicemail stands alone: name, agency, the one reason, the ask, the phone number placeholder [phone number].
-- The email: subject under ${WORD_LIMITS.subjectChars.max} characters that names the reason; body under ${WORD_LIMITS.emailBody.max} words with one hook, one proof point, one ask, signed with the consultant's first name, WhoFoundWho, and the placeholder [phone number]; a follow-up under ${WORD_LIMITS.followup.max} words for five days later that adds one new thing rather than repeating.
+- Discovery questions are open and specific to the signals. Objections are the ones this persona actually raises (we have an internal recruiter, we use an agency already, no budget until the next round, the founders do the hiring, send an email) with a calm response each.
+- The voicemail stands alone: name, firm, the one reason, the ask, the phone number placeholder [phone number].
+- The email: subject under ${WORD_LIMITS.subjectChars.max} characters that names the reason; body under ${WORD_LIMITS.emailBody.max} words with one hook, one proof point, one ask, signed with the consultant's first name, ${FIRM_NAME}, and the placeholder [phone number]; a follow-up under ${WORD_LIMITS.followup.max} words for five days later that adds one new thing rather than repeating.
 - Never use these phrases: ${BANNED_PHRASES.map((p) => `"${p}"`).join(', ')}. In particular never open a sentence with "I wanted to"; say what you are doing ("I'm calling because", "I'm writing because").
 - Word limits are hard: opener ${WORD_LIMITS.opener.min} to ${WORD_LIMITS.opener.max} words, voicemail ${WORD_LIMITS.voicemail.min} to ${WORD_LIMITS.voicemail.max}, email body under ${WORD_LIMITS.emailBody.max}, follow-up under ${WORD_LIMITS.followup.max}.
 
 Persona notes:
-- headteacher: ${PERSONA_NOTES.headteacher}
-- sbm: ${PERSONA_NOTES.sbm}
-- senco: ${PERSONA_NOTES.senco}
-- trust_hr: ${PERSONA_NOTES.trust_hr}
+- founder: ${PERSONA_NOTES.founder}
+- coo: ${PERSONA_NOTES.coo}
+- people: ${PERSONA_NOTES.people}
+- cto: ${PERSONA_NOTES.cto}
+- investor: ${PERSONA_NOTES.investor}
 
-Reference material about WhoFoundWho (paraphrase, never paste):
+Reference material about ${FIRM_NAME} (paraphrase, never paste):
 ${valueProposition.trim()}`;
 }
 
@@ -98,44 +103,49 @@ export interface CopyContact {
   role: string;
   email?: string;
   confidence?: string;
+  /** A reported contact is never the named contact; kept here so the picker can skip it. */
+  feedback?: string;
 }
 
-export interface CopyVacancy {
-  title: string;
-  source: string;
-  firstSeen?: string | null;
-  closingDate?: string | null;
-  url?: string | null;
+/** The register line: what the Companies House record says about the company, already reduced to what the writer may name. */
+export interface CopyRecordLine {
+  companyNumber: string | null;
+  /** 'active', 'dissolved', 'liquidation', ... */
+  status: string | null;
+  /** ISO YYYY-MM-DD */
+  incorporationDate: string | null;
+  /** The registered office's town or district. */
+  locality: string | null;
+  /** The sector label from the SIC codes ('Software', 'Fintech', ...). */
+  sector: string | null;
 }
 
-export interface CopySpend {
-  latestYear: string | null;
-  agencyAndSupply: number | null;
-  previousYear: string | null;
-  previousAgencyAndSupply: number | null;
-  /** The peer comparison in words, already computed. */
-  comparison: string | null;
+/** One family of open roles: the family label, how many, and the titles. */
+export interface CopyRoleGroup {
+  family: string;
+  label: string;
+  count: number;
+  titles: string[];
 }
 
-/** The "TAs a week" figure from the company's pupil premium statement, given to the writer only when the company itself stated the hours or numbers. */
-export interface CopyPupilPremium {
-  tasPerWeek: number;
-  basis: string | null;
-  academicYear: string | null;
+export interface CopyCompany {
+  name: string;
+  record: CopyRecordLine | null;
+  stage: StageGuess | null;
+  latestRaise: LatestRaise | null;
 }
 
 export interface CopyInput {
   persona: Persona;
-  company: { name: string; phase: string | null; laName: string | null; trustName: string | null };
+  company: CopyCompany;
+  /** The person this persona's copy is written to, or null when none was found. */
   contact: CopyContact | null;
-  /** All contacts, so the writer can mention the office or a PA where useful. */
-  contacts: CopyContact[];
+  /** The other contacts found, so the writer can mention the founders or the general mailbox where useful. */
+  otherContacts: CopyContact[];
   signals: Signal[];
   facts: Fact[];
-  vacancies: CopyVacancy[];
-  spend: CopySpend | null;
-  /** Present only when confidence is high (stated hours, FTE or a number of staff); our pound-figure estimate is never given. */
-  pupilPremium?: CopyPupilPremium | null;
+  /** Open roles grouped by family, the direct lead (people and talent) first. */
+  openRoles: CopyRoleGroup[];
   consultant: ConsultantIdentity;
   today: Date;
 }
@@ -145,22 +155,53 @@ function fmtContact(c: CopyContact): string {
   return `${c.name || '(no name)'} | ${c.role}${c.email ? ` | ${c.email}` : ''} | ${conf}`;
 }
 
+const STAGE_WORDS: Record<string, string> = { pre_seed: 'pre-seed', seed: 'seed', series_a: 'Series A', series_b_plus: 'Series B or later', unknown: 'unknown' };
+
+/** The register line as the writer sees it. */
+export function recordLine(r: CopyRecordLine | null): string {
+  if (!r) return 'Companies House record: none (no company number, or the register could not be read).';
+  const parts = [
+    r.companyNumber ? `number ${r.companyNumber}` : 'no number',
+    r.status ? `status ${r.status}` : null,
+    r.incorporationDate ? `incorporated ${r.incorporationDate}` : null,
+    r.locality ? `registered office ${r.locality}` : null,
+    r.sector ? `sector ${r.sector}` : null,
+  ].filter(Boolean);
+  return `Companies House record: ${parts.join('; ')}.`;
+}
+
+/** The stage guess as the writer sees it. */
+export function stageLine(s: StageGuess | null): string {
+  if (!s || s.label === 'unknown') return 'Stage: unknown; do not name a stage.';
+  return `Stage: ${STAGE_WORDS[s.label] || s.label}${s.evidence ? ` (${s.evidence}${s.source_url ? `, ${s.source_url}` : ''})` : ''}.`;
+}
+
+/** The latest raise as the writer sees it. */
+export function raiseLine(r: LatestRaise | null): string {
+  if (!r) return 'Latest raise: none in the input; do not mention funding.';
+  const bits = [r.round ? r.round : null, r.amountText ? r.amountText : null, r.date ? `dated ${r.date}` : null, r.investors?.length ? `investors ${r.investors.join(', ')}` : null].filter(Boolean);
+  return `Latest raise: ${bits.length ? bits.join(', ') : 'a round the company mentioned'}${r.statement ? ` | "${r.statement}"` : ''}${r.source_url ? ` | ${r.source_url}` : ''}.`;
+}
+
 /** The company-specific message. Everything the writer may use is here and nothing else. */
 export function buildUserMessage(input: CopyInput): { text: string; reviews: Review[] } {
-  const reviews = pickReviews(input.consultant, input.company.phase);
+  const reviews = pickReviews(input.consultant, { stage: input.company.stage?.label ?? null, sector: input.company.record?.sector ?? null });
   const backing = new Set<string>();
   for (const s of input.signals) for (const e of s.evidence) if (e.type === 'fact' && e.id) backing.add(e.id);
   const backingFacts = input.facts.filter((f) => backing.has(f.id));
   const otherFacts = input.facts.filter((f) => !backing.has(f.id)).slice(0, 8);
   const lines: string[] = [];
   lines.push(`Persona: ${input.persona} (${PERSONA_LABELS[input.persona]})`);
-  lines.push(`Today: ${input.today.toISOString().slice(0, 10)}, ${currentTerm(input.today)}.`);
-  lines.push(`Consultant: ${input.consultant.firstName ? `${input.consultant.fullName || input.consultant.firstName}, ${input.consultant.role}` : 'not assigned; sign as "the WhoFoundWho team" with first name "WhoFoundWho"'}, WhoFoundWho.`);
+  lines.push(`Today: ${input.today.toISOString().slice(0, 10)}.`);
+  lines.push(`Consultant: ${input.consultant.firstName ? `${input.consultant.fullName || input.consultant.firstName}, ${input.consultant.role}` : `not assigned; sign as "the ${FIRM_NAME} team" with first name "${FIRM_NAME}"`}, ${FIRM_NAME}.`);
   lines.push('');
-  lines.push(`Company (DfE record): ${input.company.name}; phase ${input.company.phase || 'unknown'}; local authority ${input.company.laName || 'unknown'}; trust ${input.company.trustName || 'none (maintained company or standalone)'}.`);
+  lines.push(`Company: ${input.company.name}.`);
+  lines.push(recordLine(input.company.record));
+  lines.push(stageLine(input.company.stage));
+  lines.push(raiseLine(input.company.latestRaise));
   lines.push('');
   lines.push(`Named contact for this persona: ${input.contact ? fmtContact(input.contact) : 'none found on the site; do not invent one'}.`);
-  if (input.contacts.length) lines.push(`Other contacts found: ${input.contacts.slice(0, 6).map(fmtContact).join('; ')}.`);
+  if (input.otherContacts.length) lines.push(`Other contacts found: ${input.otherContacts.slice(0, 6).map(fmtContact).join('; ')}.`);
   lines.push('');
   if (input.signals.length) {
     lines.push('Signals, strongest first (strength 1 to 3):');
@@ -169,7 +210,7 @@ export function buildUserMessage(input: CopyInput): { text: string; reviews: Rev
       for (const e of s.evidence.slice(0, 3)) lines.push(`    evidence: ${e.text}${e.quote ? ` | quote: "${e.quote}"` : ''}`);
     }
   } else {
-    lines.push('Signals: none. There is no live vacancy and no evidence of change or pressure; write the honest short introduction.');
+    lines.push('Signals: none. There is no open role and no evidence of change or pressure; write the honest short introduction.');
   }
   lines.push('');
   if (backingFacts.length || otherFacts.length) {
@@ -179,25 +220,16 @@ export function buildUserMessage(input: CopyInput): { text: string; reviews: Rev
     lines.push('Validated facts: none.');
   }
   lines.push('');
-  if (input.vacancies.length) {
-    lines.push('Live vacancies:');
-    for (const v of input.vacancies) lines.push(`- ${v.title} (${v.source}${v.firstSeen ? `, first seen ${v.firstSeen}` : ''}${v.closingDate ? `, closes ${v.closingDate}` : ''})`);
+  const total = input.openRoles.reduce((n, g) => n + g.count, 0);
+  if (total > 0) {
+    lines.push(`Open roles: ${total} in total, by family:`);
+    for (const g of input.openRoles) lines.push(`- ${g.label}: ${g.count} (${g.titles.slice(0, 8).join('; ')}${g.titles.length > 8 ? '; ...' : ''})`);
   } else {
-    lines.push('Live vacancies: none on Teaching Vacancies, TES or the company website.');
+    lines.push('Open roles: none on the company\'s careers page or its applicant tracking system.');
   }
   lines.push('');
-  if (input.spend && input.spend.agencyAndSupply != null) {
-    lines.push(`Agency and supply teaching spend (DfE financial benchmarking): £${Math.round(input.spend.agencyAndSupply).toLocaleString('en-GB')} in ${input.spend.latestYear}${input.spend.previousAgencyAndSupply != null ? `, £${Math.round(input.spend.previousAgencyAndSupply).toLocaleString('en-GB')} in ${input.spend.previousYear}` : ''}. ${input.spend.comparison || ''}`.trim());
-  } else {
-    lines.push('Agency and supply spend: not available for this company.');
-  }
-  if (input.pupilPremium) {
-    lines.push('');
-    lines.push(`Pupil premium staffing, from the company's own statement${input.pupilPremium.academicYear ? ` for ${input.pupilPremium.academicYear}` : ''}: about ${input.pupilPremium.tasPerWeek} full-time-equivalent teaching assistants, mentors or tutors a week funded by the premium (${input.pupilPremium.basis || 'stated by the company'}). You may say this is the scale of the team the statement funds; never present it as a vacancy.`);
-  }
-  lines.push('');
-  lines.push('Client and candidate reviews you may paraphrase as a proof point (attribute as "a company we work with" or "a candidate", never by name):');
-  for (const r of reviews) lines.push(`- ${r.type}${r.author !== r.type ? ` (${r.author})` : ''}, consultant ${r.consultant}: "${r.quote}"`);
+  lines.push(`Proof points about ${FIRM_NAME} you may paraphrase (attribute as "a company we work with", never by name unless the reference material names it; skip any line marked [Craig to confirm]):`);
+  for (const r of reviews) lines.push(`- ${r.type} (${r.author}), consultant ${r.consultant}: "${r.quote}"`);
   lines.push('');
   lines.push('Write the call script and the email for this persona now, following the schema: exactly three discovery questions and exactly three objections.');
   return { text: lines.join('\n'), reviews };

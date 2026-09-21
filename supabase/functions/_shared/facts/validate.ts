@@ -314,8 +314,7 @@ function sentence(s: string): string {
  */
 export function summaryFromFacts(record: SummaryRecord, facts: Fact[], openVacancies: number, maxFacts = 5): string {
   const parts: string[] = [];
-  const clauses = [`${record.name} is ${sectorWords(record.sector)}`];
-  if (record.incorporatedYear) clauses.push(`incorporated in ${record.incorporatedYear}`);
+  const clauses = [`${record.name} is ${sectorWords(record.sector)}${record.incorporatedYear ? ` incorporated in ${record.incorporatedYear}` : ''}`];
   if (record.locality) clauses.push(`registered in ${record.locality}`);
   const stage = stageWords(record.stageLabel);
   if (stage) clauses.push(stage);

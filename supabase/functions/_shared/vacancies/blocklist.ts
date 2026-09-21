@@ -31,7 +31,7 @@ export const ROLE_FAMILIES: RoleFamilyRule[] = [
       'general (?:application|applications|interest|enquir(?:y|ies))', 'open (?:application|applications)', 'speculative (?:application|applications|cv|cvs|enquir(?:y|ies))?', 'speculative',
       'talent (?:community|network|pool|bank|database|pipeline|bench)', 'join our talent', 'talent (?:community|network|pool) (?:sign[\\s-]?up|registration)',
       'future (?:opportunities|roles|openings|positions|vacancies|hiring)', 'upcoming (?:opportunities|roles|openings)',
-      "don'?t see (?:a|the|your) (?:role|job|fit|position)", 'not seeing (?:a|the|your) (?:role|job|fit)', "can'?t find (?:a|the|your) (?:role|job|fit)", 'no (?:role|job) for you',
+      "don'?t see (?:a|an|the|your|what)(?: \\w+)? (?:role|job|fit|position|opening|you)", 'not seeing (?:a|an|the|your)(?: \\w+)? (?:role|job|fit|position)', "can'?t find (?:a|an|the|your)(?: \\w+)? (?:role|job|fit|position)", 'no (?:role|job) for you', 'nothing (?:for you|that fits)',
       'expressions? of interest', 'register your interest', 'keep in touch', 'stay in touch', 'get on our radar', 'introduce yourself', 'send us your cv', 'drop us your cv',
       'dream job (?:not listed|missing)', "we'?re always hiring", 'always looking for', 'unlisted role',
     )),
@@ -62,6 +62,7 @@ strategy insights intelligence protection governance treasury tax audit investor
 remote hybrid london manchester edinburgh bristol cambridge oxford uk europe emea us usa new york berlin amsterdam paris dublin
 full part time permanent contract fixed term temporary months month year years
 team member members role roles position positions job jobs opportunity opportunities hire hiring open vacancy vacancies
+series announcement announce announces funding raise round
 ii iii iv i two three four
 `.split(/\s+/).filter(Boolean));
 
@@ -75,6 +76,7 @@ function looksNonEnglish(t: string): boolean {
 }
 
 const SHAPE_REJECTS: Array<{ re: RegExp; reason: string }> = [
+  { re: /\?\s*$/, reason: 'question, not a title' },
   { re: /^(?:https?:\/\/|www\.)|\.(?:co\.uk|org\.uk|com|org|net|io|ai|dev|app)(?:\/|$)/i, reason: 'url' },
   { re: /\bwelcome\b/i, reason: 'welcome page' },
   { re: /^message from/i, reason: 'message page' },
@@ -87,7 +89,7 @@ const SHAPE_REJECTS: Array<{ re: RegExp; reason: string }> = [
   { re: /^(there are |we )?(currently )?(have |are )?no\b.*(vacanc|role|opening|position)/i, reason: 'no-vacancies notice' },
   { re: /^(click|read|find out|learn|view|see) (here|more|all)/i, reason: 'link text' },
   { re: /^(hear|meet|read|see|watch|discover|find out|learn|explore|view|join|why|what|how|thank|congratulations)\b/i, reason: 'link text' },
-  { re: /\b(celebrat|award|ceremony|newsletter|blog|podcast|interview with|case study|webinar|whitepaper|white paper|press release)\b/i, reason: 'news item' },
+  { re: /\b(celebrat|award|ceremony|newsletter|blog|podcast|interview with|case study|webinar|whitepaper|white paper|press release|announc\w*|funding round|series [a-d]\b|raises?|raised)\b/i, reason: 'news item' },
   { re: /^(how to apply|application form|job description|person specification|hiring process|interview process|our hiring process|recruitment (pack|policy|process))\b/i, reason: 'application document' },
   { re: /\b(information|overview|handbook|guide|guidance|pack|faqs?)$/i, reason: 'information page' },
   { re: /\b(network|programme|program|scheme|association|forum)$/i, reason: 'information page' },
@@ -137,7 +139,7 @@ export function isBlockedTitle(title: string): BlockDecision {
  */
 const JOB_NOUNS = [
   'engineer', 'developer', 'programmer', 'architect', 'scientist', 'researcher', 'analyst', 'technician', 'tester', 'devops', 'sre',
-  'manager', 'lead', 'head of', 'head', 'director', 'chief', 'officer', 'president', 'vp', 'founder', 'co-founder', 'partner', 'principal', 'gm', 'general manager', 'chief of staff',
+  'manager', 'lead', 'head of', 'head', 'director', 'chief', 'officer', 'president', 'vp', 'svp', 'evp', 'founder', 'co-founder', 'partner', 'principal', 'gm', 'general manager', 'chief of staff', 'ceo', 'cto', 'coo', 'cfo', 'cpo', 'cmo', 'cro', 'ciso',
   'designer', 'writer', 'copywriter', 'illustrator', 'editor', 'producer', 'strategist', 'marketer', 'evangelist', 'advocate',
   'recruiter', 'sourcer', 'talent', 'people', 'hr', 'hrbp',
   'executive', 'representative', 'rep', 'sdr', 'bdr', 'ae', 'associate', 'specialist', 'coordinator', 'co-ordinator', 'consultant', 'advisor', 'adviser', 'generalist', 'agent', 'ambassador', 'champion',
@@ -183,13 +185,15 @@ export function roleRuleFailure(cleanedTitle: string, source?: string | null): s
  * not vacancies: a verb phrase, a celebration word, a trailing ellipsis or a
  * question mark gives them away.
  */
-const HEADLINE_RE = /\b(leads? to|led to|success(?:es|ful)?|celebrat\w*|congratulat\w*|wins?|won|winners?|awarded|achiev\w*|announc\w*|visits?|visited|launch\w*|enjoy\w*|inspir\w*|shine[sd]?|triumph\w*|journey|takes? part|took part|welcome[sd]|raise[sd]?|raising|raised|fundrais\w*|competition|festival|showcase|spotlight|thank you|thanks|well done|proud|delighted|excited|amazing|fantastic|brilliant|wonderful|returns?|update[sd]?|reminder|this week|last week|next week|today|yesterday|tomorrow|series [a-d]\b|funding|lessons? (?:from|learned|learnt)|behind the scenes|a day in the life|meet our|q&a|interview)\b/i;
+const HEADLINE_RE = /\b(leads? to|led to|successes|successful|celebrat\w*|congratulat\w*|wins?|won|winners?|awarded|achiev\w*|announc\w*|visits?|visited|launch\w*|enjoy\w*|inspir\w*|shine[sd]?|triumph\w*|journey|takes? part|took part|welcome[sd]|raise[sd]?|raising|raised|fundrais\w*|competition|festival|showcase|spotlight|thank you|thanks|well done|proud|delighted|excited|amazing|fantastic|brilliant|wonderful|returns?|update[sd]?|reminder|this week|last week|next week|today|yesterday|tomorrow|series [a-d]\b|funding|lessons? (?:from|learned|learnt)|behind the scenes|a day in the life|meet our|q&a|interview)\b/i;
 
 export function looksLikeHeadline(title: string): boolean {
   const t = (title || '').trim();
   if (!t) return false;
   if (/(\.\.\.|…)$/.test(t) || /\?$/.test(t)) return true;
   if (HEADLINE_RE.test(t)) return true;
+  // A question word or an "our" opener is a blog title, not a role.
+  if (/^(?:how|why|what|when|where|who|meet|inside|introducing|our|the|a|an)\b/i.test(t)) return true;
   // A title that starts with a job noun ("Head of Talent") is a title; one
   // whose only job word is a verb-like "Leads" mid-sentence is not.
   if (/\b(?:leads|leading)\b/i.test(t) && t.split(/\s+/).length >= 5) return true;

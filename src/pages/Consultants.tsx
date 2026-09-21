@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Loader2, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
-import { useAuth } from "@/lib/auth";
+import { ALLOWED_DOMAINS, useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -16,8 +16,9 @@ type Consultant = Tables<"consultants">;
 type AlertSetting = Tables<"vacancy_alert_settings">;
 
 /**
- * Manager-only: the consultants, their companies and alerts, and a form to add
- * one. Assigning companies happens on each company card on the main page.
+ * Manager-only: the consultants, their companies and alerts, and a form to
+ * add one. Assigning companies happens on each company card on the
+ * Companies page.
  */
 export default function Consultants() {
   const { isManager, loading } = useAuth();
@@ -81,7 +82,7 @@ export default function Consultants() {
     }
     setNewName("");
     setNewEmail("");
-    toast({ title: "Consultant added", description: `${name} can now be assigned companies. Add an alert setting on the main page so they get emails.` });
+    toast({ title: "Consultant added", description: `${name} can now be assigned companies. Add an alert setting on the Alerts page so they get emails.` });
     await load();
   };
 
@@ -96,7 +97,7 @@ export default function Consultants() {
       if (e2) toast({ title: "Consultant saved, alerts not moved", description: e2.message, variant: "destructive" });
       else toast({ title: "Email changed", description: `${count || 0} alert setting${count === 1 ? "" : "s"} now go to ${patch.email}.` });
     } else if (patch.active !== undefined) {
-      toast({ title: patch.active ? `${c.name} is active` : `${c.name} is inactive`, description: patch.active ? "Their alerts and nightly refresh are back on." : "Their alerts stop and their companies leave the nightly refresh until switched back on." });
+      toast({ title: patch.active ? `${c.name} is active` : `${c.name} is inactive`, description: patch.active ? "Their alerts, brief and weekly refresh are back on." : "Their alerts and brief stop and their companies leave the weekly refresh until switched back on." });
     }
     await load();
   };
@@ -119,15 +120,15 @@ export default function Consultants() {
           <form onSubmit={addConsultant} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] items-end">
             <div>
               <Label htmlFor="new-name">Name or list</Label>
-              <Input id="new-name" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g. Anja Micic, or Anja Cold Targets" required />
+              <Input id="new-name" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g. Craig Springett, or Craig Cold Targets" required />
             </div>
             <div>
               <Label htmlFor="new-email">Email for alerts</Label>
-              <Input id="new-email" type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="name@whofoundwho.co.uk" />
+              <Input id="new-email" type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder={`name@${ALLOWED_DOMAINS[0]}`} />
             </div>
             <Button type="submit" disabled={saving} className="gap-2">{saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Plus className="h-4 w-4" aria-hidden="true" />}Add consultant</Button>
           </form>
-          <p className="mt-2 text-xs text-muted-foreground">A consultant here is a list of companies with one email. Someone with two lists (a patch and cold targets) has two rows. Assign companies from the company cards.</p>
+          <p className="mt-2 text-xs text-muted-foreground">A consultant here is a list of companies with one email. Someone with two lists (a patch and cold targets) has two rows. Assign companies from the company cards on the Companies page.</p>
         </Card>
 
         {busy ? (
@@ -173,7 +174,7 @@ export default function Consultants() {
                     </td>
                     <td className="py-2 pr-4 text-xs">
                       {(alertsFor[c.id] || []).length === 0 ? <span className="text-muted-foreground">none</span> : (alertsFor[c.id] || []).map((a) => (
-                        <div key={a.id}>{a.alert_type === "new_vacancy" ? "New vacancies" : "Deadlines"}{a.enabled === false ? " (off)" : ""}{a.email && c.email && a.email.toLowerCase() !== c.email.toLowerCase() ? ` to ${a.email}` : ""}{(a.extra_recipients || []).length ? ` +${(a.extra_recipients || []).join(", ")}` : ""}</div>
+                        <div key={a.id}>{a.alert_type === "new_vacancy" ? "New roles" : a.alert_type}{a.enabled === false ? " (off)" : ""}{a.email && c.email && a.email.toLowerCase() !== c.email.toLowerCase() ? ` to ${a.email}` : ""}{(a.extra_recipients || []).length ? ` +${(a.extra_recipients || []).join(", ")}` : ""}</div>
                       ))}
                     </td>
                     <td className="py-2 pr-4"><Switch checked={c.active} onCheckedChange={(v) => void update(c, { active: v })} aria-label={`${c.name} active`} /></td>

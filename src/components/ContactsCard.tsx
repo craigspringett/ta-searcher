@@ -36,7 +36,7 @@ interface Props {
  */
 export function ContactsCard({ companyId, officers, contacts, removed, pagesRead, editsError, onEdit, onReport }: Props) {
   return (
-    <Card className="p-6" id="people">
+    <Card className="p-6 scroll-mt-14" id="people">
       <h3 className="text-lg font-bold text-foreground mb-3">People</h3>
 
       <h4 className="text-sm font-semibold text-foreground mb-1">From Companies House</h4>

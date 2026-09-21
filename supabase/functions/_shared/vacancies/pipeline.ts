@@ -20,10 +20,11 @@ const SOURCE_BUDGET_MS = 45000;
 const PAGE_SOURCES: VacancySource[] = ['careers_page', 'llm'];
 
 function withBudget(p: Promise<SourceResult>, source: VacancySource): Promise<SourceResult> {
-  return Promise.race([
-    p,
-    new Promise<SourceResult>((resolve) => setTimeout(() => resolve({ source, ok: false, vacancies: [], note: `exceeded ${SOURCE_BUDGET_MS}ms budget`, ms: SOURCE_BUDGET_MS }), SOURCE_BUDGET_MS)),
-  ]);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const budget = new Promise<SourceResult>((resolve) => {
+    timer = setTimeout(() => resolve({ source, ok: false, vacancies: [], note: `exceeded ${SOURCE_BUDGET_MS}ms budget`, ms: SOURCE_BUDGET_MS }), SOURCE_BUDGET_MS);
+  });
+  return Promise.race([p, budget]).finally(() => clearTimeout(timer));
 }
 
 /** One source call per confirmed board. */

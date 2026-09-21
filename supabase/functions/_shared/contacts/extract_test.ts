@@ -13,125 +13,116 @@ Deno.test('cfemail decodes the XOR scheme', () => {
 });
 
 Deno.test('entities decode, including &commat; and numeric forms', () => {
-  assertEquals(decodeEntities('t&#46;patel&#64;example&#x2e;sch&period;uk'), 't.patel@example.sch.uk');
+  assertEquals(decodeEntities('t&#46;patel&#64;example&#x2e;health&period;io'), 't.patel@example.health.io');
   assertEquals(decodeEntities('a&commat;b.c'), 'a@b.c');
 });
 
 Deno.test('normaliseEmail lowercases, strips mailto/subject and rejects assets and placeholders', () => {
-  assertEquals(normaliseEmail('MAILTO:Head@Company.sch.uk?subject=Hi'), 'head@company.sch.uk');
+  assertEquals(normaliseEmail('MAILTO:Founders@Lumenly.ai?subject=Hi'), 'founders@lumenly.ai');
   assertEquals(normaliseEmail('hero@2x.png'), null);
   assertEquals(normaliseEmail('name@example.com'), null);
-  assertEquals(normaliseEmail('noreply@company.sch.uk'), null);
-  assertEquals(normaliseEmail('(office@company.sch.uk).'), 'office@company.sch.uk');
+  assertEquals(normaliseEmail('noreply@lumenly.ai'), null);
+  assertEquals(normaliseEmail('(hello@lumenly.ai).'), 'hello@lumenly.ai');
 });
 
-Deno.test('every obfuscation form on the synthetic contact page is recovered, and assets are not', () => {
-  const hits = extractEmails(fixture('synthetic-obfuscation.html'), 'https://example-high.sch.uk/contact');
+Deno.test('every obfuscation form on the about page is recovered, and assets are not', () => {
+  const hits = extractEmails(fixture('startup-about-obfuscated.html'), 'https://example-health.io/about');
   assertEquals(emailsOf(hits), [
-    'admin@example-high.sch.uk',
-    'alan.reid@governors.example-high.sch.uk',
-    'j.bloggs@example-high.sch.uk',
-    'office@example-high.sch.uk',
-    'p.shah@example-high.sch.uk',
-    'reception@example-high.sch.uk',
-    't.patel@example-high.sch.uk',
+    'alan.reid@board.example-health.io',
+    'careers@example-health.io',
+    'founders@example-health.io',
+    'hello@example-health.io',
+    'j.bloggs@example-health.io',
+    'p.shah@example-health.io',
+    'press@example-health.io',
+    'support@example-health.io',
+    't.patel@example-health.io',
   ]);
   const by = Object.fromEntries(hits.map((h) => [h.email, h]));
-  assertEquals(by['j.bloggs@example-high.sch.uk'].how, 'cfemail');
-  assertEquals(by['t.patel@example-high.sch.uk'].how, 'entity');
-  assertEquals(by['p.shah@example-high.sch.uk'].how, 'obfuscated');
-  assertEquals(by['admin@example-high.sch.uk'].how, 'js');
-  assertEquals(by['reception@example-high.sch.uk'].how, 'js');
-  assertEquals(by['office@example-high.sch.uk'].how, 'mailto');
-  assertEquals(by['office@example-high.sch.uk'].linkText, 'Email the office');
-  assert(by['j.bloggs@example-high.sch.uk'].context.includes('Mrs Jane Bloggs'), 'context carries the name next to the address');
-  assert(by['t.patel@example-high.sch.uk'].context.includes('Business Manager'));
+  assertEquals(by['j.bloggs@example-health.io'].how, 'cfemail');
+  assertEquals(by['t.patel@example-health.io'].how, 'entity');
+  assertEquals(by['p.shah@example-health.io'].how, 'obfuscated');
+  assertEquals(by['alan.reid@board.example-health.io'].how, 'obfuscated');
+  assertEquals(by['careers@example-health.io'].how, 'js');
+  assertEquals(by['founders@example-health.io'].how, 'js');
+  assertEquals(by['hello@example-health.io'].how, 'mailto');
+  assertEquals(by['hello@example-health.io'].linkText, 'Email the team');
+  assert(by['j.bloggs@example-health.io'].context.includes('Jane Bloggs'), 'context carries the name next to the address');
+  assert(by['t.patel@example-health.io'].context.includes('Chief Operating Officer'));
 });
 
-Deno.test('mailto and plain addresses on the Stanborough staff table, with row context', () => {
-  const hits = extractEmails(fixture('stanborough-staff-table.html'), 'https://www.stanborough.herts.sch.uk/staff');
-  assert(hits.length >= 8, `found ${hits.length}`);
-  const head = hits.find((h) => h.email === 'head@stanborough.herts.sch.uk')!;
-  assert(head, 'head@ found');
-  assert(/Headteacher/.test(head.context) && /John/.test(head.context), head.context);
-  const g = hits.find((h) => h.email === 'gpersand@stanborough.herts.sch.uk')!;
-  assert(/Persand/.test(g.context), g.context);
+Deno.test('mailto and plain addresses on the leadership table, with row context', () => {
+  const hits = extractEmails(fixture('startup-team-table.html'), 'https://fathom-robotics.co.uk/leadership');
+  assertEquals(emailsOf(hits), ['chloe@fathom-robotics.co.uk', 'grace@fathom-robotics.co.uk', 'info@fathom-robotics.co.uk', 'kr.hirani@fathom-robotics.co.uk', 'm.donachy@fathom-robotics.co.uk']);
+  const grace = hits.find((h) => h.email === 'grace@fathom-robotics.co.uk')!;
+  assert(/Founder/.test(grace.context) && /Persand/.test(grace.context), grace.context);
+  const m = hits.find((h) => h.email === 'm.donachy@fathom-robotics.co.uk')!;
+  assertEquals(m.how, 'text');
+  assert(/Donachy/.test(m.context), m.context);
 });
 
-Deno.test('javascript:mt() and http://user@host hrefs on the Preston Manor table', () => {
-  const hits = extractEmails(fixture('preston-manor-contact-table.html'), 'https://www.preston-manor.com/contact-us');
-  const e = emailsOf(hits);
-  assert(e.includes('info@preston-manor.com'), e.join(','));
-  assert(e.includes('safeguarding@preston-manor.com'), e.join(','));
-});
-
-Deno.test('people from a Title/Name/Email table (Stanborough)', () => {
-  const people = extractPeople(fixture('stanborough-staff-table.html'), 'https://www.stanborough.herts.sch.uk/staff');
+Deno.test('people from a Name/Role/Email table', () => {
+  const people = extractPeople(fixture('startup-team-table.html'), 'https://fathom-robotics.co.uk/leadership');
   const by = Object.fromEntries(people.map((p) => [p.name, p]));
-  assert(by['Mrs M John'], Object.keys(by).join(' | '));
-  assertEquals(by['Mrs M John'].role, 'Headteacher');
-  assertEquals(by['Mrs M John'].email, 'head@stanborough.herts.sch.uk');
-  assertEquals(by['Mr G Persand'].role, 'Deputy Headteacher');
-  assertEquals(by['Mr G Persand'].email, 'gpersand@stanborough.herts.sch.uk');
-  assertEquals(by['Mrs N Abrahams'].role, 'Assistant Headteacher');
-});
-
-Deno.test('people from a label/value table (Preston Manor)', () => {
-  const people = extractPeople(fixture('preston-manor-contact-table.html'), 'https://www.preston-manor.com/contact-us');
-  const by = Object.fromEntries(people.map((p) => [p.name, p]));
-  assert(by['Mr Russell Denial'], Object.keys(by).join(' | '));
-  assertEquals(by['Mr Russell Denial'].role, 'Executive Headteacher');
-  assert(by['Ms Sharon Collins'], 'PA found');
-  assert(/PA to Executive Headteacher/.test(by['Ms Sharon Collins'].role), by['Ms Sharon Collins'].role);
-  assert(by['Ms Zalika Dale'], 'DSL found');
-});
-
-Deno.test('people from inline "Role - Name" accordion text (Our Lady\'s Camden)', () => {
-  const people = extractPeople(fixture('ourladys-camden-accordion.html'), 'https://www.ourladys.camden.sch.uk/our-staff');
-  const by = Object.fromEntries(people.map((p) => [p.name, p]));
-  assert(by['Ms M Richardson'], Object.keys(by).join(' | '));
-  assertEquals(by['Ms M Richardson'].role, 'Executive Headteacher');
-  assert(by["Mrs E O'Reilly"] || by['Mrs E O’Reilly'], 'Head of Company found: ' + Object.keys(by).join(' | '));
-  assert(by['Mrs E Robbins'] && /SENDCO/.test(by['Mrs E Robbins'].role), 'SENDCO found');
-  // Class teachers with year groups are not roles
-  assert(!by['Ms Ibrahim'] || !/Y6/.test(by['Ms Ibrahim'].role));
-});
-
-Deno.test('people from "Role: </strong>Name<br>" contact blocks (Central Foundation Boys)', () => {
-  const people = extractPeople(fixture('central-foundation-contact.html'), 'https://www.centralfoundationboys.co.uk/contact-us');
-  const by = Object.fromEntries(people.map((p) => [p.name, p]));
-  assert(by['Jamie Brownhill'], Object.keys(by).join(' | '));
-  assertEquals(by['Jamie Brownhill'].role, 'Headteacher');
-  assert(by['Simon Dodds'] && /Chair of Governors/.test(by['Simon Dodds'].role), 'chair found');
-  assert(by['Ms Lafaverges'] && /SENCo/i.test(by['Ms Lafaverges'].role), 'SENCo found: ' + JSON.stringify(by['Ms Lafaverges']));
-  assertEquals(by['Ms Lafaverges'].email, 'lafavergesp@cfbs.islington.sch.uk');
+  assert(by['Grace Persand'], Object.keys(by).join(' | '));
+  assertEquals(by['Grace Persand'].role, 'Founder & CEO');
+  assertEquals(by['Grace Persand'].email, 'grace@fathom-robotics.co.uk');
+  assertEquals(by['Marcus Donachy'].role, 'VP Engineering');
+  assertEquals(by['Marcus Donachy'].email, 'm.donachy@fathom-robotics.co.uk');
+  assertEquals(by['Nadia Hirani'].role, 'Head of People');
+  assertEquals(by['Nadia Hirani'].email, undefined);
+  assertEquals(by['Simon Dodds'].role, 'Non-executive Director');
+  assert(by['Kate Hirani'] && /Talent Partner/.test(by['Kate Hirani'].role), 'the talent partner in prose: ' + JSON.stringify(by['Kate Hirani']));
 });
 
 Deno.test('people from card grids and definition lists, with the stop list applied', () => {
-  const people = extractPeople(fixture('synthetic-cards.html'), 'https://example-primary.org/team');
+  const people = extractPeople(fixture('startup-team-cards.html'), 'https://lumenly.ai/team');
   const by = Object.fromEntries(people.map((p) => [p.name, p]));
-  assertEquals(by['Mrs Sarah Green'].role, 'Headteacher');
-  assertEquals(by['Mrs Sarah Green'].email, 'sarah.green@example-primary.org');
-  assertEquals(by['Mr David Brown'].email, 'david.brown@example-primary.org');
-  assert(/SENCO/.test(by['Miss Amy Jones'].role));
-  assertEquals(by['Mr Omar Khan'].role, 'Company Business Manager');
-  assertEquals(by['Mrs Helen Wood'].role, 'Chair of Governors');
-  assertEquals(by['Ms Ann Lee'].email, 'clerk@example-primary.org');
-  assert(!by['Year Class'] && !by['Welcome to Our Company'] && !by['Ofsted Good'], Object.keys(by).join(' | '));
+  assertEquals(by['Sarah Green'].role, 'Co-founder and CEO');
+  assertEquals(by['Sarah Green'].email, 'sarah.green@lumenly.ai');
+  assertEquals(by['David Brown'].email, 'david.brown@lumenly.ai');
+  assertEquals(by['Amy Jones'].role, 'Chief of Staff');
+  assertEquals(by['Omar Khan'].role, 'Head of Talent');
+  assertEquals(by['Priya Shah'].role, 'Director of People');
+  assertEquals(by['Ben Carter'].role, 'Account Executive');
+  assertEquals(by['Helen Wood'].role, 'Partner, Headline');
+  assertEquals(by['Ann Lee'].email, 'ann@headline.com');
+  assertEquals(by['Tom Patel'].role, 'EA to the CEO');
+  assert(!by['Series A'] && !by['Open Roles'] && !by['Backed By'], Object.keys(by).join(' | '));
+});
+
+Deno.test('people from "Role: Name - address" lines on the about page', () => {
+  const people = extractPeople(fixture('startup-about-obfuscated.html'), 'https://example-health.io/about');
+  const by = Object.fromEntries(people.map((p) => [p.name, p]));
+  assert(by['Jane Bloggs'], Object.keys(by).join(' | '));
+  assertEquals(by['Jane Bloggs'].role, 'Founder and CEO');
+  assertEquals(by['Jane Bloggs'].email, 'j.bloggs@example-health.io');
+  assertEquals(by['Tom Patel'].role, 'Chief Operating Officer');
+  assertEquals(by['Priya Shah'].role, 'Head of Talent');
+  assertEquals(by['Alan Reid'].role, 'Board member');
 });
 
 Deno.test('looksLikeName and looksLikeRole guard against page furniture', () => {
-  assert(looksLikeName('Mrs M John'));
+  assert(looksLikeName('Sarah Green'));
   assert(looksLikeName('Jamie Brownhill'));
-  assert(looksLikeName("Mrs E O'Reilly"));
+  assert(looksLikeName("Emma O'Reilly"));
+  assert(looksLikeName('Dr Priya Shah'));
   assert(!looksLikeName('Welcome To Our Company'));
-  assert(!looksLikeName('Head Of Company'));
+  assert(!looksLikeName('Head Of Talent'));
+  assert(!looksLikeName('Series A'));
+  assert(!looksLikeName('Open Roles'));
+  assert(!looksLikeName('Backed By'));
+  assert(!looksLikeName('Machine Learning'));
   assert(!looksLikeName('Mrs'));
-  assert(!looksLikeName('Year Class'));
-  assert(!looksLikeName('Mandarin Success'));
-  assert(looksLikeRole('Executive Headteacher'));
-  assert(looksLikeRole('PA to the Headteacher'));
+  assert(looksLikeRole('Co-founder and CEO'));
+  assert(looksLikeRole('EA to the CEO'));
+  assert(looksLikeRole('Head of Talent'));
+  assert(looksLikeRole('VP Engineering'));
+  assert(looksLikeRole('Partner, Headline'));
+  assert(looksLikeRole('General Counsel'));
+  assert(looksLikeRole('Board observer'));
   assert(!looksLikeRole('Y6'));
+  assert(!looksLikeRole('Raised in March 2026'));
 });
 
 Deno.test('phones near tel/phone and in tel: links, UK format', () => {
@@ -139,18 +130,18 @@ Deno.test('phones near tel/phone and in tel: links, UK format', () => {
   assertEquals(hits.map((h) => h.phone), ['020 7946 0123']);
 });
 
-Deno.test('names shed trailing role words and possessives; roles shed "Welcome from"', () => {
-  const html = `<table><tr><td>Acting Headteacher - Operational</td><td>Mr Sear's Office</td><td><a href="mailto:asrpa@x.sch.uk">asrpa@x.sch.uk</a></td></tr>
-  <tr><td>EA to the Principal</td><td>Ms Bailey Administration</td></tr>
-  <tr><td>Welcome From Our Principal</td><td>Ms Georgina Charles</td><td>g.charles@x.sch.uk</td></tr>
-  <tr><td>Acting Assistant Headteacher</td><td>Mr. Stephen Wallman Acting Assistant</td></tr></table>`;
-  const people = extractPeople(html, 'https://x.sch.uk/staff');
+Deno.test('names shed trailing role words and possessives; roles shed "Meet our"', () => {
+  const html = `<table><tr><td>Chief of Staff - Operations</td><td>Mr Sear's Office</td><td><a href="mailto:asr@x.io">asr@x.io</a></td></tr>
+  <tr><td>EA to the Founders</td><td>Ms Bailey Operations</td></tr>
+  <tr><td>Meet Our Founder</td><td>Georgina Charles</td><td>g.charles@x.io</td></tr>
+  <tr><td>Head of Engineering</td><td>Stephen Wallman Engineering</td></tr></table>`;
+  const people = extractPeople(html, 'https://x.io/team');
   const by = Object.fromEntries(people.map((p) => [p.name, p]));
   assert(by['Mr Sear'], Object.keys(by).join(' | '));
-  assertEquals(by['Mr Sear'].email, 'asrpa@x.sch.uk');
+  assertEquals(by['Mr Sear'].email, 'asr@x.io');
   assert(by['Ms Bailey'], Object.keys(by).join(' | '));
-  assertEquals(by['Ms Georgina Charles'].role, 'Principal');
-  assert(by['Mr. Stephen Wallman'], Object.keys(by).join(' | '));
+  assertEquals(by['Georgina Charles'].role, 'Founder');
+  assert(by['Stephen Wallman'], Object.keys(by).join(' | '));
 });
 
 import { slimHtml } from './pages.ts';
@@ -158,18 +149,18 @@ import { slimHtml } from './pages.ts';
 Deno.test('slimHtml drops scripts, styles, svg and data URIs but keeps a script that builds an address', () => {
   const html = `<html><head><style>.a{}</style><script src="x.js"></script><script>var big = "${'x'.repeat(5000)}";</script></head><body>
   <img src="data:image/png;base64,${'A'.repeat(3000)}"> <svg><path d="M0 0"/></svg><!-- c -->
-  <p>Headteacher: Mrs J Bloggs <a href="mailto:head@x.sch.uk">head@x.sch.uk</a></p>
-  <script>var e = 'admin' + '@' + 'x.sch.uk';</script></body></html>`;
+  <p>Founder: Jane Bloggs <a href="mailto:jane@x.io">jane@x.io</a></p>
+  <script>var e = 'hello' + '@' + 'x.io';</script></body></html>`;
   const slim = slimHtml(html);
   assert(slim.length < 700, `${slim.length}`);
   assert(!/base64|<style|<svg|xxxx/.test(slim));
-  const emails = extractEmails(slim, 'https://x.sch.uk/').map((e) => e.email).sort();
-  assertEquals(emails, ['admin@x.sch.uk', 'head@x.sch.uk']);
+  const emails = extractEmails(slim, 'https://x.io/').map((e) => e.email).sort();
+  assertEquals(emails, ['hello@x.io', 'jane@x.io']);
 });
 
 Deno.test('"(at)" in prose is not an address; a bracketed address with a real TLD still is (H10)', () => {
-  const none = extractEmails('Sports clubs run (at) lunchtime. Then the hall is free (at) weekends. Join us', 'https://oak.sch.uk/clubs');
+  const none = extractEmails('We meet (at) lunchtime. Then the office is free (at) weekends. Join us', 'https://oak.io/blog');
   assertEquals(none.map((e) => e.email), []);
-  const real = extractEmails('Email the head (at) oak (dot) sch (dot) uk or admin [at] oak.herts.sch.uk', 'https://oak.sch.uk/contact');
-  assertEquals(real.map((e) => e.email).sort(), ['admin@oak.herts.sch.uk', 'head@oak.sch.uk']);
+  const real = extractEmails('Email the founders (at) oak (dot) io or talent [at] oak.co.uk', 'https://oak.io/contact');
+  assertEquals(real.map((e) => e.email).sort(), ['founders@oak.io', 'talent@oak.co.uk']);
 });

@@ -2,47 +2,47 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here.
 All colors MUST be HSL.
 */
 
 @layer base {
   :root {
-    /* WhoFoundWho Brand Colors */
-    --brand-teal: 182 40% 56%;        /* #59C0C4 */
+    /* Brand colours: a deep navy accent (the name is kept from the seed so nothing else changes), charcoal and off-white. */
+    --brand-teal: 217 71% 45%;        /* navy blue */
     --brand-charcoal: 196 36% 12%;    /* #122027 */
     --brand-white: 180 33% 97%;       /* #F5F9FA */
-    
+
     /* Design System */
-    --background: 180 33% 97%;
-    --foreground: 196 36% 12%;
+    --background: var(--brand-white);
+    --foreground: var(--brand-charcoal);
 
     --card: 0 0% 100%;
-    --card-foreground: 196 36% 12%;
+    --card-foreground: var(--brand-charcoal);
 
     --popover: 0 0% 100%;
-    --popover-foreground: 196 36% 12%;
+    --popover-foreground: var(--brand-charcoal);
 
-    --primary: 182 45% 34%;
+    --primary: var(--brand-teal);
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 196 36% 12%;
-    --secondary-foreground: 180 33% 97%;
+    --secondary: var(--brand-charcoal);
+    --secondary-foreground: var(--brand-white);
 
-    --muted: 180 20% 90%;
-    --muted-foreground: 196 20% 40%;
+    --muted: 217 20% 91%;
+    --muted-foreground: 210 20% 40%;
 
-    --accent: 182 45% 34%;
+    --accent: var(--brand-teal);
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 182 20% 85%;
-    --input: 182 20% 85%;
-    --ring: 182 40% 56%;
+    --border: 217 20% 85%;
+    --input: 217 20% 85%;
+    --ring: var(--brand-teal);
 
-    /* Semantic colours, separate from the teal accent: good, watch, act. */
+    /* Semantic colours, separate from the navy accent: good, watch (amber), act. */
     --positive: 152 55% 32%;
     --positive-foreground: 0 0% 100%;
     --warning: 32 90% 40%;
@@ -51,67 +51,43 @@ All colors MUST be HSL.
     --critical-foreground: 0 0% 100%;
 
     --radius: 0.75rem;
-
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
   .dark {
-    --background: 196 36% 12%;
-    --foreground: 180 33% 97%;
+    --background: var(--brand-charcoal);
+    --foreground: var(--brand-white);
 
     --card: 196 36% 15%;
-    --card-foreground: 180 33% 97%;
+    --card-foreground: var(--brand-white);
 
     --popover: 196 36% 15%;
-    --popover-foreground: 180 33% 97%;
+    --popover-foreground: var(--brand-white);
 
-    --primary: 182 40% 56%;
-    --primary-foreground: 196 36% 12%;
+    --primary: 217 85% 68%;
+    --primary-foreground: var(--brand-charcoal);
 
     --secondary: 196 36% 20%;
-    --secondary-foreground: 180 33% 97%;
+    --secondary-foreground: var(--brand-white);
 
     --muted: 196 36% 20%;
-    --muted-foreground: 180 20% 65%;
+    --muted-foreground: 210 20% 68%;
 
-    --accent: 182 40% 56%;
-    --accent-foreground: 196 36% 12%;
+    --accent: 217 85% 68%;
+    --accent-foreground: var(--brand-charcoal);
 
     --destructive: 0 62.8% 50%;
     --destructive-foreground: 0 0% 100%;
 
     --border: 196 36% 25%;
     --input: 196 36% 25%;
-    --ring: 182 40% 56%;
+    --ring: 217 85% 68%;
 
     --positive: 152 50% 55%;
-    --positive-foreground: 196 36% 12%;
+    --positive-foreground: var(--brand-charcoal);
     --warning: 36 90% 60%;
-    --warning-foreground: 196 36% 12%;
+    --warning-foreground: var(--brand-charcoal);
     --critical: 0 75% 65%;
-    --critical-foreground: 196 36% 12%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --critical-foreground: var(--brand-charcoal);
   }
 }
 
@@ -124,11 +100,3 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
-
-/* Leaflet (the map page): tooltips and controls on the app's tokens, so dark mode holds. */
-.leaflet-container { background: hsl(var(--card)); font-family: inherit; }
-.he-tooltip.leaflet-tooltip { background: hsl(var(--popover)); color: hsl(var(--popover-foreground)); border: 1px solid hsl(var(--border)); border-radius: 0.375rem; box-shadow: none; font-size: 12px; line-height: 1.4; padding: 6px 8px; max-width: 320px; white-space: normal; }
-.he-tooltip.leaflet-tooltip::before { display: none; }
-.leaflet-bar a, .leaflet-control-attribution { background: hsl(var(--card)); color: hsl(var(--foreground)); border-color: hsl(var(--border)); }
-.leaflet-bar a:hover { background: hsl(var(--muted)); }
-.leaflet-control-attribution { font-size: 10px; }
