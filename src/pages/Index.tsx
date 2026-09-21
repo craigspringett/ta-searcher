@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
-import { BarChart3, Bell, BellRing, Briefcase, Building2, CheckCircle2, Coins, Loader2, Mail, RefreshCw, Search, Users } from "lucide-react";
+import { BarChart3, Bell, BellRing, Briefcase, Building2, CheckCircle2, Coins, Loader2, Mail, RefreshCw, Search, Trash2, Users } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables, Json } from "@/integrations/supabase/types";
@@ -94,8 +95,35 @@ const Index = () => {
   // Follow-ups (ported from He-Giveth, behind profiles.features.follow_ups):
   // "Email this contact", the opens-and-clicks line under each contact,
   // "Start follow-ups" and the Follow-ups panel.
-  const { profile } = useAuth();
+  const { profile, isManager } = useAuth();
   const followUps = hasFeature(profile, "follow_ups");
+
+  // Stop tracking a company (21 September 2026): a manager deletes the row;
+  // its roles, facts, signals, scores, scripts, contacts, calls and follow-ups
+  // go with it, and the prospect it came from (if any) is dismissed so the
+  // radar does not add it again for six months.
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  const removeCompany = async () => {
+    if (!activeCompanyId) return;
+    setRemoving(true);
+    try {
+      const name = result?.companyRecord?.name || activeCompany?.companyName || "the company";
+      await supabase.from("prospects").update({ status: "dismissed", dismissed_at: new Date().toISOString(), dismiss_reason: "removed from the patch" }).eq("promoted_company_id", activeCompanyId);
+      const { error, count } = await supabase.from("company_searches").delete({ count: "exact" }).eq("id", activeCompanyId);
+      if (error) throw new Error(error.message);
+      if (count === 0) throw new Error("Only a manager can remove a company.");
+      toast({ title: "No longer tracked", description: `${name} and everything the site held about it have been removed.` });
+      setConfirmRemove(false);
+      handleNewSearch();
+      await loadSearchHistory();
+      navigate("/companies");
+    } catch (e) {
+      toast({ title: "Not removed", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setRemoving(false);
+    }
+  };
   const emailEvents = useCompanyEmailEvents(activeCompanyId, followUps);
   const [emailTarget, setEmailTarget] = useState<{ name: string; role?: string; email: string } | null>(null);
   const [followUpTarget, setFollowUpTarget] = useState<{ name: string; role?: string; email: string } | null>(null);
@@ -705,6 +733,20 @@ const Index = () => {
                 {activeCompanyId && (
                   <OutcomesCard key={outcomesKey} companyId={activeCompanyId} contacts={mergedContacts.filter((d) => d.name).map((d) => ({ name: d.name, role: d.role }))} />
                 )}
+
+                {activeCompanyId && isManager && (
+                  <Card className="p-4 border-dashed">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-medium text-foreground">Stop tracking this company</p>
+                        <p className="text-xs text-muted-foreground">Removes it from the patch with its roles, signals, scripts, contacts, calls and follow-ups. The radar will not add it again for six months.</p>
+                      </div>
+                      <Button type="button" variant="outline" size="sm" className="gap-1.5 text-destructive hover:text-destructive" onClick={() => setConfirmRemove(true)} disabled={removing}>
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />Stop tracking
+                      </Button>
+                    </div>
+                  </Card>
+                )}
               </>
             ) : (
               <Card className="p-12">
@@ -740,6 +782,22 @@ const Index = () => {
           onOpenChange={(open) => { if (!open) { setFollowUpTarget(null); setOutcomesKey((k) => k + 1); } }}
         />
       )}
+
+      {/* Stop tracking: the confirmation */}
+      <AlertDialog open={confirmRemove} onOpenChange={setConfirmRemove}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Stop tracking {result?.companyRecord?.name || activeCompany?.companyName || "this company"}?</AlertDialogTitle>
+            <AlertDialogDescription>Everything the site holds about it goes: the open roles and their history, the facts, signals and score, the scripts, the contacts and your edits to them, the call history and any follow-ups. This cannot be undone. You can add the company again later from the Companies page.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={removing}>Keep it</AlertDialogCancel>
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); void removeCompany(); }} disabled={removing} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {removing ? <Loader2 className="mr-1 h-4 w-4 animate-spin" aria-hidden="true" /> : null}Stop tracking
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Edit, add or remove a contact (everyone signed in) */}
       {activeCompanyId && contactEditMode && (
