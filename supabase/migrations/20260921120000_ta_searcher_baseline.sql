@@ -751,6 +751,7 @@ create table public.company_records (
   incorporation_date date,
   sic_codes text[] default '{}'::text[] not null,
   registered_office jsonb,
+  postcode text,
   postcode_district text,
   accounts_type text,
   last_accounts_made_up_to date,
