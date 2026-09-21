@@ -505,7 +505,12 @@ Deno.serve(async (req) => {
         if (f.contact_name) suppressedNames.add(stripTitle(String(f.contact_name)).toLowerCase().replace(/[^a-z]/g, ''));
       }
     }
-    const resolved = resolveContacts({ emails: allEmails, people: allPeople, phones: allPhones, siteHost: new URL(siteUrl).hostname, careersPageUrls, suppressedEmails, suppressedNames, companyName: officialName });
+    // Current directors from the register join the people list as name only
+    // (a website entry with the same name gains the register note instead).
+    const recordOfficers = officers
+      .filter((o) => !o.resignedOn && /director|member/i.test(o.role))
+      .map((o) => ({ name: o.name, jobTitle: 'Director', source: 'Companies House register', appointedOn: o.appointedOn }));
+    const resolved = resolveContacts({ emails: allEmails, people: allPeople, phones: allPhones, siteHost: new URL(siteUrl).hostname, careersPageUrls, suppressedEmails, suppressedNames, recordOfficers, companyName: officialName });
     resolvedContacts = resolved.contacts;
     const uniqueEmails = Array.from(new Set(allEmails.map((e) => e.email)));
     contactsRun = {
@@ -750,12 +755,11 @@ Deno.serve(async (req) => {
       sourcesTried: summary.sourcesTried,
     };
 
-    // Decision makers: the resolved contacts, with the model's review applied
-    // and the consultants' own contacts merged in, then the directors from
-    // the register as name-only people.
+    // Decision makers: the resolved contacts (the register's directors among
+    // them), with the model's review applied and the consultants' own
+    // contacts merged in.
     // deno-lint-ignore no-explicit-any
-    const reviewed = mergeProvidedContacts(applyModelContactReview(resolved.contacts, allEmails, extraction.contactReview as any[]), existingRow?.analysis_result?.decisionMakers);
-    result.decisionMakers = trusted ? [...reviewed, ...officersAsContacts(officers, trusted.companyNumber, reviewed)] : reviewed;
+    result.decisionMakers = mergeProvidedContacts(applyModelContactReview(resolved.contacts, allEmails, extraction.contactReview as any[]), existingRow?.analysis_result?.decisionMakers);
     out.contactsRun = { ...contactsRun, modelReviewed: true };
     console.log('Decision makers after model review:', result.decisionMakers.length);
 
