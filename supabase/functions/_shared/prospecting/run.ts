@@ -12,7 +12,7 @@ import { dismissedRecently, loadTracked } from './discover.ts';
 import { promoteProspect, promotedThisWeek, promotionDecision, singleActiveConsultant } from './promote.ts';
 import { liveDeps, qualifyProspect, type QualifyDeps } from './qualify.ts';
 import { loadSettings } from './settings.ts';
-import type { ProspectRow } from './types.ts';
+import type { ProspectRow, ScoreReason } from './types.ts';
 
 // deno-lint-ignore no-explicit-any
 type Supabase = any;
@@ -46,6 +46,8 @@ export interface QualifyResultLine {
   score: number | null;
   promotedCompanyId: string | null;
   note: string | null;
+  /** The score's lines, so a dry run can be read without the table. */
+  reasons?: ScoreReason[];
 }
 
 export interface QualifyCounts {
@@ -153,7 +155,7 @@ export async function qualifyProspects(supabase: Supabase, options: QualifyOptio
     try {
       const outcome = await qualifyProspect(row, deps, today);
       counts.checked++;
-      line = { ...line, status: outcome.status, score: outcome.score, note: outcome.note };
+      line = { ...line, status: outcome.status, score: outcome.score, note: outcome.note, reasons: outcome.reasons };
       if (!dryRun) {
         const { error } = await supabase.from('prospects').update(outcome.patch).eq('id', row.id);
         if (error) { errors.push(`${row.name}: prospects update failed: ${error.message}`); line.note = `${outcome.note}; not stored (${error.message})`; }

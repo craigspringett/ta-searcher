@@ -102,8 +102,10 @@ raise, then the register pool; newest first):
      £1m to £25m with no round named; +15 a raise 6 to 12 months old; +5
      Series B or later (still a prospect, lower).
    - +20 an SH01 allotment within 6 months when no raise is in the news.
-   - +5, +15, +25 for 3 to 5, 6 to 11, 12 or more open roles.
-   - +10 incorporated within 3 years.
+   - +5, +15, +25 for 3 to 5, 6 to 11, 12 to 39 open roles; −25 for 40 or
+     more (a scaled company, past its first Head of Talent; the first live
+     run would otherwise have added Handshake, RELX and Shield AI).
+   - +10 incorporated within 3 years; −30 more than ten years ago.
    - −30 no website found; −20 no board and no talent posting; −100 not
      active on the register. A company whose register status is missing
      (no match) keeps its score but the reason says "not matched on the

@@ -9,8 +9,10 @@
 //       £1m to £25m with no round named; +15 the same 6 to 12 months old;
 //       +5 Series B or later, or a raise outside that shape
 //   +20 an SH01 allotment within 6 months when no raise is in the news
-//   +5 / +15 / +25 for 3 to 5, 6 to 11, 12 or more open roles
-//   +10 incorporated within 3 years
+//   +5 / +15 / +25 for 3 to 5, 6 to 11, 12 to 39 open roles; -25 for 40 or
+//       more (a scaled company, past its first Head of Talent; first live
+//       run, 21 September 2026: Handshake, RELX, Shield AI)
+//   +10 incorporated within 3 years; -30 more than ten years ago
 //   -30 no website; -20 no board and no talent posting; -100 not active on
 //       the register (a company not matched keeps its score, noted)
 
@@ -34,6 +36,8 @@ export interface ProspectScore {
 }
 
 const DAY = 86_400_000;
+export const LARGE_BOARD_ROLES = 40;
+export const OLD_COMPANY_MONTHS = 120;
 
 function monthsBetween(iso: string | null | undefined, today: Date): number | null {
   if (!iso) return null;
@@ -97,13 +101,15 @@ export function scoreProspect(input: ScoreInput, today: Date): ProspectScore {
 
   // Open roles.
   const openRoles = input.boards.reduce((n, b) => n + (b.count || 0), 0);
-  if (openRoles >= 12) add(25, `${openRoles} open roles`);
+  if (openRoles >= LARGE_BOARD_ROLES) add(-25, `${openRoles} open roles reads as a scaled company`);
+  else if (openRoles >= 12) add(25, `${openRoles} open roles`);
   else if (openRoles >= 6) add(15, `${openRoles} open roles`);
   else if (openRoles >= 3) add(5, `${openRoles} open roles`);
 
   // Age.
   const age = monthsBetween(input.register?.incorporationDate, today);
   if (age !== null && age <= 36) add(10, `incorporated within three years (${input.register!.incorporationDate})`);
+  else if (age !== null && age > OLD_COMPANY_MONTHS) add(-30, `incorporated more than ten years ago (${input.register!.incorporationDate})`);
 
   // Penalties.
   if (!input.website) add(-30, 'no website found');

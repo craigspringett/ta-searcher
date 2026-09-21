@@ -288,9 +288,15 @@ Deno.test('score: the brief\'s lines add up', () => {
   const sh01 = scoreProspect({ website: 'https://x/', register: { ...REGISTER, capitalFilings: [{ date: '2026-07-01', type: 'SH01', description: 'Statement of capital' }] }, raise: null, boards: [], talentPostings: [] }, TODAY);
   assertEquals(sh01.reasons.find((r) => r.points === 20)?.text.includes('2026-07-01'), true);
   const bare = scoreProspect({ website: null, register: { ...REGISTER, status: 'dissolved', incorporationDate: '2015-01-01' }, raise: null, boards: [], talentPostings: [] }, TODAY);
-  assertEquals(bare.score, -150);
+  assertEquals(bare.score, -180, 'no website, no board, dissolved, and older than ten years');
   const roles = (count: number) => scoreProspect({ website: 'https://x/', register: null, raise: null, boards: [{ provider: 'lever', slug: 's', boardUrl: null, count, talentRoles: [], titles: [] }], talentPostings: [] }, TODAY).reasons.find((r) => r.text.endsWith('open roles'))?.points;
-  assertEquals([roles(2), roles(3), roles(6), roles(12)], [undefined, 5, 15, 25]);
+  assertEquals([roles(2), roles(3), roles(6), roles(12), roles(39)], [undefined, 5, 15, 25, 25]);
+  const scaled = scoreProspect({ website: 'https://x/', register: null, raise: null, boards: [{ provider: 'lever', slug: 's', boardUrl: null, count: 120, talentRoles: ['Head of Talent'], titles: ['Head of Talent'] }], talentPostings: [] }, TODAY);
+  assertEquals(scaled.score, 45 - 25, '120 open roles is a scaled company');
+  const aged = scoreProspect({ website: 'https://x/', register: { ...REGISTER, incorporationDate: '2009-05-01' }, raise: null, boards: [], talentPostings: [{ title: 'Head of Talent', employer: 'RELX', source: 'adzuna', url: '', date: null }] }, TODAY);
+  assertEquals(aged.score, 45 - 30, 'incorporated more than ten years ago');
+  const middle = scoreProspect({ website: 'https://x/', register: { ...REGISTER, incorporationDate: '2020-05-01' }, raise: null, boards: [], talentPostings: [{ title: 'Head of Talent', employer: 'X', source: 'adzuna', url: '', date: null }] }, TODAY);
+  assertEquals(middle.score, 45, 'between three and ten years: nothing either way');
 });
 
 // ------------------------------------------------------------ the settings
