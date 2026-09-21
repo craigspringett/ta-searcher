@@ -143,7 +143,10 @@ test button is a dry run of the week's alert. Brand and firm name in
 2. Then the session's steps: migrations, auth hook, secrets, functions, a
    live `analyze-company` on Searchable and two others, the Workable feed
    tested from the edge runtime, `sync-funding-news` once.
-3. Slice 3: the investors table and page from the funding facts, the map
-   from registered office postcodes, Follow-ups and the Shortlister ported
-   from He-Giveth as they are, and the unused dependencies (`jspdf`,
-   `leaflet`) removed from `package.json`.
+3. Slice 3 became prospecting (the site finds the companies), live on 21
+   September; its brief, first-run results and what is left are in
+   `PROSPECTING-BRIEF.md`. Hunter enrichment of contacts went live the
+   same day. Later: the investors table and page from the funding facts,
+   the map from registered office postcodes, Follow-ups and the
+   Shortlister ported from He-Giveth as they are, and the unused
+   dependencies (`jspdf`, `leaflet`) removed from `package.json`.

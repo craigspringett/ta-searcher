@@ -177,3 +177,33 @@ port. Their contact reveal (personal emails and phones from 14 to 30 data
 providers), 850 million profile search (Wiggli, Pin, Juicebox) and LinkedIn
 automation are paid data or against LinkedIn's terms, and are not built
 here; the people come from the company's own website and the register.
+
+## First live run, 21 September 2026
+
+Applied and deployed the same afternoon (migration `20260921150000_prospects.sql`,
+the two cron jobs, functions `discover-prospects` and `qualify-prospects`,
+the Prospects page on `main`). What the radar did on its first pass:
+
+| Step | Result |
+|---|---|
+| Discovery | 700 candidates in 26 s: 393 raise headlines (10 unmatched `funding_news` rows plus the eight Google News searches, 684 items, 523 raise stories), 300 register companies (three pages: SIC 62012, 62020 and 62090 in London, 38,970, 35,764 and 24,068 hits each), 60 Adzuna postings, 39 Reed postings. One candidate (Searchable) was already tracked. |
+| After tightening the rules | The job-API sift let through HR managers, people generalists, coordinators, sourcers and a dozen agencies (Adecco, Hays, Michael Page, Frazer Jones, Huntress, Oakleaf, Insight Select, Merrifield, Ashdown, Birchrose, Centre People, M4 Talent, Technical Placements, Superb People, Unite Talent, Hire Ground), and the headline parser left fragments ("Dragons' Den-backed Sprive", "Mortgage overpayment app Sprive", "Revolut founder's QuantumLight", "co-founded by DeepMind creative lead", "Climate change", "just"). `isProspectPostingTitle` now drops HR, coordination and sourcing titles and a bare recruiter, `isAgencyEmployer` carries the agency words and the big names, and `looksLikeCompanyName` gates the headline names. Rerun: 27 Adzuna and 1 Reed prospect, 330 from the news. |
+| Qualification | 43 prospects in the two-minute budget (three in flight; the rest wait for the next night), 40 qualified, 3 promoted, 17 not reached. |
+| Promoted | Dex (80: a talent partner on Adzuna, a $5.3m seed in the last six months, 8 open roles, incorporated 2024), Cledara (80: a Talent Lead on Adzuna, an SH01 in July with no raise in the news, 10 open roles), Handshake (60: a Lead Recruiter on the Ashby board, a raise in the news, 74 open roles counted against, incorporated 2024). All three were analysed within minutes (scores 78, 82, 86). Handshake is a scaled US company with a London entity and is the one to dismiss from the page if it is not a fit. |
+| Score changes from the run | 40 or more open roles now counts −25 (a scaled company: Handshake at 74, Legora at 278, Shield AI at 502 would otherwise have been added), and incorporation more than ten years ago −30 (RELX, incorporated 1903, and Flywire, 2011, were reaching the threshold on a Head of Talent posting alone). |
+| Ready to add | CarbonChain (50), geoSurge, First Table and Braven (40), Upwind Security and RELX (35), Legora (30), then the rest down to −25; every one with a website found except S&P Global, Royal British Legion, Klick Health, DeMellier and a handful of others, which show the "Add the website" input. |
+
+Hunter's Domain Search was added to `analyze-company` the same day
+(`_shared/contacts/hunter.ts`, key `HUNTER_API_KEY`): one search per
+company, the result stored on the run (`contactsRun.hunter`, with what was
+listed and why each address was dropped) and reused for thirty days.
+Searchable, whose JS-rendered site names nobody, gained Chris Donnelly,
+Director, chris@searchable.com (85% confidence) as a found contact merged
+with the register's Christopher Donnelly; `samePerson` now treats a short
+first name as its full form.
+
+Still to do: the register pool of 547 `new` prospects qualifies at sixty a
+night (about nine nights for this batch; raise the limit in the cron body
+to go faster), the Prospects page's Add and Save website buttons have
+been exercised through the function's contract but not clicked in the
+browser, and Craig has not yet reviewed the ready list.
