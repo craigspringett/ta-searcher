@@ -10,7 +10,7 @@
 import { Webhook } from 'npm:standardwebhooks@1.0.0';
 import { sendEmail } from '../_shared/email.ts';
 
-const FROM = 'TA Searcher <noreply@notify.bigfishrecruitment.co.uk>';
+const FROM = `TA Searcher <noreply@${Deno.env.get('SENDER_DOMAIN') || 'notify.bigfishrecruitment.co.uk'}>`;
 const APP_URL = Deno.env.get('APP_URL') || 'https://ta-searcher.netlify.app';
 
 interface HookPayload {

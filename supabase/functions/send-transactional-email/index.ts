@@ -7,8 +7,9 @@ import { loadSendingDomains, resolveFrom, type Sender } from '../_shared/sending
 
 // Configuration baked in at scaffold time
 const SITE_NAME = "who-finds-leads"
-const SENDER_DOMAIN = "notify.bigfishrecruitment.co.uk"
-const FROM_DOMAIN = "notify.bigfishrecruitment.co.uk"
+// The sending sub-domain: the SENDER_DOMAIN secret (notify.whofoundwho.co.uk, verified in Resend, until notify.bigfishrecruitment.co.uk is verified).
+const SENDER_DOMAIN = Deno.env.get("SENDER_DOMAIN") || "notify.bigfishrecruitment.co.uk"
+const FROM_DOMAIN = SENDER_DOMAIN
 // notify.bigfishrecruitment.co.uk has no mailbox, so a consultant who replies to an alert gets a bounce.
 // Replies go to a person instead (REPLY_TO_EMAIL secret, Craig by default).
 const REPLY_TO = Deno.env.get("REPLY_TO_EMAIL") || "craig@bigfishrecruitment.co.uk"
