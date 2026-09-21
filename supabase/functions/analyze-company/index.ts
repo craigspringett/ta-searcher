@@ -41,7 +41,7 @@ import { groundLlmVacancies } from '../_shared/vacancies/llm-grounding.ts';
 import { boardSources, collectBoardVacancies, collectVacancies, mergeVacancies, persistVacancies, summariseRun, toCurrentVacancies, SOURCE_LABELS, type PersistedVacancy } from '../_shared/vacancies/pipeline.ts';
 import type { CareersPageResult } from '../_shared/vacancies/source-careers-page.ts';
 import type { AtsBoard, CompanyContext, VacancyRunSummary } from '../_shared/vacancies/types.ts';
-import { confirmBoard, detectAtsBoards } from '../_shared/vacancies/ats-detect.ts';
+import { boardUrlFor, confirmBoard, detectAtsBoards } from '../_shared/vacancies/ats-detect.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -571,6 +571,35 @@ Deno.serve(async (req) => {
         boards.push(b);
         sourceResults.push(...await Promise.all(boardSources([b], today)));
       }
+    }
+    // Nothing linked from the pages (a careers page that builds its job list
+    // in the browser, as Searchable's does): try each provider with the
+    // company's own name as the slug, once, and keep whatever answers.
+    if (!boards.length && !detected.size) {
+      const label = hostname.split('.')[0].toLowerCase();
+      const compact = officialName.toLowerCase().replace(/\b(ltd|limited|plc|llp|inc)\b/g, '').replace(/[^a-z0-9]+/g, '');
+      const dashed = officialName.toLowerCase().replace(/\b(ltd|limited|plc|llp|inc)\b/g, '').trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      const slugs = Array.from(new Set([label, compact, dashed].filter((x) => x.length >= 3)));
+      const guessed: string[] = [];
+      for (const provider of ['ashby', 'greenhouse', 'lever', 'workable'] as const) {
+        for (const slug of slugs) {
+          const b: AtsBoard = { provider, slug, boardUrl: boardUrlFor(provider, slug) };
+          const check = await confirmBoard(b, officialName);
+          if (!check.ok) continue;
+          guessed.push(`${provider}:${slug}`);
+          if (existingRow) {
+            await supabaseClient.from('ats_boards').upsert({
+              company_search_id: existingRow.id, provider, slug, board_url: b.boardUrl,
+              confirmed_at: new Date().toISOString(), last_checked_at: new Date().toISOString(), last_ok_at: new Date().toISOString(), last_count: check.count, note: `guessed from the company name; ${check.note ?? 'confirmed'}`,
+            }, { onConflict: 'company_search_id,provider' });
+          }
+          boards.push(b);
+          sourceResults.push(...await Promise.all(boardSources([b], today)));
+          console.log(`Board ${provider}/${slug} (guessed from the name): confirmed, ${check.count} roles`);
+          break;
+        }
+      }
+      (boardsNote as Record<string, unknown>).guessed = guessed;
     }
     (boardsNote as Record<string, unknown>).detected = Array.from(detected.keys());
     for (const r of sourceResults) console.log(`  ${r.source}: ${r.ok ? 'ok' : 'FAILED'} ${r.vacancies.length} found in ${r.ms}ms${r.note ? ` (${r.note})` : ''}`);
