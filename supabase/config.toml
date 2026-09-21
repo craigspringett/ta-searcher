@@ -1,4 +1,4 @@
-project_id = "REPLACE_WITH_NEW_PROJECT_REF"
+project_id = "onlnizycknfuuprsmypl"
 
 # verify_jwt is on for every app-facing function (they also call identifyCaller
 # from _shared/auth.ts; the cron path arrives as the service role). The Auth
