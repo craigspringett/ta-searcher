@@ -1,0 +1,54 @@
+{
+  "active_count": 3,
+  "etag": "abcdef0123456789abcdef0123456789abcdef01",
+  "inactive_count": 0,
+  "items_per_page": 50,
+  "kind": "officer-list",
+  "links": { "self": "/company/12345678/officers" },
+  "resigned_count": 1,
+  "start_index": 0,
+  "total_results": 4,
+  "items": [
+    {
+      "address": { "address_line_1": "12 Example Street", "locality": "London", "postal_code": "EC2A 4NE", "premises": "Unit 4" },
+      "appointed_on": "2026-07-01",
+      "country_of_residence": "United Kingdom",
+      "date_of_birth": { "month": 4, "year": 1985 },
+      "links": { "self": "/company/12345678/appointments/aaa111", "officer": { "appointments": "/officers/Ab1Cd2Ef3Gh4Ij5Kl6Mn7Op8/appointments" } },
+      "name": "PATEL, Priya Anjali",
+      "nationality": "British",
+      "occupation": "Chief Technology Officer",
+      "officer_role": "director"
+    },
+    {
+      "address": { "address_line_1": "12 Example Street", "locality": "London", "postal_code": "EC2A 4NE", "premises": "Unit 4" },
+      "appointed_on": "2021-03-15",
+      "country_of_residence": "England",
+      "date_of_birth": { "month": 9, "year": 1979 },
+      "links": { "self": "/company/12345678/appointments/bbb222", "officer": { "appointments": "/officers/Qr9St0Uv1Wx2Yz3Ab4Cd5Ef6/appointments" } },
+      "name": "SMITH, Dr John Andrew",
+      "nationality": "British",
+      "occupation": "Director",
+      "officer_role": "director"
+    },
+    {
+      "address": { "address_line_1": "12 Example Street", "locality": "London", "postal_code": "EC2A 4NE", "premises": "Unit 4" },
+      "appointed_on": "2021-03-15",
+      "links": { "self": "/company/12345678/appointments/ccc333", "officer": { "appointments": "/officers/Gh7Ij8Kl9Mn0Op1Qr2St3Uv4/appointments" } },
+      "name": "ACME SECRETARIES LIMITED",
+      "officer_role": "corporate-secretary"
+    },
+    {
+      "address": { "address_line_1": "12 Example Street", "locality": "London", "postal_code": "EC2A 4NE", "premises": "Unit 4" },
+      "appointed_on": "2021-03-15",
+      "resigned_on": "2024-02-29",
+      "country_of_residence": "England",
+      "date_of_birth": { "month": 1, "year": 1990 },
+      "links": { "self": "/company/12345678/appointments/ddd444", "officer": { "appointments": "/officers/Wx5Yz6Ab7Cd8Ef9Gh0Ij1Kl2/appointments" } },
+      "name": "O'BRIEN-JONES, Siobhan, Ms",
+      "nationality": "Irish",
+      "occupation": "Company Director",
+      "officer_role": "director"
+    }
+  ]
+}

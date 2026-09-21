@@ -1,0 +1,50 @@
+{
+  "etag": "fedcba9876543210fedcba9876543210fedcba98",
+  "filing_history_status": "filing-history-available",
+  "items_per_page": 50,
+  "kind": "filing-history",
+  "start_index": 0,
+  "total_count": 3,
+  "items": [
+    {
+      "action_date": "2026-05-12",
+      "barcode": "XD1A2B3C",
+      "category": "capital",
+      "date": "2026-05-20",
+      "description": "capital-allotment-shares",
+      "description_values": {
+        "capital": [{ "currency": "GBP", "figure": "1,234" }],
+        "date": "2026-05-12"
+      },
+      "links": { "self": "/company/12345678/filing-history/MzQwMDAwMDAwMWFkaXF6a2N4" },
+      "pages": 3,
+      "paper_filed": false,
+      "transaction_id": "MzQwMDAwMDAwMWFkaXF6a2N4",
+      "type": "SH01"
+    },
+    {
+      "action_date": "2023-01-10",
+      "category": "capital",
+      "date": "2023-01-17",
+      "description": "capital-cancellation-shares",
+      "description_values": {
+        "capital": [{ "currency": "GBP", "figure": "100" }],
+        "date": "2023-01-10"
+      },
+      "links": { "self": "/company/12345678/filing-history/MzM5OTk5OTk5OWFkaXF6a2N4" },
+      "pages": 2,
+      "transaction_id": "MzM5OTk5OTk5OWFkaXF6a2N4",
+      "type": "SH06"
+    },
+    {
+      "category": "capital",
+      "date": "2021-04-02",
+      "description": "legacy",
+      "description_values": { "description": "Return of allotment of shares" },
+      "links": { "self": "/company/12345678/filing-history/MzM5OTk5OTk5OGFkaXF6a2N4" },
+      "pages": 1,
+      "transaction_id": "MzM5OTk5OTk5OGFkaXF6a2N4",
+      "type": "88(2)"
+    }
+  ]
+}

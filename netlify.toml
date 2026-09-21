@@ -1,0 +1,19 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# The Netlify subdomain redirects to the custom domain (primary since 8 September 2026).
+[[redirects]]
+  from = "https://he-giveth.netlify.app/*"
+  to = "https://he-giveth.whofoundwho.co.uk/:splat"
+  status = 301
+  force = true
+
+# SPA fallback so deep links (e.g. /pipeline-monitoring, /unsubscribe) resolve
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

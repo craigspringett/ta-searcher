@@ -1,0 +1,613 @@
+[
+ {
+  "categories": {
+   "commitment": "Employee - Permanent",
+   "department": "CAO General",
+   "location": "London",
+   "team": "CAO General",
+   "allLocations": [
+    "London",
+    "Manchester"
+   ]
+  },
+  "createdAt": 1787913476287,
+  "id": "962f3756-6e45-480f-984c-64e024b57c4f",
+  "text": "2027 Graduate Analyst",
+  "country": "GB",
+  "workplaceType": "hybrid",
+  "hostedUrl": "https://jobs.lever.co/zopa/962f3756-6e45-480f-984c-64e024b57c4f",
+  "applyUrl": "https://jobs.lever.co/zopa/962f3756-6e45-480f-984c-64e024b57c4f/apply"
+ },
+ {
+  "categories": {
+   "commitment": "Employee - Permanent",
+   "department": "AI Banking",
+   "location": "London",
+   "team": "AI Banking",
+   "allLocations": [
+    "London"
+   ]
+  },
+  "createdAt": 1789117719778,
+  "id": "56db643d-352e-40fe-bebe-c44e65f0ec2d",
+  "text": "AI Product Manager",
+  "country": "GB",
+  "workplaceType": "hybrid",
+  "hostedUrl": "https://jobs.lever.co/zopa/56db643d-352e-40fe-bebe-c44e65f0ec2d",
+  "applyUrl": "https://jobs.lever.co/zopa/56db643d-352e-40fe-bebe-c44e65f0ec2d/apply"
+ },
+ {
+  "categories": {
+   "commitment": "Employee - Permanent",
+   "department": "Data Engineering & Services",
+   "location": "London",
+   "team": "Data Engineering & Services",
+   "allLocations": [
+    "London"
+   ]
+  },
+  "createdAt": 1786624188661,
+  "id": "3800365d-8493-47f1-96dc-80ac103663d7",
+  "text": "Analytics Engineering Manager",
+  "country": "GB",
+  "workplaceType": "hybrid",
+  "hostedUrl": "https://jobs.lever.co/zopa/3800365d-8493-47f1-96dc-80ac103663d7",
+  "applyUrl": "https://jobs.lever.co/zopa/3800365d-8493-47f1-96dc-80ac103663d7/apply"
+ },
+ {
+  "categories": {
+   "commitment": "Employee - Permanent",
+   "department": "Engineering",
+   "location": "London",
+   "team": "Mobile Products Engineering",
+   "allLocations": [
+    "London"
+   ]
+  },
+  "createdAt": 1777550450684,
+  "id": "b7c4f329-9bbc-4bfc-b90d-d0fee58d30fb",
+  "text": "Android Engineer",
+  "country": "GB",
+  "workplaceType": "hybrid",
+  "hostedUrl": "https://jobs.lever.co/zopa/b7c4f329-9bbc-4bfc-b90d-d0fee58d30fb",
+  "applyUrl": "https://jobs.lever.co/zopa/b7c4f329-9bbc-4bfc-b90d-d0fee58d30fb/apply"
+ },
+ {
+  "categories": {
+   "commitment": "Employee - Permanent",
+   "department": "Customer Operations",
+   "location": "London",
+   "team": "Complaints",
+   "allLocations": [
+    "London"
+   ]
+  },
+  "createdAt": 1787581982788,
+  "id": "3a4528eb-95ad-4e3e-af39-fdd0907a1ed6",
+  "text": "Complaints Manager",
+  "country": "GB",
+  "workplaceType": "hybrid",
+  "hostedUrl": "https://jobs.lever.co/zopa/3a4528eb-95ad-4e3e-af39-fdd0907a1ed6",
+  "applyUrl": "https://jobs.lever.co/zopa/3a4528eb-95ad-4e3e-af39-fdd0907a1ed6/apply"
+ },
+ {
+  "categories": {
+   "commitment": "Employee - FTC",
+   "department": "CRO General",
+   "location": "London",
+   "team": "CRO General",
+   "allLocations": [
+    "London"
+   ]
+  },
+  "createdAt": 1784812691706,
+  "id": "e59ed42c-181b-4074-9fa3-b8a9d56176cd",
+  "text": "Compliance Assurance Manager (12 month FTC)",
+  "country": "GB",
+  "workplaceType": "hybrid",
+  "hostedUrl": "https://jobs.lever.co/zopa/e59ed42c-181b-4074-9fa3-b8a9d56176cd",
+  "applyUrl": "https://jobs.lever.co/zopa/e59ed42c-181b-4074-9fa3-b8a9d56176cd/apply"
+ },
+ {
+  "categories": {
+   "commitment": "Employee - Permanent",
+   "department": "Customer Operations",
+   "location": "Manchester",
+   "team": "Customer Services",
+   "allLocations": [
+    "Manchester"
+   ]
+  },
+  "createdAt": 1787577672162,
+  "id": "6f60ed9f-bdc1-46f4-b915-56fdcbfc7bd1",
+  "text": "Customer Service Team Leader",
+  "country": "GB",
+  "workplaceType": "hybrid",
+  "hostedUrl": "https://jobs.lever.co/zopa/6f60ed9f-bdc1-46f4-b915-56fdcbfc7bd1",
+  "applyUrl": "https://jobs.lever.co/zopa/6f60ed9f-bdc1-46f4-b915-56fdcbfc7bd1/apply"
+ },
+ {
+  "categories": {
+   "commitment": "Employee - Permanent",
+   "department": "CSO General",
+   "location": "London",
+   "team": "CSO General",
+   "allLocations": [
+    "London"
+   ]
+  },
+  "createdAt": 1787577747598,
+  "id": "60357b56-61ea-42d6-a449-56f26ca1f1e1",
+  "text": "Data Privacy Manager",
+  "country": "GB",
+  "workplaceType": "hybrid",
+  "hostedUrl": "https://jobs.lever.co/zopa/60357b56-61ea-42d6-a449-56f26ca1f1e1",
+  "applyUrl": "https://jobs.lever.co/zopa/60357b56-61ea-42d6-a449-56f26ca1f1e1/apply"
+ },
+ {
+  "categories": {
+   "commitment": "Employee - Permanent",
+   "department": "Data Science",
+   "location": "London",
+   "team": "Data Science",
+   "allLocations": [
+    "London"
+   ]
+  },
+  "createdAt": 1787934689499,
+  "id": "6536d687-2c94-451e-b777-5a8fa316c97e",
+  "text": "Data Scientist (Mid and Senior Level)",
+  "country": "GB",
+  "workplaceType": "hybrid",
+  "hostedUrl": "https://jobs.lever.co/zopa/6536d687-2c94-451e-b777-5a8fa316c97e",
+  "applyUrl": "https://jobs.lever.co/zopa/6536d687-2c94-451e-b777-5a8fa316c97e/apply"
+ },
+ {
+  "categories": {
+   "commitment": "Employee - Permanent",
+   "department": "CTO General",
+   "location": "London",
+   "team": "CTO General",
+   "allLocations": [
+    "London"
+   ]
+  },
+  "createdAt": 1789032740267,
+  "id": "f43d5c6a-7306-4a83-b72f-81cf7d1f68eb",
+  "text": "Director of Engineering",
+  "country": "GB",
+  "workplaceType": "hybrid",
+  "hostedUrl": "https://jobs.lever.co/zopa/f43d5c6a-7306-4a83-b72f-81cf7d1f68eb",
+  "applyUrl": "https://jobs.lever.co/zopa/f43d5c6a-7306-4a83-b72f-81cf7d1f68eb/apply"
+ },
+ {
+  "categories": {
+   "commitment": "Employee - Permanent",
+   "department": "Engineering",
+   "location": "London",
+   "team": "Engineering Management",
+   "allLocations": [
+    "London"
+   ]
+  },
+  "createdAt": 1770307741094,
+  "id": "68374b45-93b6-4265-bf95-a785f65215cb",
+  "text": "Engineering Manager (London)",
+  "country": "GB",
+  "workplaceType": "hybrid",
+  "hostedUrl": "https://jobs.lever.co/zopa/68374b45-93b6-4265-bf95-a785f65215cb",
+  "applyUrl": "https://jobs.lever.co/zopa/68374b45-93b6-4265-bf95-a785f65215cb/apply"
+ },
+ {
+  "categories": {
+   "commitment": "Employee - Permanent",
+   "department": "Fraud & Financial Crime",
+   "location": "Manchester",
+   "team": "Financial Crime Ops",
+   "allLocations": [
+    "Manchester"
+   ]
+  },
+  "createdAt": 1787838047943,
+  "id": "44d4cfd9-77cf-4460-901f-021f621f0cf8",
+  "text": "Financial Crime Specialist - Transaction Monitoring",
+  "country": "GB",
+  "workplaceType": "hybrid",
+  "hostedUrl": "https://jobs.lever.co/zopa/44d4cfd9-77cf-4460-901f-021f621f0cf8",
+  "applyUrl": "https://jobs.lever.co/zopa/44d4cfd9-77cf-4460-901f-021f621f0cf8/apply"
+ },
+ {
+  "categories": {
+   "commitment": "Employee - Permanent",
+   "department": "Fraud & Financial Crime Strategy",
+   "location": "London",
+   "team": "Fraud & Financial Crime Strategy",
+   "allLocations": [
+    "London"
+   ]
+  },
+  "createdAt": 1781861278883,
+  "id": "cc0b901b-09af-4de8-8a94-67735ca03e20",
+  "text": "Financial Crime Strategy Manager",
+  "country": "GB",
+  "workplaceType": "hybrid",
+  "hostedUrl": "https://jobs.lever.co/zopa/cc0b901b-09af-4de8-8a94-67735ca03e20",
+  "applyUrl": "https://jobs.lever.co/zopa/cc0b901b-09af-4de8-8a94-67735ca03e20/apply"
+ },
+ {
+  "categories": {
+   "commitment": "Employee - Permanent",
+   "department": "Engineering",
+   "location": "London",
+   "team": "Web Engineering",
+   "allLocations": [
+    "London"
+   ]
+  },
+  "createdAt": 1784214460345,
+  "id": "f7d223f5-8542-4e44-b21f-6b8e9d9929a1",
+  "text": "Frontend Engineer",
+  "country": "GB",
+  "workplaceType": "hybrid",
+  "hostedUrl": "https://jobs.lever.co/zopa/f7d223f5-8542-4e44-b21f-6b8e9d9929a1",
+  "applyUrl": "https://jobs.lever.co/zopa/f7d223f5-8542-4e44-b21f-6b8e9d9929a1/apply"
+ },
+ {
+  "categories": {
+   "commitment": "Employee - Permanent",
+   "department": "Customer Operations",
+   "location": "London",
+   "team": "Complaints",
+   "allLocations": [
+    "London"
+   ]
+  },
+  "createdAt": 1788459983972,
+  "id": "3e765249-623a-4401-8315-d2781465b6ce",
+  "text": "Head of Complaints",
+  "country": "GB",
+  "workplaceType": "hybrid",
+  "hostedUrl": "https://jobs.lever.co/zopa/3e765249-623a-4401-8315-d2781465b6ce",
+  "applyUrl": "https://jobs.lever.co/zopa/3e765249-623a-4401-8315-d2781465b6ce/apply"
+ },
+ {
+  "categories": {
+   "commitment": "Employee - Permanent",
+   "department": "CAO General",
+   "location": "London",
+   "team": "CAO General",
+   "allLocations": [
+    "London"
+   ]
+  },
+  "createdAt": 1781540828498,
+  "id": "f37c57aa-9b3c-4bb0-80e5-6cd1be81459b",
+  "text": "Head of Marketing Analytics",
+  "country": "GB",
+  "workplaceType": "hybrid",
+  "hostedUrl": "https://jobs.lever.co/zopa/f37c57aa-9b3c-4bb0-80e5-6cd1be81459b",
+  "applyUrl": "https://jobs.lever.co/zopa/f37c57aa-9b3c-4bb0-80e5-6cd1be81459b/apply"
+ },
+ {
+  "categories": {
+   "commitment": "Employee - Permanent",
+   "department": "Information Security",
+   "location": "London",
+   "team": "Information Security",
+   "allLocations": [
+    "London"
+   ]
+  },
+  "createdAt": 1785944039993,
+  "id": "e6dce041-cb95-40b0-9331-6ccaeb2dd93d",
+  "text": "Head of Product Security",
+  "country": "GB",
+  "workplaceType": "hybrid",
+  "hostedUrl": "https://jobs.lever.co/zopa/e6dce041-cb95-40b0-9331-6ccaeb2dd93d",
+  "applyUrl": "https://jobs.lever.co/zopa/e6dce041-cb95-40b0-9331-6ccaeb2dd93d/apply"
+ },
+ {
+  "categories": {
+   "commitment": "Employee - Permanent",
+   "department": "Engineering",
+   "location": "London",
+   "team": "Mobile Products Engineering",
+   "allLocations": [
+    "London"
+   ]
+  },
+  "createdAt": 1789049994033,
+  "id": "2780e3ac-4dad-4cb5-a1af-fb868913e8cc",
+  "text": "iOS Engineer",
+  "country": "GB",
+  "workplaceType": "hybrid",
+  "hostedUrl": "https://jobs.lever.co/zopa/2780e3ac-4dad-4cb5-a1af-fb868913e8cc",
+  "applyUrl": "https://jobs.lever.co/zopa/2780e3ac-4dad-4cb5-a1af-fb868913e8cc/apply"
+ },
+ {
+  "categories": {
+   "commitment": "Employee - Permanent",
+   "department": "Engineering",
+   "location": "London",
+   "team": "Cards Engineering",
+   "allLocations": [
+    "London"
+   ]
+  },
+  "createdAt": 1720534839791,
+  "id": "37193ff4-2050-407e-ae17-79aa956d444c",
+  "text": "Java/Kotlin Software Engineer - London",
+  "country": "GB",
+  "workplaceType": "hybrid",
+  "hostedUrl": "https://jobs.lever.co/zopa/37193ff4-2050-407e-ae17-79aa956d444c",
+  "applyUrl": "https://jobs.lever.co/zopa/37193ff4-2050-407e-ae17-79aa956d444c/apply"
+ },
+ {
+  "categories": {
+   "commitment": "Employee - Permanent",
+   "department": "Engineering",
+   "location": "Manchester",
+   "team": "PoS Engineering",
+   "allLocations": [
+    "Manchester"
+   ]
+  },
+  "createdAt": 1753093993741,
+  "id": "fd815001-859f-447f-96e1-6f38026636e5",
+  "text": "Java/Kotlin Software Engineer - Manchester",
+  "country": "GB",
+  "workplaceType": "hybrid",
+  "hostedUrl": "https://jobs.lever.co/zopa/fd815001-859f-447f-96e1-6f38026636e5",
+  "applyUrl": "https://jobs.lever.co/zopa/fd815001-859f-447f-96e1-6f38026636e5/apply"
+ },
+ {
+  "categories": {
+   "commitment": "Employee - Permanent",
+   "department": "Brand & Experience Design",
+   "location": "London",
+   "team": "Brand",
+   "allLocations": [
+    "London"
+   ]
+  },
+  "createdAt": 1787127096942,
+  "id": "65546592-b45f-40c8-a1cd-a567ef840e73",
+  "text": "Marketing Operations Lead",
+  "country": "GB",
+  "workplaceType": "hybrid",
+  "hostedUrl": "https://jobs.lever.co/zopa/65546592-b45f-40c8-a1cd-a567ef840e73",
+  "applyUrl": "https://jobs.lever.co/zopa/65546592-b45f-40c8-a1cd-a567ef840e73/apply"
+ },
+ {
+  "categories": {
+   "commitment": "Employee - Permanent",
+   "department": "Engineering",
+   "location": "London",
+   "team": "Mobile Products Engineering",
+   "allLocations": [
+    "London"
+   ]
+  },
+  "createdAt": 1778840914983,
+  "id": "1f3c8eea-7402-4a10-aa32-82ea400a4131",
+  "text": "Mobile Engineering Manager",
+  "country": "GB",
+  "workplaceType": "hybrid",
+  "hostedUrl": "https://jobs.lever.co/zopa/1f3c8eea-7402-4a10-aa32-82ea400a4131",
+  "applyUrl": "https://jobs.lever.co/zopa/1f3c8eea-7402-4a10-aa32-82ea400a4131/apply"
+ },
+ {
+  "categories": {
+   "commitment": "Employee - Permanent",
+   "department": "1LOD Ops Risk",
+   "location": "London",
+   "team": "1LOD Ops Risk",
+   "allLocations": [
+    "London"
+   ]
+  },
+  "createdAt": 1783064291094,
+  "id": "a64dc6ca-47fb-491b-8d7d-d1a69c815270",
+  "text": "Risk Change Manager - Ops Resilience & Third Party Risk",
+  "country": "GB",
+  "workplaceType": "hybrid",
+  "hostedUrl": "https://jobs.lever.co/zopa/a64dc6ca-47fb-491b-8d7d-d1a69c815270",
+  "applyUrl": "https://jobs.lever.co/zopa/a64dc6ca-47fb-491b-8d7d-d1a69c815270/apply"
+ },
+ {
+  "categories": {
+   "department": "Analytics",
+   "location": "London",
+   "team": "BI",
+   "allLocations": [
+    "London"
+   ]
+  },
+  "createdAt": 1789802433470,
+  "id": "9b64ba26-893f-43a1-9a9a-6b683de05993",
+  "text": "Senior BI Analyst (Fraud & Financial Crime / Collections & Recoveries)",
+  "country": "GB",
+  "workplaceType": "hybrid",
+  "hostedUrl": "https://jobs.lever.co/zopa/9b64ba26-893f-43a1-9a9a-6b683de05993",
+  "applyUrl": "https://jobs.lever.co/zopa/9b64ba26-893f-43a1-9a9a-6b683de05993/apply"
+ },
+ {
+  "categories": {
+   "commitment": "Employee - Permanent",
+   "department": "Engineering",
+   "location": "London",
+   "team": "Cards Engineering",
+   "allLocations": [
+    "London"
+   ]
+  },
+  "createdAt": 1771414013060,
+  "id": "d29493d5-149d-4353-a199-1733b9818026",
+  "text": "Senior C# Software Engineer \u2013 London",
+  "country": "GB",
+  "workplaceType": "hybrid",
+  "hostedUrl": "https://jobs.lever.co/zopa/d29493d5-149d-4353-a199-1733b9818026",
+  "applyUrl": "https://jobs.lever.co/zopa/d29493d5-149d-4353-a199-1733b9818026/apply"
+ },
+ {
+  "categories": {
+   "commitment": "Employee - Permanent",
+   "department": "1LOD Ops Risk",
+   "location": "London",
+   "team": "1LOD Ops Risk",
+   "allLocations": [
+    "London"
+   ]
+  },
+  "createdAt": 1778150115637,
+  "id": "150ac881-b143-4d44-84d8-ed1ac9b3d325",
+  "text": "Senior Compliance Manager (1st Line of Defence)",
+  "country": "GB",
+  "workplaceType": "hybrid",
+  "hostedUrl": "https://jobs.lever.co/zopa/150ac881-b143-4d44-84d8-ed1ac9b3d325",
+  "applyUrl": "https://jobs.lever.co/zopa/150ac881-b143-4d44-84d8-ed1ac9b3d325/apply"
+ },
+ {
+  "categories": {
+   "commitment": "Employee - Permanent",
+   "department": "FP&A",
+   "location": "London",
+   "team": "FP&A",
+   "allLocations": [
+    "London"
+   ]
+  },
+  "createdAt": 1788336987523,
+  "id": "2126949a-ebe9-4308-a1bc-f3fa3effd57b",
+  "text": "Senior FP&A Analyst",
+  "country": "GB",
+  "workplaceType": "hybrid",
+  "hostedUrl": "https://jobs.lever.co/zopa/2126949a-ebe9-4308-a1bc-f3fa3effd57b",
+  "applyUrl": "https://jobs.lever.co/zopa/2126949a-ebe9-4308-a1bc-f3fa3effd57b/apply"
+ },
+ {
+  "categories": {
+   "commitment": "Employee - Permanent",
+   "department": "Engineering",
+   "location": "London",
+   "team": "Mobile Products Engineering",
+   "allLocations": [
+    "London"
+   ]
+  },
+  "createdAt": 1788520220129,
+  "id": "90e05bb1-85b9-4054-bd93-fb525e631ff9",
+  "text": "Senior iOS Engineer",
+  "country": "GB",
+  "workplaceType": "hybrid",
+  "hostedUrl": "https://jobs.lever.co/zopa/90e05bb1-85b9-4054-bd93-fb525e631ff9",
+  "applyUrl": "https://jobs.lever.co/zopa/90e05bb1-85b9-4054-bd93-fb525e631ff9/apply"
+ },
+ {
+  "categories": {
+   "commitment": "Employee - Permanent",
+   "department": "Engineering",
+   "location": "London",
+   "team": "Cards Engineering",
+   "allLocations": [
+    "London"
+   ]
+  },
+  "createdAt": 1755184407783,
+  "id": "8ee00aac-59e0-49a4-afc5-2e8a33a0f665",
+  "text": "Senior Java/Kotlin Software Engineer - London",
+  "country": "GB",
+  "workplaceType": "hybrid",
+  "hostedUrl": "https://jobs.lever.co/zopa/8ee00aac-59e0-49a4-afc5-2e8a33a0f665",
+  "applyUrl": "https://jobs.lever.co/zopa/8ee00aac-59e0-49a4-afc5-2e8a33a0f665/apply"
+ },
+ {
+  "categories": {
+   "commitment": "Employee - Permanent",
+   "department": "Engineering",
+   "location": "London",
+   "team": "DevX & Platform Engineering",
+   "allLocations": [
+    "London"
+   ]
+  },
+  "createdAt": 1788881609655,
+  "id": "33ed6dc4-4578-4737-8409-d843e7847aad",
+  "text": "Senior Platform Engineer",
+  "country": "GB",
+  "workplaceType": "hybrid",
+  "hostedUrl": "https://jobs.lever.co/zopa/33ed6dc4-4578-4737-8409-d843e7847aad",
+  "applyUrl": "https://jobs.lever.co/zopa/33ed6dc4-4578-4737-8409-d843e7847aad/apply"
+ },
+ {
+  "categories": {
+   "department": "Analytics",
+   "location": "London",
+   "team": "Product Analytics",
+   "allLocations": [
+    "London"
+   ]
+  },
+  "createdAt": 1789750490700,
+  "id": "6d624de1-afcb-4e03-8cd8-40c55f8178d9",
+  "text": "Senior Product Analyst (Transaction Enrichment)",
+  "country": "GB",
+  "workplaceType": "hybrid",
+  "hostedUrl": "https://jobs.lever.co/zopa/6d624de1-afcb-4e03-8cd8-40c55f8178d9",
+  "applyUrl": "https://jobs.lever.co/zopa/6d624de1-afcb-4e03-8cd8-40c55f8178d9/apply"
+ },
+ {
+  "categories": {
+   "commitment": "Employee - Permanent",
+   "department": "Commercial",
+   "location": "Manchester",
+   "team": "PoS Commercial",
+   "allLocations": [
+    "Manchester"
+   ]
+  },
+  "createdAt": 1786090146968,
+  "id": "9b8b5cdd-7805-4dd1-a9ca-8e4f1bd3ff4d",
+  "text": "Senior Product Manager - B2B",
+  "country": "GB",
+  "workplaceType": "hybrid",
+  "hostedUrl": "https://jobs.lever.co/zopa/9b8b5cdd-7805-4dd1-a9ca-8e4f1bd3ff4d",
+  "applyUrl": "https://jobs.lever.co/zopa/9b8b5cdd-7805-4dd1-a9ca-8e4f1bd3ff4d/apply"
+ },
+ {
+  "categories": {
+   "commitment": "Employee - Permanent",
+   "department": "Finance",
+   "location": "London",
+   "team": "Finance",
+   "allLocations": [
+    "London"
+   ]
+  },
+  "createdAt": 1787671578193,
+  "id": "aefd45ec-cd7e-43bd-835d-639b544d9ca6",
+  "text": "Tax Manager",
+  "country": "GB",
+  "workplaceType": "hybrid",
+  "hostedUrl": "https://jobs.lever.co/zopa/aefd45ec-cd7e-43bd-835d-639b544d9ca6",
+  "applyUrl": "https://jobs.lever.co/zopa/aefd45ec-cd7e-43bd-835d-639b544d9ca6/apply"
+ },
+ {
+  "categories": {
+   "commitment": "Employee - Permanent",
+   "department": "1LOD Ops Risk",
+   "location": "London",
+   "team": "1LOD Ops Risk",
+   "allLocations": [
+    "London"
+   ]
+  },
+  "createdAt": 1774435754750,
+  "id": "3cc55902-4524-475b-ada7-43af0daaf180",
+  "text": "Zopa for Business - Risk Lead",
+  "country": "GB",
+  "workplaceType": "hybrid",
+  "hostedUrl": "https://jobs.lever.co/zopa/3cc55902-4524-475b-ada7-43af0daaf180",
+  "applyUrl": "https://jobs.lever.co/zopa/3cc55902-4524-475b-ada7-43af0daaf180/apply"
+ }
+]

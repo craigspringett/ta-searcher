@@ -1,0 +1,68 @@
+project_id = "REPLACE_WITH_NEW_PROJECT_REF"
+
+# verify_jwt is on for every app-facing function (they also call identifyCaller
+# from _shared/auth.ts; the cron path arrives as the service role). The Auth
+# email hook and the public email endpoints (unsubscribe links, feedback links,
+# the Resend webhooks, which sign their own requests) stay off.
+
+[functions.analyze-company]
+verify_jwt = true
+static_files = ["./functions/_shared/copy/value-proposition.md"]
+
+[functions.auth-send-email]
+verify_jwt = false
+
+[functions.auto-refresh-vacancies]
+verify_jwt = true
+
+[functions.company-lookup]
+verify_jwt = true
+
+[functions.contact-edits]
+verify_jwt = true
+
+[functions.cron-monitoring]
+verify_jwt = true
+
+[functions.generate-copy]
+verify_jwt = true
+static_files = ["./functions/_shared/copy/value-proposition.md"]
+
+[functions.handle-contact-feedback]
+verify_jwt = true
+
+[functions.handle-email-events]
+verify_jwt = false
+
+[functions.handle-email-suppression]
+verify_jwt = false
+
+[functions.handle-email-unsubscribe]
+verify_jwt = false
+
+[functions.handle-vacancy-feedback]
+verify_jwt = false
+
+[functions.preview-transactional-email]
+verify_jwt = true
+
+[functions.process-email-queue]
+verify_jwt = true
+
+[functions.refresh-all-companies]
+verify_jwt = true
+
+[functions.refresh-scores]
+verify_jwt = true
+
+[functions.send-catchup-alert]
+verify_jwt = true
+
+[functions.send-friday-brief]
+verify_jwt = true
+
+[functions.send-outreach-email]
+verify_jwt = true
+
+[functions.send-transactional-email]
+verify_jwt = true

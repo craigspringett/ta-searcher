@@ -1,0 +1,57 @@
+{
+  "accounts": {
+    "accounting_reference_date": { "day": "31", "month": "03" },
+    "last_accounts": {
+      "made_up_to": "2025-03-31",
+      "period_end_on": "2025-03-31",
+      "period_start_on": "2024-04-01",
+      "type": "micro-entity"
+    },
+    "next_accounts": {
+      "due_on": "2026-12-31",
+      "overdue": false,
+      "period_end_on": "2026-03-31",
+      "period_start_on": "2025-04-01"
+    },
+    "next_due": "2026-12-31",
+    "next_made_up_to": "2026-03-31",
+    "overdue": false
+  },
+  "can_file": true,
+  "company_name": "FABLE LABS LIMITED",
+  "company_number": "12345678",
+  "company_status": "active",
+  "confirmation_statement": {
+    "last_made_up_to": "2026-03-14",
+    "next_due": "2027-03-28",
+    "next_made_up_to": "2027-03-14",
+    "overdue": false
+  },
+  "date_of_creation": "2021-03-15",
+  "etag": "0123456789abcdef0123456789abcdef01234567",
+  "has_been_liquidated": false,
+  "has_charges": false,
+  "has_insolvency_history": false,
+  "jurisdiction": "england-wales",
+  "links": {
+    "self": "/company/12345678",
+    "filing_history": "/company/12345678/filing-history",
+    "officers": "/company/12345678/officers",
+    "persons_with_significant_control": "/company/12345678/persons-with-significant-control"
+  },
+  "previous_company_names": [
+    { "ceased_on": "2023-01-10", "effective_from": "2021-03-15", "name": "STORYFORGE SOFTWARE LTD" }
+  ],
+  "registered_office_address": {
+    "address_line_1": "Unit 4, 12 Example Street",
+    "address_line_2": "Shoreditch",
+    "country": "United Kingdom",
+    "locality": "London",
+    "postal_code": "EC2A 4NE",
+    "region": "Greater London"
+  },
+  "registered_office_is_in_dispute": false,
+  "sic_codes": ["62012", "62020"],
+  "type": "ltd",
+  "undeliverable_registered_office_address": false
+}

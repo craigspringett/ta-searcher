@@ -1,0 +1,58 @@
+{
+  "items_per_page": 10,
+  "kind": "search#companies",
+  "page_number": 1,
+  "start_index": 0,
+  "total_results": 3,
+  "items": [
+    {
+      "address": {
+        "address_line_1": "12 Example Street",
+        "locality": "London",
+        "postal_code": "EC2A 4NE",
+        "premises": "Unit 4",
+        "country": "United Kingdom"
+      },
+      "address_snippet": "Unit 4, 12 Example Street, London, EC2A 4NE",
+      "company_number": "12345678",
+      "company_status": "active",
+      "company_type": "ltd",
+      "date_of_creation": "2021-03-15",
+      "description": "12345678 - Incorporated on 15 March 2021",
+      "description_identifier": ["incorporated-on"],
+      "kind": "searchresults#company",
+      "links": { "self": "/company/12345678" },
+      "matches": { "title": [1, 5] },
+      "snippet": "",
+      "title": "FABLE LABS LIMITED"
+    },
+    {
+      "address": {
+        "address_line_1": "1 Example Road",
+        "locality": "Edinburgh",
+        "postal_code": "EH1 1AA",
+        "country": "Scotland"
+      },
+      "address_snippet": "1 Example Road, Edinburgh, EH1 1AA",
+      "company_number": "SC654321",
+      "company_status": "dissolved",
+      "company_type": "ltd",
+      "date_of_creation": "2015-06-01",
+      "date_of_cessation": "2023-11-07",
+      "description": "SC654321 - Dissolved on 7 November 2023",
+      "description_identifier": ["dissolved-on"],
+      "kind": "searchresults#company",
+      "links": { "self": "/company/SC654321" },
+      "title": "FABLE LABS (SCOTLAND) LIMITED"
+    },
+    {
+      "address": {},
+      "company_number": "OC112233",
+      "company_status": "active",
+      "company_type": "llp",
+      "kind": "searchresults#company",
+      "links": { "self": "/company/OC112233" },
+      "title": "FABLE LABS PARTNERS LLP"
+    }
+  ]
+}
