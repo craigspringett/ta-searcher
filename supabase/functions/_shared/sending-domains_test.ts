@@ -1,7 +1,7 @@
 import { assert, assertEquals } from './test-assert.ts';
 import { cleanDisplayName, domainOf, parseSendingDomains, resolveFrom } from './sending-domains.ts';
 
-const FALLBACK = { name: 'He-Giveth', email: 'noreply@notify.bigfishrecruitment.co.uk' };
+const FALLBACK = { name: 'TA Searcher', email: 'noreply@notify.bigfishrecruitment.co.uk' };
 
 Deno.test('domainOf reads the domain of a plain address only', () => {
   assertEquals(domainOf('anja@whofoundwho.co.uk'), 'whofoundwho.co.uk');
@@ -41,10 +41,10 @@ Deno.test('Big Fish addresses are not on the list until Craig adds the domain', 
 });
 
 Deno.test('no request, a bad address or a header-injection name never changes the sender', () => {
-  assertEquals(resolveFrom(null, ['whofoundwho.co.uk'], FALLBACK).from, 'He-Giveth <noreply@notify.bigfishrecruitment.co.uk>');
+  assertEquals(resolveFrom(null, ['whofoundwho.co.uk'], FALLBACK).from, 'TA Searcher <noreply@notify.bigfishrecruitment.co.uk>');
   assertEquals(resolveFrom({ name: 'X', email: 'not-an-address' }, ['whofoundwho.co.uk'], FALLBACK).applied, false);
   const r = resolveFrom({ name: 'Anja <evil@x.com>\r\nBcc: y@z.com', email: 'anja@whofoundwho.co.uk' }, ['whofoundwho.co.uk'], FALLBACK);
   assertEquals(r.from, 'Anja evil@x.com Bcc: y@z.com <anja@whofoundwho.co.uk>');
   assertEquals(cleanDisplayName('  "Anja"  '), 'Anja');
-  assertEquals(resolveFrom({ name: '', email: 'anja@whofoundwho.co.uk' }, ['whofoundwho.co.uk'], FALLBACK).from, 'He-Giveth <anja@whofoundwho.co.uk>');
+  assertEquals(resolveFrom({ name: '', email: 'anja@whofoundwho.co.uk' }, ['whofoundwho.co.uk'], FALLBACK).from, 'TA Searcher <anja@whofoundwho.co.uk>');
 });
