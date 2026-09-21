@@ -7,11 +7,8 @@ the four identifiers.
 
 ## Craig's four steps
 
-1. **GitHub repository.** https://github.com/new: owner `craigspringett`,
-   name `ta-searcher`, private, no README (the code brings its own). Then
-   install the Claude GitHub app on it at
-   https://github.com/apps/claude/installations/select_target so a session
-   can push. Send the name.
+1. **GitHub repository.** Done on 21 September 2026: `craigspringett/ta-searcher`,
+   private, the code on `main`.
 2. **Supabase project.** https://supabase.com/dashboard/new/lhemdlzhwoalsdynjfww
    (the same organisation as He-Giveth): name `TA Searcher`, region West EU
    (Ireland), generate a database password and keep it in a password
@@ -42,9 +39,8 @@ values across without printing them) or whether Big Fish gets its own.
 
 ## The session's steps, once the identifiers arrive
 
-5. Move the code: `git subtree split -P ta-searcher -b ta-searcher-main` in
-   the `who-finds-leads` checkout, push that branch to the new repository's
-   `main`. Put the project reference in `supabase/config.toml`.
+5. Put the project reference in `supabase/config.toml` (the code is already
+   on the repository's `main`).
 6. Apply `supabase/migrations/20260921120000_ta_searcher_baseline.sql`,
    then `20260921120050_queues_and_net.sql`, then `20260921120100_cron_jobs.sql`
    and `20260921130000_funding_news.sql`, through the Management API

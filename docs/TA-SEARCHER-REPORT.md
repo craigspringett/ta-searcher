@@ -6,12 +6,11 @@ done. The design is `TA-SEARCHER-BRIEF.md`; the module interfaces are
 
 ## Where it is
 
-`ta-searcher/` inside the `who-finds-leads` repository, on branch
-`claude/festive-newton-s18uz8`. The session's GitHub app cannot create a
-repository, so the app lives beside He-Giveth for now; the apply steps say
-how to move it into its own repository with one `git subtree split`.
-Nothing is deployed, applied or sending: there is no Supabase project, no
-Netlify site and no key yet.
+Its own repository, `craigspringett/ta-searcher`, on `main` (moved there
+on 21 September 2026 with `git subtree split` from the `ta-searcher/`
+directory of `who-finds-leads`, where the port was built; that directory
+is now history only). Nothing is deployed, applied or sending: there is no
+Supabase project, no Netlify site and no key yet.
 
 About 30,800 lines of TypeScript and SQL, of which roughly two thirds is
 He-Giveth's generic engine carried over unchanged in behaviour and one

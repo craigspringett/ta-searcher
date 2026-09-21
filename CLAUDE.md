@@ -2,8 +2,8 @@
 
 Internal buyer-intent and hiring-alert portal for placing Heads of Talent
 Acquisition (Heads of Recruitment) into seed and Series A start-ups. Built
-for Craig Springett's Big Fish Recruitment as a replica of He-Giveth, the WhoFoundWho schools portal at
-`../` in this repository. Consultants add a company by name (Companies
+for Craig Springett's Big Fish Recruitment as a replica of He-Giveth, the WhoFoundWho schools portal in the
+`craigspringett/who-finds-leads` repository. Consultants add a company by name (Companies
 House) and website; the app reads the site, the register and the company's
 applicant tracking system, tracks its open roles, scores how likely it is
 to need a Head of Talent, writes the scripts, and emails a weekly brief and
@@ -21,7 +21,7 @@ built and verified on 21 September 2026 and what is not yet applied.
   kit as He-Giveth. Pages: `MyPatch` (`/`), `Index.tsx` (the company list
   and detail, `/companies` and `/companies/:id`), `Alerts`, `Consultants`
   (managers), `PipelineMonitoring`, `Login`. To be deployed by Netlify from
-  this directory (base directory `ta-searcher`, publish `dist`).
+  `main` (build `npm run build`, publish `dist`).
 - Backend: a new Supabase project (not yet created). Edge functions in
   `supabase/functions/*`, the baseline migration in `supabase/migrations/`,
   cron jobs in `supabase/migrations/20260921120100_cron_jobs.sql` (pg_cron +
