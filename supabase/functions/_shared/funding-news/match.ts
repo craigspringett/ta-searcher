@@ -42,7 +42,10 @@ export function matchCompany(name: string | null | undefined, companies: Tracked
 
 /** Whether a headline names the company outright (its normalised name as whole words), for the per-company feed. */
 export function headlineNamesCompany(title: string, company: TrackedCompany): boolean {
-  const text = ` ${normaliseOrgName(title)} `;
+  // The subject only: the words before the raise verb. "Clipto raises $15M to
+  // make video searchable" names Searchable after the verb and is Clipto's news.
+  const subject = title.split(/\b(?:raises|raised|secures|secured|lands|landed|closes|closed|bags|bagged|picks up|picked up|nets|netted|wins|won|gets|scores)\b/i)[0];
+  const text = ` ${normaliseOrgName(subject)} `;
   for (const n of [company.name, ...company.aliases]) {
     const needle = normaliseOrgName(n);
     if (needle.length >= 3 && text.includes(` ${needle} `)) return true;

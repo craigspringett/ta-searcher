@@ -585,7 +585,8 @@ Deno.serve(async (req) => {
         for (const slug of slugs) {
           const b: AtsBoard = { provider, slug, boardUrl: boardUrlFor(provider, slug) };
           const check = await confirmBoard(b, officialName);
-          if (!check.ok) continue;
+          // A guessed slug is only trusted when the feed names no other company.
+          if (!check.ok || check.nameMatch === false) continue;
           guessed.push(`${provider}:${slug}`);
           if (existingRow) {
             await supabaseClient.from('ats_boards').upsert({

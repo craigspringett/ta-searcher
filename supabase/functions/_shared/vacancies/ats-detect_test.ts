@@ -53,13 +53,13 @@ Deno.test('confirmBoard: a feed that answers with jobs confirms, a 404 does not'
     assertEquals(missing.count, 0);
     assertEquals(missing.note?.startsWith('unknown Ashby board "nobody"'), true, missing.note ?? '');
     const gh = await confirmBoard({ provider: 'greenhouse', slug: 'monzo', boardUrl: null }, 'Monzo Bank Limited');
-    assertEquals(gh, { ok: true, count: 70, note: 'Greenhouse board monzo answers' });
+    assertEquals(gh, { ok: true, count: 70, note: 'Greenhouse board monzo answers', nameMatch: true });
     const ghOther = await confirmBoard({ provider: 'greenhouse', slug: 'monzo', boardUrl: null }, 'Searchable');
     assertEquals(ghOther.ok, true);
     assertEquals(ghOther.note, 'Greenhouse board monzo answers; the feed names "Monzo", not "Searchable"');
     assertEquals(await confirmBoard({ provider: 'lever', slug: 'zopa', boardUrl: null }, 'Zopa'), { ok: true, count: 34, note: 'Lever site zopa answers' });
     assertEquals((await confirmBoard({ provider: 'lever', slug: 'nobody', boardUrl: null }, 'Nobody')).ok, false);
-    assertEquals(await confirmBoard({ provider: 'workable', slug: 'acme', boardUrl: null }, 'Acme Robotics'), { ok: true, count: 1, note: 'Workable account acme answers as "Acme Robotics Ltd"' });
+    assertEquals(await confirmBoard({ provider: 'workable', slug: 'acme', boardUrl: null }, 'Acme Robotics'), { ok: true, count: 1, note: 'Workable account acme answers as "Acme Robotics Ltd"', nameMatch: true });
     assertEquals(await confirmBoard({ provider: 'workable', slug: 'other', boardUrl: null }, 'Acme Robotics'), { ok: true, count: 0, note: 'Workable account other answers as "Someone Else Inc"; the feed names "Someone Else Inc", not "Acme Robotics"' });
     const limited = await confirmBoard({ provider: 'workable', slug: 'limited', boardUrl: null }, 'Acme');
     assertEquals(limited.ok, false);

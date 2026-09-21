@@ -141,11 +141,12 @@ const JOB_NOUNS = [
   'engineer', 'developer', 'programmer', 'architect', 'scientist', 'researcher', 'analyst', 'technician', 'tester', 'devops', 'sre',
   'manager', 'lead', 'head of', 'head', 'director', 'chief', 'officer', 'president', 'vp', 'svp', 'evp', 'founder', 'co-founder', 'partner', 'principal', 'gm', 'general manager', 'chief of staff', 'ceo', 'cto', 'coo', 'cfo', 'cpo', 'cmo', 'cro', 'ciso',
   'designer', 'writer', 'copywriter', 'illustrator', 'editor', 'producer', 'strategist', 'marketer', 'evangelist', 'advocate',
-  'recruiter', 'sourcer', 'talent', 'people', 'hr', 'hrbp',
+  'recruiter', 'sourcer', 'hrbp',
   'executive', 'representative', 'rep', 'sdr', 'bdr', 'ae', 'associate', 'specialist', 'coordinator', 'co-ordinator', 'consultant', 'advisor', 'adviser', 'generalist', 'agent', 'ambassador', 'champion',
   'assistant', 'ea', 'pa', 'secretary', 'receptionist', 'administrator', 'controller', 'accountant', 'bookkeeper', 'counsel', 'paralegal', 'lawyer', 'solicitor', 'clerk',
   'intern', 'internship', 'apprentice', 'apprenticeship', 'graduate', 'trainee', 'fellow', 'placement',
-  'sales', 'account', 'success', 'support', 'operations', 'ops', 'product', 'marketing', 'growth', 'finance', 'legal', 'compliance', 'risk', 'underwriter', 'trader',
+  // Discipline words on their own (sales, product, growth, operations, marketing, finance, legal, talent, people) are not role nouns: a careers page heading such as "Growth Potential" or "Product simplicity" must not become a role. A real title carries a role noun beside them ("Head of Growth", "Product Manager").
+  'underwriter', 'trader',
   'nurse', 'doctor', 'clinician', 'pharmacist', 'therapist', 'psychologist', 'dietitian', 'driver', 'rider', 'courier', 'installer', 'mechanic', 'electrician', 'chef', 'barista', 'host',
   'scrum master', 'owner', 'buyer', 'planner', 'auditor', 'actuary', 'quant', 'economist', 'statistician', 'mathematician', 'physicist', 'chemist', 'biologist', 'geologist',
 ];

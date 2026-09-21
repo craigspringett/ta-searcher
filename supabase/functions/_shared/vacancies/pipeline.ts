@@ -329,7 +329,8 @@ export async function persistVacancies(supabase: any, merged: MergedVacancy[], o
           // A new row: the feed's posting date is when the role opened, so
           // "open more than five weeks" is right from the first read.
           const posted = typeof r.raw?.datePosted === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(r.raw.datePosted) ? r.raw.datePosted : null;
-          return { row: posted && posted < today ? { ...r, first_seen: posted } : r, reopened: false };
+          // Every new row carries first_seen: a bulk upsert sends one key set for all rows, so a row without it would arrive as null (the first live run, 21 September 2026).
+          return { row: { ...r, first_seen: posted && posted < today ? posted : today }, reopened: false };
         }
         if (match.status === 'rejected') return { row: { ...r, status: 'rejected' }, reopened: false };
         if (consultantClosed(match)) {

@@ -86,6 +86,8 @@ export interface BoardConfirmation {
   ok: boolean;
   count: number;
   note: string | null;
+  /** false when the feed names a different company (Greenhouse and Workable feeds carry a name); null when the feed carries none. */
+  nameMatch?: boolean | null;
 }
 
 /**
@@ -106,7 +108,7 @@ export async function confirmBoard(board: AtsBoard, companyName: string): Promis
         const names = Array.from(new Set(r.jobs.map((j) => (typeof j.company_name === 'string' ? j.company_name.trim() : '')).filter(Boolean)));
         const named = names.length === 1 ? names[0] : null;
         const mismatch = named && companyName && !employerMatches(named, { name: companyName }).matched ? `; the feed names "${named}", not "${companyName}"` : '';
-        return { ok: true, count: r.jobs.length, note: `Greenhouse board ${board.slug} answers${mismatch}` };
+        return { ok: true, count: r.jobs.length, note: `Greenhouse board ${board.slug} answers${mismatch}`, nameMatch: named ? !mismatch : null };
       }
       case 'lever': {
         const r = await readLeverBoard(board);
@@ -116,7 +118,7 @@ export async function confirmBoard(board: AtsBoard, companyName: string): Promis
         const r = await readWorkableBoard(board);
         if (!r.ok) return { ok: false, count: 0, note: r.note };
         const mismatch = r.name && companyName && !employerMatches(r.name, { name: companyName }).matched ? `; the feed names "${r.name}", not "${companyName}"` : '';
-        return { ok: true, count: r.jobs.length, note: `Workable account ${board.slug} answers${r.name ? ` as "${r.name}"` : ''}${mismatch}` };
+        return { ok: true, count: r.jobs.length, note: `Workable account ${board.slug} answers${r.name ? ` as "${r.name}"` : ''}${mismatch}`, nameMatch: r.name ? !mismatch : null };
       }
       default:
         return { ok: false, count: 0, note: `unknown provider ${(board as AtsBoard).provider}` };
