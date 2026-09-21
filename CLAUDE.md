@@ -20,9 +20,11 @@ built and verified on 21 September 2026 and what is not yet applied.
 - Frontend: React 18 + Vite + TypeScript + Tailwind + shadcn/ui, the same
   kit as He-Giveth. Pages: `MyPatch` (`/`), `Index.tsx` (the company list
   and detail, `/companies` and `/companies/:id`), `Alerts`, `Consultants`
-  (managers), `PipelineMonitoring`, `Login`. To be deployed by Netlify from
-  `main` (build `npm run build`, publish `dist`).
-- Backend: a new Supabase project (not yet created). Edge functions in
+  (managers), `PipelineMonitoring`, `Login`. Deployed by Netlify from `main`
+  (site `ta-searcher`, https://ta-searcher.netlify.app); every push to
+  `main` deploys.
+- Backend: Supabase project **TA Searcher**, ref `onlnizycknfuuprsmypl`
+  (eu-central-1, Postgres 17). Edge functions in
   `supabase/functions/*`, the baseline migration in `supabase/migrations/`,
   cron jobs in `supabase/migrations/20260921120100_cron_jobs.sql` (pg_cron +
   pg_net, project URL and service role key from Vault, as He-Giveth).
@@ -78,18 +80,40 @@ built and verified on 21 September 2026 and what is not yet applied.
   the rule, `newRaisesData.ts` the read) lists the fortnight's raises
   with "Add", which prefills the add form from `/companies?add=<name>`.
   Migration `20260921130000_funding_news.sql`, applied by the local test.
+- Prospecting (slice 3, `docs/PROSPECTING-BRIEF.md`): the site finds the
+  companies. `discover-prospects` (05:30 UTC) reads the unmatched funding
+  news plus eight Google News searches, a page of the Companies House
+  advanced search per SIC code and place (watermarks in
+  `app_settings.prospecting`), and the Adzuna and Reed job APIs
+  (`ADZUNA_APP_ID`, `ADZUNA_APP_KEY`, `REED_API_KEY`; a missing key skips
+  the source) into `prospects`, one row per name key.
+  `qualify-prospects` (05:40 UTC, or from the page for one id) matches the
+  register, finds the website (known, the Adzuna landing, or guessed over
+  seven TLDs and verified), the boards, scores the prospect
+  (`_shared/prospecting/score.ts`, every line in `score_reasons`) and
+  promotes what reaches `autoPromoteScore` (60) up to `weeklyPromoteCap`
+  (15) a week into `company_searches` with the single active consultant,
+  the confirmed boards and a queued `analyze-company`. Modules in
+  `_shared/prospecting/` (sources, website, score, qualify, promote,
+  discover, run) with fakes in `prospecting_test.ts`. A signed-in user
+  may only dismiss or reopen a prospect (a trigger guards the other
+  columns). Page `Prospects` (`/prospects`, `src/lib/prospects.ts` the
+  rules, `prospectsData.ts` the reads), `RadarLine` on My patch.
+  Migration `20260921150000_prospects.sql`.
 - Weekly cadence (UTC): Friday 05:00 snapshot, 05:05 `refresh-all-companies`
   queues every company into `analyze_company_queue` (ten a minute), 06:55
   `send-friday-brief`, 07:30 `auto-refresh-vacancies` compare-and-alert.
-  Daily: 04:40 register, 04:50 ATS feeds, 05:20 funding news, 06:40 scores.
+  Daily: 04:40 register, 04:50 ATS feeds, 05:20 funding news, 05:30 prospect
+  discovery, 05:40 prospect qualification, 06:40 scores.
 
 ## Working in a cloud session
 
-- Until the Supabase project exists, the database is tested locally:
-  `scripts/local-db-test.sh` applies the baseline to a throwaway Postgres 16
-  and checks the row security. Once it exists, `scripts/sb-sql.sh` runs SQL
-  through the Management API with `SUPABASE_PROJECT_REF` and
-  `SUPABASE_ACCESS_TOKEN` set.
+- `scripts/local-db-test.sh` applies the migrations to a throwaway
+  Postgres 16 and checks the row security before anything goes live.
+  `scripts/sb-sql.sh` runs SQL on the hosted project through the
+  Management API with `SUPABASE_PROJECT_REF=onlnizycknfuuprsmypl` and
+  `SUPABASE_ACCESS_TOKEN` set; record an applied migration in
+  `supabase_migrations.schema_migrations`.
 - Never print secret values. Never commit secrets.
 - Deploying an edge function makes it live immediately. Deploy only after
   the change is verified locally as far as it can be.
@@ -123,6 +147,6 @@ npx tsc --noEmit -p tsconfig.app.json # frontend types
 npx eslint src                        # 0 errors expected
 npm test                              # Vitest for src/lib
 cd supabase/functions && DENO_NO_PACKAGE_JSON=1 deno test --allow-all --no-check --node-modules-dir=none _shared   # unit tests (Deno: curl -fsSL https://deno.land/install.sh | sh -s v2.4.5, then ~/.deno/bin)
-scripts/local-db-test.sh              # the baseline and funding_news migrations and their row security on a throwaway local Postgres 16 (99 assertions)
+scripts/local-db-test.sh              # every plain-SQL migration and its row security on a throwaway local Postgres 16 (118 assertions)
 node scripts/embed-value-proposition.mjs   # after editing _shared/copy/value-proposition.md
 ```

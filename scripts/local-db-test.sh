@@ -28,6 +28,8 @@ PORT="${PORT:-54329}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BASELINE="$ROOT/supabase/migrations/20260921120000_ta_searcher_baseline.sql"
 FUNDING_NEWS="$ROOT/supabase/migrations/20260921130000_funding_news.sql"
+POSTCODE="$ROOT/supabase/migrations/20260921140000_company_records_postcode.sql"
+PROSPECTS="$ROOT/supabase/migrations/20260921150000_prospects.sql"
 GEN_TYPES=0
 KEEP=0
 for arg in "$@"; do
@@ -41,6 +43,8 @@ done
 [[ -x "$PGBIN/initdb" ]] || { echo "local-db-test: $PGBIN/initdb not found (install postgresql-16)" >&2; exit 2; }
 [[ -f "$BASELINE" ]] || { echo "local-db-test: $BASELINE not found" >&2; exit 2; }
 [[ -f "$FUNDING_NEWS" ]] || { echo "local-db-test: $FUNDING_NEWS not found" >&2; exit 2; }
+[[ -f "$POSTCODE" ]] || { echo "local-db-test: $POSTCODE not found" >&2; exit 2; }
+[[ -f "$PROSPECTS" ]] || { echo "local-db-test: $PROSPECTS not found" >&2; exit 2; }
 
 WORK="$(mktemp -d)"
 PGDATA="$WORK/data"
@@ -118,6 +122,10 @@ grep -i "error" "$WORK/apply.log" && exit 1
 echo "   applied"
 echo "== apply $(basename "$FUNDING_NEWS")"
 psqlq -f "$FUNDING_NEWS" >"$WORK/apply-funding-news.log" 2>&1 || { cat "$WORK/apply-funding-news.log"; exit 1; }
+echo "== apply $(basename "$POSTCODE")"
+psqlq -f "$POSTCODE" >"$WORK/apply-postcode.log" 2>&1 || { cat "$WORK/apply-postcode.log"; exit 1; }
+echo "== apply $(basename "$PROSPECTS")"
+psqlq -f "$PROSPECTS" >"$WORK/apply-prospects.log" 2>&1 || { cat "$WORK/apply-prospects.log"; exit 1; }
 grep -i "error" "$WORK/apply-funding-news.log" && exit 1
 echo "   applied"
 
@@ -190,11 +198,11 @@ echo "== assertions"
 check "every public table has row security on" \
   "select count(*) = 0 from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind in ('r','p') and not c.relrowsecurity"
 check "33 public tables" \
-  "select count(*) = 33 from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind in ('r','p')"
+  "select count(*) = 34 from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind in ('r','p')"
 check "no education table survived the port (school, gias, cfr, ofsted, tender, pupil, shortlist, follow_up, trust, board_fetch, probe)" \
   "select count(*) = 0 from pg_tables where schemaname = 'public' and (tablename ~ '^(school|gias|cfr|ofsted|tender|pupil|shortlist|bh_|follow_up|trust|board_|probe|agency)')"
 check "the tables the code names exist" \
-  "select bool_and(to_regclass('public.' || t) is not null) from unnest(array['company_searches','company_consultants','company_refresh_runs','company_facts','company_signals','company_scores','company_copy','company_contact_edits','company_records','ch_officers','ch_filings','ats_boards','analyze_company_queue','analyze_company_requests','copy_queue','vacancies','outcomes','profiles','consultants','app_settings','email_send_log','email_send_state','email_events','email_signatures','suppressed_emails','email_unsubscribe_tokens','pipeline_runs','vacancy_alert_settings','alert_deliveries','vacancy_feedback','contact_feedback','ai_usage','funding_news']) t"
+  "select bool_and(to_regclass('public.' || t) is not null) from unnest(array['company_searches','company_consultants','company_refresh_runs','company_facts','company_signals','company_scores','company_copy','company_contact_edits','company_records','ch_officers','ch_filings','ats_boards','analyze_company_queue','analyze_company_requests','copy_queue','vacancies','outcomes','profiles','consultants','app_settings','email_send_log','email_send_state','email_events','email_signatures','suppressed_emails','email_unsubscribe_tokens','pipeline_runs','vacancy_alert_settings','alert_deliveries','vacancy_feedback','contact_feedback','ai_usage','funding_news','prospects']) t"
 check "vacancy_source has the eight values in order" \
   "select array_agg(enumlabel order by enumsortorder)::text[] = array['ashby','greenhouse','lever','workable','careers_page','llm','consultant','other'] from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'vacancy_source'"
 check "company_searches has company_number and company_name, no urn" \
@@ -307,6 +315,26 @@ check "vacancy_feedback accepts wrong_company" "insert into public.vacancy_feedb
 expect_fail "vacancy_feedback rejects wrong_school" "insert into public.vacancy_feedback (vacancy_id, kind) select id, 'wrong_school' from public.vacancies limit 1"
 check "a typed-in role may have no company (source consultant)" "insert into public.vacancies (company_search_id, vacancy_key, title, source) values (null, 'typed-1', 'Head of Talent', 'consultant'); select count(*) = 1 from public.vacancies where source = 'consultant' and company_search_id is null"
 
+# prospects (slice 3)
+check "prospects accepts a new row with the defaults and one row per name key" "insert into public.prospects (name, name_key, sources) values ('Metris Energy', 'metris energy', '[{\"source\":\"funding_news\",\"url\":\"https://n/1\",\"title\":\"t\",\"at\":null,\"note\":null}]'), ('Nul Health', 'nul health', '[]'); select count(*) = 2 and bool_and(status = 'new' and boards = '[]'::jsonb and first_seen_at is not null) from public.prospects"
+expect_fail "prospects is one row per name key" "insert into public.prospects (name, name_key) values ('METRIS ENERGY LTD', 'metris energy')"
+expect_fail "prospects rejects an unknown status" "insert into public.prospects (name, name_key, status) values ('X', 'x', 'maybe')"
+check "the prospecting settings row is seeded" "select value ->> 'autoPromoteScore' = '60' and value ->> 'weeklyPromoteCap' = '15' from public.app_settings where key = 'prospecting'"
+check "consultant reads prospects" "$as_consultant select count(*) = 2 from public.prospects"
+check "a signed-in user without a profile sees no prospects" "$as_nobody select count(*) = 0 from public.prospects"
+expect_fail "anon cannot read prospects" "$as_anon select count(*) from public.prospects"
+check "consultant dismisses a prospect (status, dismissed_at, dismiss_reason)" "$as_consultant update public.prospects set status = 'dismissed', dismissed_at = now(), dismiss_reason = 'agency' where name_key = 'nul health'; select count(*) = 1 from public.prospects where name_key = 'nul health' and status = 'dismissed' and dismiss_reason = 'agency' and dismissed_at is not null"
+check "consultant reopens a dismissed prospect (the trigger clears the reason)" "$as_consultant update public.prospects set status = 'new' where name_key = 'nul health'; select count(*) = 1 from public.prospects where name_key = 'nul health' and status = 'new' and dismiss_reason is null and dismissed_at is null"
+expect_fail "consultant cannot promote a prospect" "$as_consultant update public.prospects set status = 'promoted' where name_key = 'nul health'"
+expect_fail "consultant cannot change a prospect's score" "$as_consultant update public.prospects set prospect_score = 99 where name_key = 'nul health'"
+expect_fail "consultant cannot change a prospect's website" "$as_consultant update public.prospects set website = 'https://x/' where name_key = 'nul health'"
+expect_fail "consultant cannot insert a prospect" "$as_consultant insert into public.prospects (name, name_key) values ('Y', 'y')"
+expect_fail "consultant cannot delete a prospect" "$as_consultant delete from public.prospects where name_key = 'nul health'; select 1 / (select count(*)::int from public.prospects where name_key = 'nul health')"
+check "authenticated may update only the three dismissal columns" "select has_column_privilege('authenticated', 'public.prospects', 'status', 'UPDATE') and has_column_privilege('authenticated', 'public.prospects', 'dismiss_reason', 'UPDATE') and not has_column_privilege('authenticated', 'public.prospects', 'website', 'UPDATE') and not has_table_privilege('authenticated', 'public.prospects', 'INSERT') and not has_table_privilege('authenticated', 'public.prospects', 'DELETE')"
+check "service role qualifies and promotes a prospect" "set local role service_role; select set_config('request.jwt.claims', '{\"role\":\"service_role\"}', true); update public.prospects set status = 'qualified', prospect_score = 75, score_reasons = '[{\"points\":45,\"text\":\"Head of Talent advertised\"}]', website = 'https://metrisenergy.com/', qualified_at = now() where name_key = 'metris energy'; update public.prospects set status = 'promoted', promoted_at = now(), promoted_company_id = '$CO_TWO' where name_key = 'metris energy'; select count(*) = 1 from public.prospects where status = 'promoted' and promoted_company_id = '$CO_TWO' and prospect_score = 75"
+check "a manager deleting the company leaves the promoted prospect with no company (the guard lets the foreign key through)" "$as_manager delete from public.company_searches where id = '$CO_TWO'; select count(*) = 1 from public.prospects where name_key = 'metris energy' and status = 'promoted' and promoted_company_id is null"
+check "prospects has its three indexes" "select count(*) = 3 from pg_indexes where schemaname = 'public' and tablename = 'prospects' and indexname in ('idx_prospects_status_score', 'idx_prospects_status_last_seen', 'idx_prospects_promoted_at')"
+
 # The two migrations the hosted project applies next need pgmq, pg_net,
 # pg_cron and Vault, which this cluster does not have. plpgsql bodies are
 # only parsed at creation, so with empty stand-in schemas (and a two-table
@@ -333,11 +361,13 @@ expect_fail "http_page_enqueue refuses a caller that is not the service role" "s
 if psqlq -f "$ROOT/supabase/migrations/20260921120100_cron_jobs.sql" >"$WORK/cron.log" 2>&1 && ! grep -qi error "$WORK/cron.log"; then PASS=$((PASS + 1)); echo "pass  20260921120100_cron_jobs.sql applies against the cron stand-in"
 else FAIL=$((FAIL + 1)); echo "FAIL  20260921120100_cron_jobs.sql"; cat "$WORK/cron.log"; fi
 check "twelve jobs scheduled with the brief's names" \
-  "select count(*) = 12 and bool_and(jobname in ('process-email-queue','dispatch-analyze-company-queue','dispatch-copy-queue','close-stale-refresh-runs','sync-companies-house','sync-ats-boards','sync-funding-news','auto-refresh-vacancies-trigger','refresh-all-companies','refresh-scores','send-friday-brief','auto-refresh-vacancies-compare')) from cron.job"
+  "select count(*) = 14 and bool_and(jobname in ('process-email-queue','dispatch-analyze-company-queue','dispatch-copy-queue','close-stale-refresh-runs','sync-companies-house','sync-ats-boards','sync-funding-news','discover-prospects','qualify-prospects','auto-refresh-vacancies-trigger','refresh-all-companies','refresh-scores','send-friday-brief','auto-refresh-vacancies-compare')) from cron.job"
 check "sync-funding-news runs at 05:20 UTC daily" \
   "select schedule = '20 5 * * *' from cron.job where jobname = 'sync-funding-news'"
-check "the cron file is idempotent (a second apply keeps twelve jobs)" \
-  "$(cat "$ROOT/supabase/migrations/20260921120100_cron_jobs.sql" | grep -v '^--' | tr '\n' ' ') select count(*) = 12 from cron.job"
+check "the prospect radar runs at 05:30 and qualifies at 05:40" \
+  "select (select schedule from cron.job where jobname = 'discover-prospects') = '30 5 * * *' and (select schedule from cron.job where jobname = 'qualify-prospects') = '40 5 * * *'"
+check "the cron file is idempotent (a second apply keeps fourteen jobs)" \
+  "$(cat "$ROOT/supabase/migrations/20260921120100_cron_jobs.sql" | grep -v '^--' | tr '\n' ' ') select count(*) = 14 from cron.job"
 check "the monitoring job list names only scheduled jobs" \
   "select bool_and(j ->> 'configured' = 'true') from jsonb_array_elements(public.get_cron_monitoring_jobs_only()) j"
 

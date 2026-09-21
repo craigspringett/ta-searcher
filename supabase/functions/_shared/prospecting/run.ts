@@ -29,6 +29,8 @@ export interface QualifyOptions {
   promote?: boolean;
   /** (Re)qualify these whatever their status except promoted; with promote, promote even under the threshold. */
   prospectIds?: string[] | null;
+  /** With one prospectId: the website to store on it before qualifying (the page's "website not found" input). */
+  website?: string | null;
   dryRun?: boolean;
   /** Stop taking new prospects after this long (the nightly run). */
   budgetMs?: number;
@@ -71,6 +73,22 @@ export function orderForQualification<T extends Pick<ProspectRow, 'talent_postin
   return [...rows].sort((a, b) => tier(a) - tier(b) || (b.last_seen_at || b.first_seen_at || '').localeCompare(a.last_seen_at || a.first_seen_at || ''));
 }
 
+/** "metris.energy", "www.metris.energy/about" or "https://metris.energy" to "https://metris.energy/"; null when it is not a host. */
+export function normaliseWebsiteInput(input: string): string | null {
+  const raw = String(input || '').trim();
+  if (!raw) return null;
+  const withScheme = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  try {
+    const u = new URL(withScheme);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+    const host = u.hostname.toLowerCase();
+    if (!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(host)) return null;
+    return `${u.protocol}//${host}/`;
+  } catch {
+    return null;
+  }
+}
+
 const COLUMNS = 'id, name, name_key, website, company_number, status, sources, raise, register, boards, talent_postings, prospect_score, score_reasons, first_seen_at, last_seen_at, qualified_at, promoted_at, dismissed_at, promoted_company_id, dismiss_reason';
 
 /** The pass. */
@@ -91,6 +109,17 @@ export async function qualifyProspects(supabase: Supabase, options: QualifyOptio
     if (error) throw new Error(`prospects read failed: ${error.message}`);
     rows = (data || []).filter((r: ProspectRow) => r.status !== 'promoted');
     for (const r of (data || []).filter((r: ProspectRow) => r.status === 'promoted')) errors.push(`${r.name} is already promoted`);
+    // The page's "Add the website" input: stored on the one row before it is qualified again.
+    if (options.website !== undefined && options.website !== null) {
+      const website = normaliseWebsiteInput(options.website);
+      if (!website) throw new Error(`"${options.website}" is not a website`);
+      if (rows.length !== 1) throw new Error('a website is set on one prospect at a time');
+      rows[0].website = website;
+      if (!dryRun) {
+        const { error } = await supabase.from('prospects').update({ website, last_seen_at: today.toISOString() }).eq('id', rows[0].id);
+        if (error) throw new Error(`prospects update failed: ${error.message}`);
+      }
+    }
   } else {
     const { data, error } = await supabase.from('prospects').select(COLUMNS).eq('status', 'new').order('last_seen_at', { ascending: false }).limit(POOL_READ);
     if (error) throw new Error(`prospects read failed: ${error.message}`);
@@ -100,7 +129,11 @@ export async function qualifyProspects(supabase: Supabase, options: QualifyOptio
   const tracked = await loadTracked(supabase);
   const deps = (options.deps ?? liveDeps)(tracked.hosts);
   const consultantRow = wantPromote ? await singleActiveConsultant(supabase) : null;
-  const consultant = consultantRow && consultantRow.id ? { id: consultantRow.id, name: consultantRow.name, error: null } : { id: null, name: null, error: consultantRow ? consultantRow.error : 'promotion not asked for' };
+  const consultant: { id: string | null; name: string | null; error: string | null } = consultantRow === null
+    ? { id: null, name: null, error: 'promotion not asked for' }
+    : consultantRow.id !== null
+    ? { id: consultantRow.id, name: consultantRow.name, error: null }
+    : { id: null, name: null, error: consultantRow.error };
   let weekCount = wantPromote ? await promotedThisWeek(supabase, today) : 0;
   if (wantPromote && !consultant.id) errors.push(`no promotion: ${consultant.error}`);
 

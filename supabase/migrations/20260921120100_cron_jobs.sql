@@ -22,6 +22,8 @@ begin
     'sync-companies-house',
     'sync-ats-boards',
     'sync-funding-news',
+    'discover-prospects',
+    'qualify-prospects',
     'auto-refresh-vacancies-trigger',
     'refresh-all-companies',
     'refresh-scores',
@@ -54,6 +56,14 @@ select cron.schedule('sync-ats-boards', '50 4 * * *',
 -- to tracked companies. Slice 2.
 select cron.schedule('sync-funding-news', '20 5 * * *',
   $$select public.invoke_edge_function('sync-funding-news', '{}'::jsonb)$$);
+
+-- 05:30 daily: the prospect radar reads its sources into prospects; 05:40
+-- qualifies the newest sixty and promotes what reaches the auto-promote
+-- score. Slice 3 (docs/PROSPECTING-BRIEF.md).
+select cron.schedule('discover-prospects', '30 5 * * *',
+  $$select public.invoke_edge_function('discover-prospects', '{}'::jsonb)$$);
+select cron.schedule('qualify-prospects', '40 5 * * *',
+  $$select public.invoke_edge_function('qualify-prospects', '{}'::jsonb)$$);
 
 -- Friday 05:00: snapshot the open roles per consultant, then queue every
 -- company for analyze-company (the Friday-only cadence follows Craig's 14
