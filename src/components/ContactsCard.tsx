@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Pencil, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -26,6 +27,8 @@ interface Props {
   editsError?: string | null;
   onEdit: (mode: ContactEditMode) => void;
   onReport: (person: MergedContact<DecisionMaker>, kind: ContactFeedbackKind) => void;
+  /** Extra lines under a contact: the opens-and-clicks line and the email and follow-up buttons (behind the follow_ups flag). */
+  extra?: (person: MergedContact<DecisionMaker>) => ReactNode;
 }
 
 /**
@@ -34,7 +37,7 @@ interface Props {
  * over them, each with its confidence tag, source page, evidence and the
  * "wrong or bounced" report.
  */
-export function ContactsCard({ companyId, officers, contacts, removed, pagesRead, editsError, onEdit, onReport }: Props) {
+export function ContactsCard({ companyId, officers, contacts, removed, pagesRead, editsError, onEdit, onReport, extra }: Props) {
   return (
     <Card className="p-6 scroll-mt-14" id="people">
       <h3 className="text-lg font-bold text-foreground mb-3">People</h3>
@@ -75,6 +78,7 @@ export function ContactsCard({ companyId, officers, contacts, removed, pagesRead
                     <span className="text-sm text-muted-foreground">No email on the site. Phone the office and ask by name.</span>
                   )}
                   {person.phone && <p className="text-sm text-muted-foreground">{person.phone}</p>}
+                  {extra ? extra(person) : null}
                 </div>
                 <div className="flex flex-col items-end gap-1 shrink-0">
                   {label && (person.edited && editNote ? (

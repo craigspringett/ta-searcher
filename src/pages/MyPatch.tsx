@@ -13,6 +13,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { BAND_CLASSES, scoreBand } from "@/lib/propensity";
 import { NewRaisesCard } from "@/components/NewRaisesCard";
 import { RadarLine } from "@/components/RadarLine";
+import { FollowUpsDueCard } from "@/components/FollowUpsDueCard";
+import { WarmNowCard } from "@/components/WarmNowCard";
+import { hasFeature } from "@/lib/features";
 
 type SortKey = "name" | "stage" | "openRoles" | "talentRoles" | "raise" | "lastAnalysed" | "nextCallback" | "propensity";
 
@@ -22,6 +25,8 @@ type SortKey = "name" | "stage" | "openRoles" | "talentRoles" | "raise" | "lastA
  */
 export default function MyPatch() {
   const { profile } = useAuth();
+  // Follow-ups, behind profiles.features.follow_ups: the due steps and "Warm right now".
+  const followUps = hasFeature(profile, "follow_ups");
   const navigate = useNavigate();
   const { data, error, isLoading, refetch } = useQuery({ queryKey: ["patch"], queryFn: loadPatch, staleTime: 60_000 });
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "propensity", dir: "desc" });
@@ -119,6 +124,9 @@ export default function MyPatch() {
         {data && rows.length === 0 && <p className="text-sm text-muted-foreground">No companies match. Assign companies from the Companies page, or widen the filters.</p>}
 
         <RadarLine />
+
+        {followUps && data && rows.length > 0 && <FollowUpsDueCard companies={rows} />}
+        {followUps && data && rows.length > 0 && <WarmNowCard companies={rows} />}
 
         {rows.length > 0 && (
           <div className="overflow-x-auto rounded-lg border border-border">

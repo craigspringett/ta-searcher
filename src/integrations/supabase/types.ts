@@ -1093,6 +1093,170 @@ export type Database = {
         }
         Relationships: []
       }
+      follow_up_sequences: {
+        Row: {
+          consultant_id: string | null
+          contact_email: string
+          contact_name: string
+          contact_role: string | null
+          created_at: string
+          created_by: string | null
+          ended_at: string | null
+          id: string
+          plan: Json
+          company_search_id: string
+          started_at: string
+          status: string
+          stop_reason: string | null
+          updated_at: string
+          vacancy_id: string | null
+        }
+        Insert: {
+          consultant_id?: string | null
+          contact_email: string
+          contact_name: string
+          contact_role?: string | null
+          created_at?: string
+          created_by?: string | null
+          ended_at?: string | null
+          id?: string
+          plan?: Json
+          company_search_id: string
+          started_at?: string
+          status?: string
+          stop_reason?: string | null
+          updated_at?: string
+          vacancy_id?: string | null
+        }
+        Update: {
+          consultant_id?: string | null
+          contact_email?: string
+          contact_name?: string
+          contact_role?: string | null
+          created_at?: string
+          created_by?: string | null
+          ended_at?: string | null
+          id?: string
+          plan?: Json
+          company_search_id?: string
+          started_at?: string
+          status?: string
+          stop_reason?: string | null
+          updated_at?: string
+          vacancy_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "follow_up_sequences_consultant_id_fkey"
+            columns: ["consultant_id"]
+            isOneToOne: false
+            referencedRelation: "consultants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "follow_up_sequences_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "follow_up_sequences_company_search_id_fkey"
+            columns: ["company_search_id"]
+            isOneToOne: false
+            referencedRelation: "company_searches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "follow_up_sequences_vacancy_id_fkey"
+            columns: ["vacancy_id"]
+            isOneToOne: false
+            referencedRelation: "vacancies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      follow_up_steps: {
+        Row: {
+          body: string | null
+          completed_at: string | null
+          created_at: string
+          day: number
+          draft_context_key: string | null
+          draft_flags: string[]
+          draft_generated_at: string | null
+          due_at: string
+          hook: string | null
+          id: string
+          kind: string
+          label: string | null
+          outcome_id: string | null
+          sent_message_id: string | null
+          sequence_id: string
+          status: string
+          step_no: number
+          subject: string | null
+          updated_at: string
+        }
+        Insert: {
+          body?: string | null
+          completed_at?: string | null
+          created_at?: string
+          day?: number
+          draft_context_key?: string | null
+          draft_flags?: string[]
+          draft_generated_at?: string | null
+          due_at: string
+          hook?: string | null
+          id?: string
+          kind: string
+          label?: string | null
+          outcome_id?: string | null
+          sent_message_id?: string | null
+          sequence_id: string
+          status?: string
+          step_no: number
+          subject?: string | null
+          updated_at?: string
+        }
+        Update: {
+          body?: string | null
+          completed_at?: string | null
+          created_at?: string
+          day?: number
+          draft_context_key?: string | null
+          draft_flags?: string[]
+          draft_generated_at?: string | null
+          due_at?: string
+          hook?: string | null
+          id?: string
+          kind?: string
+          label?: string | null
+          outcome_id?: string | null
+          sent_message_id?: string | null
+          sequence_id?: string
+          status?: string
+          step_no?: number
+          subject?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "follow_up_steps_outcome_id_fkey"
+            columns: ["outcome_id"]
+            isOneToOne: false
+            referencedRelation: "outcomes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "follow_up_steps_sequence_id_fkey"
+            columns: ["sequence_id"]
+            isOneToOne: false
+            referencedRelation: "follow_up_sequences"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       funding_news: {
         Row: {
           amount_gbp: number | null

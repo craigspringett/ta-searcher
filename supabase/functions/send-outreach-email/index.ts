@@ -37,6 +37,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { mergedContactsFor } from '../_shared/contacts/edits.ts';
+import { finishIfDone, loadStep } from '../_shared/follow-ups/store.ts';
 import { cors, json, myConsultantIds, requireFollowUpsCaller } from '../_shared/outreach/caller.ts';
 import { alreadyEmailedToday, checkOutreachText, parseOutreachRequest } from '../_shared/outreach/rules.ts';
 import { cleanDisplayName } from '../_shared/sending-domains.ts';
@@ -77,11 +78,20 @@ Deno.serve(async (req) => {
     return json({ error: `${r.contactEmail} is not one of ${companyName}'s contacts. On the Contacts tab, edit the person's address or add them, then send.`, code: 'not_a_contact' }, 400);
   }
 
-  // 2b. Follow-up sequences are not ported to TA Searcher yet: a step id is refused.
-  const sequenceStepId = typeof (raw as { sequenceStepId?: unknown })?.sequenceStepId === 'string' ? (raw as { sequenceStepId: string }).sequenceStepId : null;
-  if (sequenceStepId) return json({ error: 'Follow-up sequences are not switched on in TA Searcher yet.' }, 400);
-  // deno-lint-ignore prefer-const
-  let stepInfo = null as { step: { id: string; step_no: number }; sequence: { id: string } } | null;
+  // 2b. A follow-up step (slice 2): it must be an email still to go, in an
+  // active sequence, for this company and this contact.
+  const sequenceStepId = typeof (raw as { sequenceStepId?: unknown })?.sequenceStepId === 'string' && /^[0-9a-f-]{36}$/i.test((raw as { sequenceStepId: string }).sequenceStepId) ? (raw as { sequenceStepId: string }).sequenceStepId : null;
+  let stepInfo: Awaited<ReturnType<typeof loadStep>> = null;
+  if (sequenceStepId) {
+    stepInfo = await loadStep(supabase, sequenceStepId);
+    if (!stepInfo) return json({ error: 'That follow-up step was not found.' }, 404);
+    const { step, sequence } = stepInfo;
+    if (sequence.company_search_id !== company.id) return json({ error: 'That follow-up step belongs to another company.' }, 400);
+    if (sequence.contact_email !== r.contactEmail) return json({ error: `That follow-up is for ${sequence.contact_name} (${sequence.contact_email}), not this address.` }, 400);
+    if (sequence.status !== 'active') return json({ error: `These follow-ups have ${sequence.status === 'done' ? 'finished' : `stopped (${sequence.stop_reason || 'no reason given'})`}, so this email will not go. Send it from "Email this contact" if you still want to.`, code: 'inactive' }, 409);
+    if (step.kind !== 'email') return json({ error: 'That step is a call, not an email.' }, 400);
+    if (!['scheduled', 'due', 'approved'].includes(step.status)) return json({ error: `That email was already ${step.status}.`, code: 'inactive' }, 409);
+  }
 
   // 3. Never to a suppressed address.
   const { data: suppressed, error: supErr } = await supabase.from('suppressed_emails').select('reason').eq('email', r.contactEmail).maybeSingle();
@@ -175,8 +185,20 @@ Deno.serve(async (req) => {
   }).select('id').maybeSingle();
   if (outcomeErr) console.warn('send-outreach-email: outcome not logged', { message: outcomeErr.message });
 
-  // 7. No follow-up step to mark: sequences are not ported yet.
-  const sequenceDone = false;
+  // 7. The follow-up step is sent (slice 2); the sequence is done when that was the last step.
+  let sequenceDone = false;
+  if (stepInfo) {
+    const { error: stepErr } = await supabase.from('follow_up_steps').update({
+      status: 'sent',
+      subject: r.subject,
+      body: r.body,
+      sent_message_id: sent.messageId,
+      outcome_id: outcome?.id ?? null,
+      completed_at: new Date().toISOString(),
+    }).eq('id', stepInfo.step.id);
+    if (stepErr) console.warn('send-outreach-email: step not marked sent', { message: stepErr.message });
+    else sequenceDone = await finishIfDone(supabase, stepInfo.sequence.id);
+  }
 
   console.log('send-outreach-email queued', { company: company.id, messageId: sent.messageId, fromApplied: sent.fromApplied, step: stepInfo?.step.id ?? null });
   return json({

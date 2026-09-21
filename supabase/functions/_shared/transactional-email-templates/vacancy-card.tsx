@@ -21,7 +21,7 @@ export interface VacancyCardItem {
   feedbackClosedUrl?: string
 }
 
-export const VacancyCard = ({ v, accent = '#2563eb', urgent = false }: { v: VacancyCardItem; accent?: string; urgent?: boolean }) => (
+export const VacancyCard = ({ v, accent = '#17696e', urgent = false }: { v: VacancyCardItem; accent?: string; urgent?: boolean }) => (
   <Section style={{ ...card, borderLeft: `4px solid ${urgent ? '#dc2626' : accent}` }}>
     <Text style={title}>
       {v.url ? <Link href={v.url} style={{ color: accent, textDecoration: 'underline' }}>{v.title}</Link> : v.title}

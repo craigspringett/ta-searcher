@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { ALLOWED_DOMAINS, ALLOWED_DOMAINS_TEXT, isAllowedEmail, useAuth } from "@/lib/auth";
 import { APP_NAME, FIRM_NAME } from "@/lib/brand";
+import { BrandMark } from "@/components/BrandMark";
 
 const CODE_LENGTH = 6;
 
@@ -75,8 +76,8 @@ export default function Login() {
     <div className="flex min-h-screen items-center justify-center bg-background px-6">
       <div className="w-full max-w-sm space-y-6">
         <div className="flex items-center gap-3">
-          <span className="inline-flex h-10 items-center rounded-lg bg-primary px-3 text-base font-bold tracking-tight text-primary-foreground" aria-hidden="true">{APP_NAME}</span>
-          <div>
+          <BrandMark size="lg" />
+          <div className="border-l border-border pl-3">
             <h1 className="text-xl font-bold text-foreground">{APP_NAME}</h1>
             <p className="text-xs text-muted-foreground">Start-up hiring intelligence for {FIRM_NAME} consultants</p>
           </div>

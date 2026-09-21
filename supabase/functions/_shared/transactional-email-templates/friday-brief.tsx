@@ -83,7 +83,7 @@ const CompanyCard = ({ s }: { s: BriefCompany }) => {
           <>
             <strong>{s.contact.name || s.contact.role}</strong>
             {s.contact.name && s.contact.role ? `, ${s.contact.role}` : ''}
-            {s.contact.email ? <> · <Link href={`mailto:${s.contact.email}`} style={{ color: '#2563eb' }}>{s.contact.email}</Link>{s.contact.confidence === 'pattern_guess' ? ' (pattern guess)' : ''}</> : ''}
+            {s.contact.email ? <> · <Link href={`mailto:${s.contact.email}`} style={{ color: '#17696e' }}>{s.contact.email}</Link>{s.contact.confidence === 'pattern_guess' ? ' (pattern guess)' : ''}</> : ''}
           </>
         ) : 'No named contact yet'}
         {s.phone ? <> · {s.phone}</> : null}
@@ -186,7 +186,7 @@ const badge = { display: 'inline-block', marginLeft: '8px', padding: '1px 8px', 
 const reason = { color: '#1f2937', fontSize: '13px', margin: '0 0 4px', lineHeight: '1.5' }
 const also = { color: '#6b7280', fontSize: '12px', margin: '0 0 4px' }
 const contactLine = { color: '#374151', fontSize: '12px', margin: '0 0 2px', lineHeight: '1.5' }
-const outcome = { color: '#2563eb', fontSize: '12px', margin: '2px 0 0', fontWeight: 'bold' as const }
+const outcome = { color: '#17696e', fontSize: '12px', margin: '2px 0 0', fontWeight: 'bold' as const }
 const divider = { borderColor: '#e5e7eb', margin: '16px 24px' }
 const footer = { padding: '0 24px 16px', textAlign: 'center' as const, fontSize: '12px', color: '#999999' }
 const footerLink = { color: '#999999', textDecoration: 'underline' }

@@ -81,3 +81,15 @@ verify_jwt = true
 
 [functions.qualify-prospects]
 verify_jwt = true
+
+[functions.follow-ups]
+verify_jwt = true
+
+[functions.tick-follow-ups]
+verify_jwt = true
+
+[functions.draft-follow-up]
+verify_jwt = true
+
+[functions.resend-domains]
+verify_jwt = true

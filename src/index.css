@@ -8,9 +8,11 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Brand colours: a deep navy accent (the name is kept from the seed so nothing else changes), charcoal and off-white. */
-    --brand-teal: 217 71% 45%;        /* navy blue */
-    --brand-charcoal: 196 36% 12%;    /* #122027 */
+    /* Brand colours from the Big Fish Recruitment logo (21 September 2026): the deep teal of the fish outline and the wordmark, the aqua of its panels, a teal-black charcoal and an off-white. */
+    --brand-teal: 182 66% 26%;        /* #17696e, the fish outline */
+    --brand-teal-mid: 180 62% 36%;    /* #239595, the wordmark's second line */
+    --brand-aqua: 178 45% 76%;        /* #a6dcdb, the light panel */
+    --brand-charcoal: 184 40% 11%;    /* #112527 */
     --brand-white: 180 33% 97%;       /* #F5F9FA */
 
     /* Design System */
@@ -63,7 +65,7 @@ All colors MUST be HSL.
     --popover: 196 36% 15%;
     --popover-foreground: var(--brand-white);
 
-    --primary: 217 85% 68%;
+    --primary: var(--brand-aqua);
     --primary-foreground: var(--brand-charcoal);
 
     --secondary: 196 36% 20%;
@@ -72,7 +74,7 @@ All colors MUST be HSL.
     --muted: 196 36% 20%;
     --muted-foreground: 210 20% 68%;
 
-    --accent: 217 85% 68%;
+    --accent: var(--brand-aqua);
     --accent-foreground: var(--brand-charcoal);
 
     --destructive: 0 62.8% 50%;
@@ -80,7 +82,7 @@ All colors MUST be HSL.
 
     --border: 196 36% 25%;
     --input: 196 36% 25%;
-    --ring: 217 85% 68%;
+    --ring: var(--brand-aqua);
 
     --positive: 152 50% 55%;
     --positive-foreground: var(--brand-charcoal);

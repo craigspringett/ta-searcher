@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
-import { BarChart3, Bell, BellRing, Briefcase, Building2, CheckCircle2, Coins, Loader2, RefreshCw, Search, Users } from "lucide-react";
+import { BarChart3, Bell, BellRing, Briefcase, Building2, CheckCircle2, Coins, Loader2, Mail, RefreshCw, Search, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables, Json } from "@/integrations/supabase/types";
@@ -18,6 +18,13 @@ import { AnalysisProgress } from "@/components/AnalysisProgress";
 import { CompanyRegisterCard } from "@/components/CompanyRegisterCard";
 import { ContactEditDialog, type ContactEditMode } from "@/components/ContactEditDialog";
 import { ContactsCard, type ContactFeedbackKind } from "@/components/ContactsCard";
+import { ContactEngagement } from "@/components/ContactEngagement";
+import { EmailContactDialog } from "@/components/EmailContactDialog";
+import { FollowUpsCard } from "@/components/FollowUpsCard";
+import { StartFollowUpsDialog } from "@/components/StartFollowUpsDialog";
+import { useAuth } from "@/lib/auth";
+import { useCompanyEmailEvents } from "@/lib/emailEventsData";
+import { hasFeature } from "@/lib/features";
 import { OpenRolesCard } from "@/components/OpenRolesCard";
 import { OutcomesCard } from "@/components/OutcomesCard";
 import { PropensityCard } from "@/components/PropensityCard";
@@ -83,6 +90,15 @@ const Index = () => {
 
   const activeCompany = searchHistory.find((h) => h.url === currentSearchUrl) ?? null;
   const activeCompanyId = activeCompany?.id ?? null;
+
+  // Follow-ups (ported from He-Giveth, behind profiles.features.follow_ups):
+  // "Email this contact", the opens-and-clicks line under each contact,
+  // "Start follow-ups" and the Follow-ups panel.
+  const { profile } = useAuth();
+  const followUps = hasFeature(profile, "follow_ups");
+  const emailEvents = useCompanyEmailEvents(activeCompanyId, followUps);
+  const [emailTarget, setEmailTarget] = useState<{ name: string; role?: string; email: string } | null>(null);
+  const [followUpTarget, setFollowUpTarget] = useState<{ name: string; role?: string; email: string } | null>(null);
 
   // Contact edits: the consultants' corrections, laid over the stored
   // contacts at read time so the weekly refresh keeps them. Every use of a
@@ -655,6 +671,21 @@ const Index = () => {
                   editsError={contactEdits.isError ? (contactEdits.error instanceof Error ? contactEdits.error.message : "unknown error") : null}
                   onEdit={setContactEditMode}
                   onReport={reportContact}
+                  extra={followUps && activeCompanyId ? (person) => (
+                    <>
+                      {person.email && <ContactEngagement email={person.email} events={emailEvents.data?.events || []} emailed={emailEvents.data?.emailed || []} />}
+                      {person.email && person.name && !person.feedback && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <Button type="button" variant="outline" size="sm" className="h-7 gap-1.5 text-xs" onClick={() => setEmailTarget({ name: person.name, role: person.role, email: person.email as string })}>
+                            <Mail className="h-3.5 w-3.5" aria-hidden="true" />Email this contact
+                          </Button>
+                          <Button type="button" variant="outline" size="sm" className="h-7 gap-1.5 text-xs" onClick={() => setFollowUpTarget({ name: person.name, role: person.role, email: person.email as string })} title="Two weeks of calls and emails, drafted for you to approve">
+                            <BellRing className="h-3.5 w-3.5" aria-hidden="true" />Start follow-ups
+                          </Button>
+                        </div>
+                      )}
+                    </>
+                  ) : undefined}
                 />
 
                 <div id="scripts" className="scroll-mt-14" />
@@ -668,6 +699,8 @@ const Index = () => {
                   onCopy={copyToClipboard}
                   copiedField={copiedField}
                 />
+
+                {followUps && activeCompanyId && <FollowUpsCard companyId={activeCompanyId} companyName={result.companyRecord?.name || activeCompany?.companyName || "the company"} onChange={() => setOutcomesKey((k) => k + 1)} />}
 
                 {activeCompanyId && (
                   <OutcomesCard key={outcomesKey} companyId={activeCompanyId} contacts={mergedContacts.filter((d) => d.name).map((d) => ({ name: d.name, role: d.role }))} />
@@ -684,6 +717,29 @@ const Index = () => {
           </div>
         </div>
       </div>
+
+      {/* Email this contact (Follow-ups, behind the flag) */}
+      {followUps && activeCompanyId && emailTarget && (
+        <EmailContactDialog
+          companyId={activeCompanyId}
+          companyName={result?.companyRecord?.name || activeCompany?.companyName || "the company"}
+          contact={emailTarget}
+          open={!!emailTarget}
+          onOpenChange={(open) => { if (!open) setEmailTarget(null); }}
+          onSent={() => void emailEvents.refetch()}
+        />
+      )}
+
+      {/* Start follow-ups (behind the flag) */}
+      {followUps && activeCompanyId && followUpTarget && (
+        <StartFollowUpsDialog
+          companyId={activeCompanyId}
+          companyName={result?.companyRecord?.name || activeCompany?.companyName || "the company"}
+          contact={followUpTarget}
+          open={!!followUpTarget}
+          onOpenChange={(open) => { if (!open) { setFollowUpTarget(null); setOutcomesKey((k) => k + 1); } }}
+        />
+      )}
 
       {/* Edit, add or remove a contact (everyone signed in) */}
       {activeCompanyId && contactEditMode && (

@@ -24,6 +24,7 @@ begin
     'sync-funding-news',
     'discover-prospects',
     'qualify-prospects',
+    'tick-follow-ups',
     'auto-refresh-vacancies-trigger',
     'refresh-all-companies',
     'refresh-scores',
@@ -64,6 +65,12 @@ select cron.schedule('discover-prospects', '30 5 * * *',
   $$select public.invoke_edge_function('discover-prospects', '{}'::jsonb)$$);
 select cron.schedule('qualify-prospects', '40 5 * * *',
   $$select public.invoke_edge_function('qualify-prospects', '{}'::jsonb)$$);
+
+-- Every fifteen minutes: tick-follow-ups marks the steps that fall due,
+-- stops sequences that should stop (a reply, a bounce, a meeting) and
+-- writes a due draft again when the company changed. It never sends.
+select cron.schedule('tick-follow-ups', '*/15 * * * *',
+  $$select public.invoke_edge_function('tick-follow-ups', '{}'::jsonb)$$);
 
 -- Friday 05:00: snapshot the open roles per consultant, then queue every
 -- company for analyze-company (the Friday-only cadence follows Craig's 14

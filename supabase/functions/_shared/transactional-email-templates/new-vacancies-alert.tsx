@@ -53,7 +53,7 @@ const NewVacanciesAlertEmail = ({
         {newVacancies.length > 0 ? (
           <Section style={section}>
             {newVacancies.map((v, i) => (
-              <VacancyCard key={i} v={v} accent="#2563eb" />
+              <VacancyCard key={i} v={v} accent="#17696e" />
             ))}
           </Section>
         ) : null}
@@ -99,7 +99,7 @@ export const template = {
 
 const main = { backgroundColor: '#ffffff', fontFamily: 'Arial, sans-serif' }
 const container = { maxWidth: '600px', margin: '0 auto' }
-const header = { backgroundColor: '#2563eb', padding: '24px', borderRadius: '8px 8px 0 0' }
+const header = { backgroundColor: '#17696e', padding: '24px', borderRadius: '8px 8px 0 0' }
 const headerTitle = { margin: '0', fontSize: '20px', fontWeight: 'bold' as const, color: '#ffffff' }
 const headerDate = { margin: '8px 0 0', fontSize: '14px', color: 'rgba(255,255,255,0.9)' }
 const headerConsultant = { margin: '4px 0 0', fontSize: '13px', color: 'rgba(255,255,255,0.8)' }

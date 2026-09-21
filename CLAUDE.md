@@ -100,11 +100,32 @@ built and verified on 21 September 2026 and what is not yet applied.
   columns). Page `Prospects` (`/prospects`, `src/lib/prospects.ts` the
   rules, `prospectsData.ts` the reads), `RadarLine` on My patch.
   Migration `20260921150000_prospects.sql`.
+- Follow-ups (ported from He-Giveth's main on 21 September 2026, behind
+  `profiles.features.follow_ups`, `has_feature()`, `src/lib/features.ts`):
+  `send-outreach-email` sends one consultant-written email to one company
+  contact through the queue with the `outreach-email` template, from the
+  consultant's own name when the domain is in `app_settings.sending_domains`
+  (`_shared/sending-domains.ts`), reply-to the consultant, logging an
+  `emailed` outcome; rules in `_shared/outreach/rules.ts`. Sequences:
+  tables `follow_up_sequences` (one active per company) and
+  `follow_up_steps`, migration `20260921160000_follow_ups.sql`; rules in
+  `_shared/follow-ups/` (`schedule.ts` London time, `plan.ts` days 0, 4,
+  8, 14, `stop.ts`, `prompt.ts` the start-up prompt with the five persona
+  notes, `draft.ts` one Claude call per draft, `store.ts`); functions
+  `follow-ups` (plan, start, skip, done, stop, redraft), `draft-follow-up`,
+  `tick-follow-ups` (every 15 minutes, never sends), `resend-domains`
+  (managers: list, add, verify a Resend domain). `handle-email-events`
+  writes `email_events`. App: `EmailContactDialog`, `ContactEngagement`
+  and the two buttons under a contact (`ContactsCard`'s `extra` prop),
+  `StartFollowUpsDialog`, `FollowUpsCard` (company page), `FollowUpsDueCard`
+  and `WarmNowCard` (My patch), page `FollowUps` (`/follow-ups`); rules in
+  `src/lib/followUps.ts` and `emailEvents.ts`.
 - Weekly cadence (UTC): Friday 05:00 snapshot, 05:05 `refresh-all-companies`
   queues every company into `analyze_company_queue` (ten a minute), 06:55
   `send-friday-brief`, 07:30 `auto-refresh-vacancies` compare-and-alert.
   Daily: 04:40 register, 04:50 ATS feeds, 05:20 funding news, 05:30 prospect
-  discovery, 05:40 prospect qualification, 06:40 scores.
+  discovery, 05:40 prospect qualification, 06:40 scores. Every 15 minutes:
+  the follow-ups tick.
 
 ## Working in a cloud session
 
@@ -147,6 +168,6 @@ npx tsc --noEmit -p tsconfig.app.json # frontend types
 npx eslint src                        # 0 errors expected
 npm test                              # Vitest for src/lib
 cd supabase/functions && DENO_NO_PACKAGE_JSON=1 deno test --allow-all --no-check --node-modules-dir=none _shared   # unit tests (Deno: curl -fsSL https://deno.land/install.sh | sh -s v2.4.5, then ~/.deno/bin)
-scripts/local-db-test.sh              # every plain-SQL migration and its row security on a throwaway local Postgres 16 (118 assertions)
+scripts/local-db-test.sh              # every plain-SQL migration and its row security on a throwaway local Postgres 16 (131 assertions)
 node scripts/embed-value-proposition.mjs   # after editing _shared/copy/value-proposition.md
 ```

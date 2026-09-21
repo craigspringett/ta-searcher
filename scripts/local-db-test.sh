@@ -30,6 +30,7 @@ BASELINE="$ROOT/supabase/migrations/20260921120000_ta_searcher_baseline.sql"
 FUNDING_NEWS="$ROOT/supabase/migrations/20260921130000_funding_news.sql"
 POSTCODE="$ROOT/supabase/migrations/20260921140000_company_records_postcode.sql"
 PROSPECTS="$ROOT/supabase/migrations/20260921150000_prospects.sql"
+FOLLOW_UPS="$ROOT/supabase/migrations/20260921160000_follow_ups.sql"
 GEN_TYPES=0
 KEEP=0
 for arg in "$@"; do
@@ -45,6 +46,7 @@ done
 [[ -f "$FUNDING_NEWS" ]] || { echo "local-db-test: $FUNDING_NEWS not found" >&2; exit 2; }
 [[ -f "$POSTCODE" ]] || { echo "local-db-test: $POSTCODE not found" >&2; exit 2; }
 [[ -f "$PROSPECTS" ]] || { echo "local-db-test: $PROSPECTS not found" >&2; exit 2; }
+[[ -f "$FOLLOW_UPS" ]] || { echo "local-db-test: $FOLLOW_UPS not found" >&2; exit 2; }
 
 WORK="$(mktemp -d)"
 PGDATA="$WORK/data"
@@ -126,6 +128,8 @@ echo "== apply $(basename "$POSTCODE")"
 psqlq -f "$POSTCODE" >"$WORK/apply-postcode.log" 2>&1 || { cat "$WORK/apply-postcode.log"; exit 1; }
 echo "== apply $(basename "$PROSPECTS")"
 psqlq -f "$PROSPECTS" >"$WORK/apply-prospects.log" 2>&1 || { cat "$WORK/apply-prospects.log"; exit 1; }
+echo "== apply $(basename "$FOLLOW_UPS")"
+psqlq -f "$FOLLOW_UPS" >"$WORK/apply-follow-ups.log" 2>&1 || { cat "$WORK/apply-follow-ups.log"; exit 1; }
 grep -i "error" "$WORK/apply-funding-news.log" && exit 1
 echo "   applied"
 
@@ -198,11 +202,11 @@ echo "== assertions"
 check "every public table has row security on" \
   "select count(*) = 0 from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind in ('r','p') and not c.relrowsecurity"
 check "33 public tables" \
-  "select count(*) = 34 from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind in ('r','p')"
+  "select count(*) = 36 from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind in ('r','p')"
 check "no education table survived the port (school, gias, cfr, ofsted, tender, pupil, shortlist, follow_up, trust, board_fetch, probe)" \
-  "select count(*) = 0 from pg_tables where schemaname = 'public' and (tablename ~ '^(school|gias|cfr|ofsted|tender|pupil|shortlist|bh_|follow_up|trust|board_|probe|agency)')"
+  "select count(*) = 0 from pg_tables where schemaname = 'public' and (tablename ~ '^(school|gias|cfr|ofsted|tender|pupil|shortlist|bh_|trust|board_|probe|agency)')"
 check "the tables the code names exist" \
-  "select bool_and(to_regclass('public.' || t) is not null) from unnest(array['company_searches','company_consultants','company_refresh_runs','company_facts','company_signals','company_scores','company_copy','company_contact_edits','company_records','ch_officers','ch_filings','ats_boards','analyze_company_queue','analyze_company_requests','copy_queue','vacancies','outcomes','profiles','consultants','app_settings','email_send_log','email_send_state','email_events','email_signatures','suppressed_emails','email_unsubscribe_tokens','pipeline_runs','vacancy_alert_settings','alert_deliveries','vacancy_feedback','contact_feedback','ai_usage','funding_news','prospects']) t"
+  "select bool_and(to_regclass('public.' || t) is not null) from unnest(array['company_searches','company_consultants','company_refresh_runs','company_facts','company_signals','company_scores','company_copy','company_contact_edits','company_records','ch_officers','ch_filings','ats_boards','analyze_company_queue','analyze_company_requests','copy_queue','vacancies','outcomes','profiles','consultants','app_settings','email_send_log','email_send_state','email_events','email_signatures','suppressed_emails','email_unsubscribe_tokens','pipeline_runs','vacancy_alert_settings','alert_deliveries','vacancy_feedback','contact_feedback','ai_usage','funding_news','prospects','follow_up_sequences','follow_up_steps']) t"
 check "vacancy_source has the eight values in order" \
   "select array_agg(enumlabel order by enumsortorder)::text[] = array['ashby','greenhouse','lever','workable','careers_page','llm','consultant','other'] from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'vacancy_source'"
 check "company_searches has company_number and company_name, no urn" \
@@ -335,6 +339,19 @@ check "service role qualifies and promotes a prospect" "set local role service_r
 check "a manager deleting the company leaves the promoted prospect with no company (the guard lets the foreign key through)" "$as_manager delete from public.company_searches where id = '$CO_TWO'; select count(*) = 1 from public.prospects where name_key = 'metris energy' and status = 'promoted' and promoted_company_id is null"
 check "prospects has its three indexes" "select count(*) = 3 from pg_indexes where schemaname = 'public' and tablename = 'prospects' and indexname in ('idx_prospects_status_score', 'idx_prospects_status_last_seen', 'idx_prospects_promoted_at')"
 
+# follow_up_sequences and follow_up_steps (the Follow-ups port)
+check "service role starts a sequence with its steps" "insert into public.company_consultants (company_search_id, consultant_id) values ('$CO_ONE', '$C_ANJA') on conflict do nothing; set local role service_role; select set_config('request.jwt.claims', '{\"role\":\"service_role\"}', true); insert into public.follow_up_sequences (id, company_search_id, consultant_id, created_by, contact_name, contact_email, contact_role, plan) values ('aaaaaaaa-0000-0000-0000-00000000000a', '$CO_ONE', '$C_ANJA', '$U_CONSULTANT', 'Jane Founder', 'jane@one.example', 'CEO', '[]'); insert into public.follow_up_steps (sequence_id, step_no, kind, day, due_at) values ('aaaaaaaa-0000-0000-0000-00000000000a', 1, 'call', 0, now()), ('aaaaaaaa-0000-0000-0000-00000000000a', 2, 'email', 0, now()); select count(*) = 2 from public.follow_up_steps"
+expect_fail "one active sequence per company" "insert into public.follow_up_sequences (company_search_id, contact_name, contact_email) values ('$CO_ONE', 'Joe', 'joe@one.example')"
+expect_fail "a step's status is one of the seven" "insert into public.follow_up_steps (sequence_id, step_no, kind, due_at, status) values ('aaaaaaaa-0000-0000-0000-00000000000a', 3, 'email', now(), 'posted')"
+check "consultant reads the sequence for their own company" "$as_consultant select count(*) = 1 from public.follow_up_sequences"
+check "consultant reads its steps" "$as_consultant select count(*) = 2 from public.follow_up_steps"
+check "a signed-in user without a profile sees no sequences" "$as_nobody select (select count(*) from public.follow_up_sequences) + (select count(*) from public.follow_up_steps) = 0"
+expect_fail "anon cannot read sequences" "$as_anon select count(*) from public.follow_up_sequences"
+check "authenticated has no write privilege on sequences or steps" "select not (has_table_privilege('authenticated', 'public.follow_up_sequences', 'INSERT') or has_table_privilege('authenticated', 'public.follow_up_sequences', 'UPDATE') or has_table_privilege('authenticated', 'public.follow_up_steps', 'INSERT') or has_table_privilege('authenticated', 'public.follow_up_steps', 'UPDATE'))"
+check "manager reads every sequence" "$as_manager select count(*) = 1 from public.follow_up_sequences"
+check "updating a step touches updated_at" "update public.follow_up_steps set status = 'due' where step_no = 1 and sequence_id = 'aaaaaaaa-0000-0000-0000-00000000000a'; select updated_at >= created_at from public.follow_up_steps where step_no = 1 and sequence_id = 'aaaaaaaa-0000-0000-0000-00000000000a'"
+check "deleting the company removes its sequence and steps" "delete from public.company_searches where id = '$CO_ONE'; select (select count(*) from public.follow_up_sequences) + (select count(*) from public.follow_up_steps) = 0"
+
 # The two migrations the hosted project applies next need pgmq, pg_net,
 # pg_cron and Vault, which this cluster does not have. plpgsql bodies are
 # only parsed at creation, so with empty stand-in schemas (and a two-table
@@ -361,13 +378,15 @@ expect_fail "http_page_enqueue refuses a caller that is not the service role" "s
 if psqlq -f "$ROOT/supabase/migrations/20260921120100_cron_jobs.sql" >"$WORK/cron.log" 2>&1 && ! grep -qi error "$WORK/cron.log"; then PASS=$((PASS + 1)); echo "pass  20260921120100_cron_jobs.sql applies against the cron stand-in"
 else FAIL=$((FAIL + 1)); echo "FAIL  20260921120100_cron_jobs.sql"; cat "$WORK/cron.log"; fi
 check "twelve jobs scheduled with the brief's names" \
-  "select count(*) = 14 and bool_and(jobname in ('process-email-queue','dispatch-analyze-company-queue','dispatch-copy-queue','close-stale-refresh-runs','sync-companies-house','sync-ats-boards','sync-funding-news','discover-prospects','qualify-prospects','auto-refresh-vacancies-trigger','refresh-all-companies','refresh-scores','send-friday-brief','auto-refresh-vacancies-compare')) from cron.job"
+  "select count(*) = 15 and bool_and(jobname in ('process-email-queue','dispatch-analyze-company-queue','dispatch-copy-queue','close-stale-refresh-runs','sync-companies-house','sync-ats-boards','sync-funding-news','discover-prospects','qualify-prospects','tick-follow-ups','auto-refresh-vacancies-trigger','refresh-all-companies','refresh-scores','send-friday-brief','auto-refresh-vacancies-compare')) from cron.job"
 check "sync-funding-news runs at 05:20 UTC daily" \
   "select schedule = '20 5 * * *' from cron.job where jobname = 'sync-funding-news'"
+check "the follow-ups tick runs every fifteen minutes" \
+  "select schedule = '*/15 * * * *' from cron.job where jobname = 'tick-follow-ups'"
 check "the prospect radar runs at 05:30 and qualifies at 05:40" \
   "select (select schedule from cron.job where jobname = 'discover-prospects') = '30 5 * * *' and (select schedule from cron.job where jobname = 'qualify-prospects') = '40 5 * * *'"
-check "the cron file is idempotent (a second apply keeps fourteen jobs)" \
-  "$(cat "$ROOT/supabase/migrations/20260921120100_cron_jobs.sql" | grep -v '^--' | tr '\n' ' ') select count(*) = 14 from cron.job"
+check "the cron file is idempotent (a second apply keeps fifteen jobs)" \
+  "$(cat "$ROOT/supabase/migrations/20260921120100_cron_jobs.sql" | grep -v '^--' | tr '\n' ' ') select count(*) = 15 from cron.job"
 check "the monitoring job list names only scheduled jobs" \
   "select bool_and(j ->> 'configured' = 'true') from jsonb_array_elements(public.get_cron_monitoring_jobs_only()) j"
 

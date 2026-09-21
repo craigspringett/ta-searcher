@@ -15,6 +15,8 @@ import Consultants from "./pages/Consultants";
 import MyPatch from "./pages/MyPatch";
 import Alerts from "./pages/Alerts";
 import Prospects from "./pages/Prospects";
+import FollowUps from "./pages/FollowUps";
+import { RequireFeature } from "./components/RequireFeature";
 import { AuthProvider } from "./lib/auth";
 import { RequireAuth } from "./components/RequireAuth";
 
@@ -43,6 +45,10 @@ const App = () => (
               <Route path="/alerts" element={<Alerts />} />
               <Route path="/consultants" element={<Consultants />} />
               <Route path="/pipeline-monitoring" element={<PipelineMonitoring />} />
+              {/* Hidden behind profiles.features.follow_ups */}
+              <Route element={<RequireFeature feature="follow_ups" />}>
+                <Route path="/follow-ups" element={<FollowUps />} />
+              </Route>
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
