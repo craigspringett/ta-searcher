@@ -14,6 +14,7 @@ import Login from "./pages/Login";
 import Consultants from "./pages/Consultants";
 import MyPatch from "./pages/MyPatch";
 import Alerts from "./pages/Alerts";
+import Prospects from "./pages/Prospects";
 import { AuthProvider } from "./lib/auth";
 import { RequireAuth } from "./components/RequireAuth";
 
@@ -38,6 +39,7 @@ const App = () => (
               <Route path="/" element={<MyPatch />} />
               <Route path="/companies" element={<Index />} />
               <Route path="/companies/:id" element={<Index />} />
+              <Route path="/prospects" element={<Prospects />} />
               <Route path="/alerts" element={<Alerts />} />
               <Route path="/consultants" element={<Consultants />} />
               <Route path="/pipeline-monitoring" element={<PipelineMonitoring />} />

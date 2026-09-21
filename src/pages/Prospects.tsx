@@ -1,0 +1,398 @@
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ExternalLink, Loader2, Plus, Radar, X } from "lucide-react";
+import { useAuth } from "@/lib/auth";
+import { AppHeader } from "@/components/AppHeader";
+import { SourceNote } from "@/components/SourceNote";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
+import { BAND_CLASSES, scoreBand } from "@/lib/propensity";
+import {
+  boardsLine,
+  CHIP_CLASSES,
+  DISMISS_REASONS,
+  discoverySummary,
+  groupProspects,
+  normaliseWebsite,
+  parseSettingInput,
+  postingLine,
+  PROMOTED_DAYS,
+  qualifySummary,
+  scoreChips,
+  shortDate,
+  sourceKeyStates,
+  sourceLines,
+  websiteHost,
+  type Prospect,
+} from "@/lib/prospects";
+import { discoverProspects, dismissProspect, loadProspect, loadProspectsPage, qualifyProspects, replyError, saveProspectingSettings } from "@/lib/prospectsData";
+
+const PROSPECTS_SOURCE = `Every night at 05:30 UTC the radar reads the funding news (UKTN, Sifted and Google News searches for seed, pre-seed and Series A raises), walks the Companies House register for young technology companies in London and the Home Counties, and asks Adzuna and Reed for companies advertising a Head of Talent. At 05:40 it qualifies the newest sixty: the register, the website, the careers board, then a score. A prospect at or above the auto-promote score with a website is added to the patch and analysed on its own, up to the weekly cap; the rest wait here.`;
+
+/**
+ * The Prospects page (Prospecting, slice 3): the companies the radar found
+ * and qualified, ready to add or dismiss; the ones it added this month; what
+ * it is still watching; and the two settings that bound what it adds.
+ */
+export default function Prospects() {
+  const { user, isManager } = useAuth();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const { data, error, isLoading, refetch } = useQuery({ queryKey: ["prospects-page"], queryFn: () => loadProspectsPage(), staleTime: 60_000 });
+  const groups = useMemo(() => groupProspects(data?.prospects || []), [data]);
+  const reload = async () => {
+    await refetch();
+    void queryClient.invalidateQueries({ queryKey: ["radar-counts"] });
+  };
+
+  // One prospect at a time is being added, dismissed or given a website.
+  const [busy, setBusy] = useState<{ id: string; what: "add" | "dismiss" | "website" } | null>(null);
+  const [dismissing, setDismissing] = useState<Prospect | null>(null);
+  const [dismissReason, setDismissReason] = useState(DISMISS_REASONS[0].value);
+  const [websiteDrafts, setWebsiteDrafts] = useState<Record<string, string>>({});
+
+  const add = async (p: Prospect) => {
+    setBusy({ id: p.id, what: "add" });
+    try {
+      const { status, data: reply } = await qualifyProspects({ prospectIds: [p.id], promote: true });
+      const failure = replyError(status, reply);
+      if (failure) throw new Error(failure);
+      const after = await loadProspect(p.id);
+      if (after?.status === "promoted" && after.promotedCompanyId) {
+        toast({ title: "Added to your patch", description: `${p.name} is being analysed now; the scripts follow in a minute or two.` });
+        navigate(`/companies/${after.promotedCompanyId}`);
+        return;
+      }
+      const note = reply.results?.find((r) => r.prospectId === p.id)?.note;
+      toast({ title: "Not added", description: note || (after ? `${p.name} is ${after.status} after the check, with no company created.` : "The prospect could not be read back."), variant: "destructive" });
+      await reload();
+    } catch (e) {
+      toast({ title: "Could not add", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const saveWebsite = async (p: Prospect) => {
+    const website = normaliseWebsite(websiteDrafts[p.id] || "");
+    if (!website) { toast({ title: "Not a website", description: "Type the company's website, like metris.energy.", variant: "destructive" }); return; }
+    setBusy({ id: p.id, what: "website" });
+    try {
+      const { status, data: reply } = await qualifyProspects({ prospectIds: [p.id], website, promote: false });
+      const failure = replyError(status, reply);
+      if (failure) throw new Error(failure);
+      toast({ title: "Website saved", description: `${p.name} has been checked again with ${websiteHost(website)}.` });
+      setWebsiteDrafts((d) => ({ ...d, [p.id]: "" }));
+      await reload();
+    } catch (e) {
+      toast({ title: "Could not save the website", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const confirmDismiss = async () => {
+    const p = dismissing;
+    if (!p) return;
+    setDismissing(null);
+    setBusy({ id: p.id, what: "dismiss" });
+    try {
+      await dismissProspect(p.id, dismissReason);
+      toast({ title: "Dismissed", description: `${p.name} will not come back for six months.` });
+      await reload();
+    } catch (e) {
+      toast({ title: "Could not dismiss", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  // Run the radar now: discover, then qualify with the default limit.
+  const [confirmRun, setConfirmRun] = useState(false);
+  const [running, setRunning] = useState<string | null>(null);
+  const runRadar = async () => {
+    setRunning("Reading the sources…");
+    try {
+      const discover = await discoverProspects();
+      const dFail = replyError(discover.status, discover.data);
+      if (dFail) throw new Error(`Discovery failed: ${dFail}`);
+      setRunning("Qualifying the newest prospects…");
+      const qualify = await qualifyProspects({});
+      const qFail = replyError(qualify.status, qualify.data);
+      if (qFail) throw new Error(`Qualification failed: ${qFail}`);
+      const found = discover.data.inserted ?? 0;
+      const added = qualify.data.promoted ?? 0;
+      toast({ title: "The radar has run", description: `${found} new ${found === 1 ? "prospect" : "prospects"} found, ${qualify.data.qualified ?? 0} ready, ${added} added to the patch.` });
+    } catch (e) {
+      toast({ title: "The radar did not finish", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setRunning(null);
+      await reload();
+    }
+  };
+
+  // Settings: the two numbers, editable by a manager.
+  const [scoreText, setScoreText] = useState("");
+  const [capText, setCapText] = useState("");
+  const [savingSettings, setSavingSettings] = useState(false);
+  useEffect(() => {
+    if (!data) return;
+    setScoreText(String(data.settings.autoPromoteScore));
+    setCapText(String(data.settings.weeklyPromoteCap));
+  }, [data]);
+  const saveSettings = async () => {
+    const autoPromoteScore = parseSettingInput(scoreText, 100);
+    const weeklyPromoteCap = parseSettingInput(capText, 200);
+    if (autoPromoteScore === null || weeklyPromoteCap === null) {
+      toast({ title: "Check the numbers", description: "The score is a whole number from 0 to 100 and the weekly cap a whole number from 0 to 200.", variant: "destructive" });
+      return;
+    }
+    setSavingSettings(true);
+    try {
+      await saveProspectingSettings({ autoPromoteScore, weeklyPromoteCap }, user?.id ?? null);
+      toast({ title: "Saved", description: `The radar adds a prospect scoring ${autoPromoteScore} or more, up to ${weeklyPromoteCap} a week.` });
+      await reload();
+    } catch (e) {
+      toast({ title: "Could not save", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  const discovery = discoverySummary(data?.lastDiscovery ?? null);
+  const qualify = qualifySummary(data?.lastQualify ?? null);
+  const keys = sourceKeyStates(data?.lastDiscovery ?? null);
+  const watchingTotal = data ? Math.max(data.newCount, groups.watching) : 0;
+  const isBusy = (p: Prospect) => busy?.id === p.id;
+
+  return (
+    <div className="min-h-screen bg-background">
+      <AppHeader title="Prospects" subtitle="The companies the radar found on its own, ready to add or dismiss" actions={<Button variant="ghost" size="sm" onClick={() => void reload()}>Reload</Button>} />
+
+      <main className="container mx-auto px-6 py-5 space-y-5">
+        {isLoading && <p className="text-sm text-muted-foreground" role="status"><Loader2 className="inline h-4 w-4 animate-spin mr-2" aria-hidden="true" />Loading the prospects…</p>}
+        {error && <p className="text-sm text-destructive" role="alert">Could not load: {(error as Error).message}</p>}
+
+        {data && (
+          <>
+            <Card className="p-5">
+              <div className="mb-2 flex items-center gap-2">
+                <h2 className="text-base font-bold text-foreground">Ready to add</h2>
+                <SourceNote text={PROSPECTS_SOURCE} />
+                <span className="text-xs text-muted-foreground">{groups.ready.length} qualified, best first</span>
+              </div>
+              {groups.ready.length === 0 && (
+                <p className="text-sm text-muted-foreground">Nothing is waiting. The radar qualifies its newest prospects every morning at 05:40 UTC and adds the best on its own; the rest appear here.</p>
+              )}
+              {groups.ready.length > 0 && (
+                <ul className="divide-y divide-border/60" aria-label="Prospects ready to add">
+                  {groups.ready.map((p) => {
+                    const band = scoreBand(p.score);
+                    const chips = scoreChips(p.scoreReasons);
+                    const sources = sourceLines(p.sources);
+                    const boards = boardsLine(p.boards);
+                    const inputId = `website-${p.id}`;
+                    return (
+                      <li key={p.id} className="py-3">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1 space-y-1.5">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-semibold text-foreground">{p.name}</span>
+                              {p.score !== null && band ? (
+                                <span className={`inline-block min-w-9 rounded-md border px-1.5 py-0.5 text-center text-xs font-semibold tabular-nums ${BAND_CLASSES[band]}`} aria-label={`Score ${p.score} out of 100`}>{p.score}</span>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">not scored</span>
+                              )}
+                              {p.website ? (
+                                <a href={p.website} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline">
+                                  {websiteHost(p.website)}<ExternalLink className="ml-0.5 inline h-3 w-3" aria-hidden="true" />
+                                </a>
+                              ) : (
+                                <span className="text-xs text-warning">website not found</span>
+                              )}
+                              {p.companyNumber && p.register?.status && <span className="text-xs text-muted-foreground">{p.register.status} on the register{p.register.incorporationDate ? `, incorporated ${p.register.incorporationDate.slice(0, 4)}` : ""}</span>}
+                            </div>
+                            {!p.website && (
+                              <form className="flex flex-wrap items-center gap-2" onSubmit={(e) => { e.preventDefault(); void saveWebsite(p); }}>
+                                <label htmlFor={inputId} className="text-xs text-muted-foreground">Add the website</label>
+                                <Input id={inputId} className="h-8 w-64" placeholder="company.com" value={websiteDrafts[p.id] || ""} onChange={(e) => setWebsiteDrafts((d) => ({ ...d, [p.id]: e.target.value }))} disabled={isBusy(p)} />
+                                <Button type="submit" size="sm" variant="outline" disabled={isBusy(p) || !(websiteDrafts[p.id] || "").trim()}>
+                                  {busy?.id === p.id && busy.what === "website" ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : null}Save
+                                </Button>
+                              </form>
+                            )}
+                            {chips.length > 0 && (
+                              <ul className="flex flex-wrap gap-1" aria-label={`Why ${p.name} scores ${p.score ?? "nothing"}`}>
+                                {chips.map((c) => (
+                                  <li key={c.label} className={`rounded-full border px-2 py-0.5 text-[11px] ${CHIP_CLASSES[c.tone]}`}>{c.label}</li>
+                                ))}
+                              </ul>
+                            )}
+                            {sources.length > 0 && (
+                              <ul className="space-y-0.5 text-xs" aria-label={`Where ${p.name} came from`}>
+                                {sources.map((s) => (
+                                  <li key={s.key} className="text-muted-foreground">
+                                    <span className="font-medium text-foreground">{s.label}</span>
+                                    {": "}
+                                    {s.url ? (
+                                      <a href={s.url} target="_blank" rel="noreferrer" className="text-primary hover:underline">{s.text}<ExternalLink className="ml-0.5 inline h-3 w-3" aria-hidden="true" /></a>
+                                    ) : s.text}
+                                    {s.at ? ` (${shortDate(s.at)})` : ""}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                            {boards && <p className="text-xs text-muted-foreground">Board: {boards}</p>}
+                            {p.talentPostings.length > 0 && (
+                              <p className="text-xs text-muted-foreground">
+                                Advertising: {p.talentPostings.map((t, i) => (
+                                  <span key={`${t.title}-${i}`}>
+                                    {i > 0 ? "; " : ""}
+                                    {t.url ? <a href={t.url} target="_blank" rel="noreferrer" className="text-primary hover:underline">{postingLine(t)}</a> : postingLine(t)}
+                                  </span>
+                                ))}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <Button size="sm" onClick={() => void add(p)} disabled={isBusy(p) || !!running} title={p.website ? undefined : "The radar adds a company from its website; save one first."}>
+                              {busy?.id === p.id && busy.what === "add" ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <Plus className="mr-1 h-3.5 w-3.5" aria-hidden="true" />}Add to my patch
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => { setDismissReason(DISMISS_REASONS[0].value); setDismissing(p); }} disabled={isBusy(p)}>
+                              <X className="mr-1 h-3.5 w-3.5" aria-hidden="true" />Dismiss
+                            </Button>
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+              {groups.ready.length > 0 && (
+                <p className="mt-2 text-xs text-muted-foreground">"Add to my patch" qualifies the company again, adds it with its website and its board, and starts the full analysis; you land on its page while that runs. A dismissed company stays away for six months.</p>
+              )}
+            </Card>
+
+            <Card className="p-5">
+              <h2 className="mb-2 text-base font-bold text-foreground">Added by the radar</h2>
+              {groups.promoted.length === 0 && <p className="text-sm text-muted-foreground">The radar has not added a company in the last {PROMOTED_DAYS} days. It adds one on its own when it scores {data.settings.autoPromoteScore} or more and has a website, up to {data.settings.weeklyPromoteCap} a week.</p>}
+              {groups.promoted.length > 0 && (
+                <ul className="divide-y divide-border/60 text-sm" aria-label="Companies the radar added this month">
+                  {groups.promoted.map((p) => (
+                    <li key={p.id} className="flex flex-wrap items-baseline gap-x-2 py-1.5">
+                      {p.promotedCompanyId ? (
+                        <Link to={`/companies/${p.promotedCompanyId}`} className="font-medium text-foreground hover:underline">{p.name}</Link>
+                      ) : (
+                        <span className="font-medium text-foreground">{p.name}</span>
+                      )}
+                      {p.score !== null && <span className="text-xs text-muted-foreground">scored {p.score}</span>}
+                      <span className="text-xs text-muted-foreground">added {shortDate(p.promotedAt)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+
+            <Card className="p-5">
+              <div className="mb-2 flex flex-wrap items-center gap-3">
+                <h2 className="text-base font-bold text-foreground">Watching</h2>
+                <Button size="sm" variant="outline" onClick={() => setConfirmRun(true)} disabled={!!running || !!busy}>
+                  {running ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <Radar className="mr-1 h-3.5 w-3.5" aria-hidden="true" />}Run the radar now
+                </Button>
+                {running && <span className="text-xs text-muted-foreground" role="status">{running}</span>}
+              </div>
+              <p className="text-sm text-foreground">
+                {watchingTotal === 0 ? "Nothing is waiting to be qualified." : `${watchingTotal} ${watchingTotal === 1 ? "prospect is" : "prospects are"} waiting to be qualified.`}
+              </p>
+              <dl className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-4" aria-label="New prospects by source">
+                {groups.watchingBySource.map((w) => (
+                  <div key={w.source} className="flex items-baseline justify-between gap-2 sm:block">
+                    <dt className="text-xs text-muted-foreground">{w.label}</dt>
+                    <dd className="tabular-nums text-foreground">{w.count}</dd>
+                  </div>
+                ))}
+              </dl>
+              {data.newCount > groups.watching && <p className="mt-1 text-xs text-muted-foreground">The counts by source cover the newest {groups.watching} of {data.newCount}.</p>}
+              <dl className="mt-3 space-y-1 border-t border-border/50 pt-3 text-sm" aria-label="Last runs">
+                <div className="flex flex-wrap gap-x-2">
+                  <dt className="text-muted-foreground">Last discovery run</dt>
+                  <dd className="text-foreground">{discovery ? `${discovery.when}: ${discovery.text}` : "not run yet"}</dd>
+                </div>
+                <div className="flex flex-wrap gap-x-2">
+                  <dt className="text-muted-foreground">Last qualification run</dt>
+                  <dd className="text-foreground">{qualify ? `${qualify.when}: ${qualify.text}` : "not run yet"}</dd>
+                </div>
+              </dl>
+              <p className="mt-2 text-xs text-muted-foreground">Discovery reads the sources at 05:30 UTC and qualification follows at 05:40, sixty prospects a night. "Run the radar now" does both at once and takes a few minutes.</p>
+            </Card>
+
+            <Card className="p-5">
+              <h2 className="mb-2 text-base font-bold text-foreground">Settings</h2>
+              <form className="flex flex-wrap items-end gap-3" onSubmit={(e) => { e.preventDefault(); void saveSettings(); }}>
+                <div>
+                  <label htmlFor="auto-promote-score" className="block text-xs text-muted-foreground">Add on its own at a score of</label>
+                  <Input id="auto-promote-score" type="number" inputMode="numeric" min={0} max={100} step={1} className="w-28" value={scoreText} onChange={(e) => setScoreText(e.target.value)} disabled={!isManager || savingSettings} />
+                </div>
+                <div>
+                  <label htmlFor="weekly-promote-cap" className="block text-xs text-muted-foreground">At most, a week</label>
+                  <Input id="weekly-promote-cap" type="number" inputMode="numeric" min={0} max={200} step={1} className="w-28" value={capText} onChange={(e) => setCapText(e.target.value)} disabled={!isManager || savingSettings} />
+                </div>
+                <Button type="submit" size="sm" disabled={!isManager || savingSettings}>
+                  {savingSettings ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : null}Save
+                </Button>
+              </form>
+              {!isManager && <p className="mt-1 text-xs text-muted-foreground">Only a manager can change these two numbers.</p>}
+              <p className="mt-2 text-xs text-muted-foreground">Each company the radar adds costs about a penny on Gemini and a few pence on Claude for the scripts; the weekly cap bounds it.</p>
+              <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1 border-t border-border/50 pt-3 text-sm sm:grid-cols-4" aria-label="Sources">
+                <div><dt className="text-xs text-muted-foreground">Funding news</dt><dd className="text-foreground">on</dd></div>
+                <div><dt className="text-xs text-muted-foreground">Companies House</dt><dd className="text-foreground">on</dd></div>
+                <div><dt className="text-xs text-muted-foreground">Adzuna</dt><dd className={keys.adzuna === "on" ? "text-foreground" : "text-warning"}>{keys.adzuna}</dd></div>
+                <div><dt className="text-xs text-muted-foreground">Reed</dt><dd className={keys.reed === "on" ? "text-foreground" : "text-warning"}>{keys.reed}</dd></div>
+              </dl>
+              {(keys.adzuna !== "on" || keys.reed !== "on") && <p className="mt-1 text-xs text-muted-foreground">Adzuna and Reed need a free API key each, set as the ADZUNA_APP_ID, ADZUNA_APP_KEY and REED_API_KEY secrets on the project; a source with no key is skipped and the run says so.</p>}
+            </Card>
+          </>
+        )}
+      </main>
+
+      <AlertDialog open={!!dismissing} onOpenChange={(open) => { if (!open) setDismissing(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Dismiss {dismissing?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>The radar will not list this company again for six months. Say why, so the sources can be tuned.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <div>
+            <label htmlFor="dismiss-reason" className="block text-xs text-muted-foreground">Reason</label>
+            <Select value={dismissReason} onValueChange={setDismissReason}>
+              <SelectTrigger id="dismiss-reason" className="w-60"><SelectValue /></SelectTrigger>
+              <SelectContent>{DISMISS_REASONS.map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void confirmDismiss()}>Dismiss</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={confirmRun} onOpenChange={setConfirmRun}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Run the radar now?</AlertDialogTitle>
+            <AlertDialogDescription>This reads every source (the funding news, the register, Adzuna and Reed), then qualifies the newest sixty prospects and adds the ones that clear the score, up to the weekly cap. It takes a few minutes and each company added costs a few pence to analyse.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setConfirmRun(false); void runRadar(); }}>Run it</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}

@@ -12,3 +12,9 @@ and keep the same file names.
 - `profile.json`: GET /company/12345678
 - `officers.json`: GET /company/12345678/officers?items_per_page=50
 - `filing-history-capital.json`: GET /company/12345678/filing-history?category=capital&items_per_page=50
+
+advanced-search.json: a hand-written page of GET /advanced-search/companies
+(company_status=active, sic_codes=62012, location=London) in the published
+shape: `hits` is the register's total, the items carry `company_name` (not
+`title`), `date_of_creation`, `registered_office_address` and `sic_codes`. The
+third item has no number and the fourth is dissolved, to test the parser.

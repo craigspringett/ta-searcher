@@ -1,5 +1,7 @@
 import { assert, assertEquals } from './test-assert.ts';
 import {
+  advancedSearchCompanies,
+  advancedSearchQuery,
   configureCompaniesHouse,
   companiesHouseConfigured,
   fetchCapitalFilings,
@@ -11,6 +13,7 @@ import {
   NOTE_KEY_NOT_SET,
   NOTE_NOT_ON_REGISTER,
   officerDisplayName,
+  parseAdvancedSearchResults,
   parseCapitalFilings,
   parseCompanyProfile,
   parseOfficers,
@@ -50,6 +53,7 @@ function fakeHttp(): FakeHttp {
       if (f) { f.left--; return new Response('', { status: f.status }); }
       const path = url.replace('https://api.company-information.service.gov.uk', '');
       if (path.startsWith('/search/companies')) return json(fixture('search.json'));
+      if (path.startsWith('/advanced-search/companies')) return json(fixture('advanced-search.json'));
       if (/^\/company\/12345678\/officers/.test(path)) return json(fixture('officers.json'));
       if (/^\/company\/12345678\/filing-history/.test(path)) return json(fixture('filing-history-capital.json'));
       if (path === '/company/12345678') return json(fixture('profile.json'));
@@ -610,6 +614,75 @@ Deno.test('syncRegisterDetails does nothing without a key or for an unknown comp
     withHttp();
     assertEquals(await syncRegisterDetails(db, '99999999', new Date()), { officers: [], newOfficers: [], filings: [], newFilings: [] });
     assertEquals(db.rows('ch_officers').length, 0);
+  } finally {
+    reset();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// The advanced search (the prospecting register walk).
+
+Deno.test('parseAdvancedSearchResults keeps the hits total and the items with a number, name first', () => {
+  const page = parseAdvancedSearchResults(fixture('advanced-search.json'));
+  assertEquals(page.hits, 2371);
+  assertEquals(page.items.length, 3, 'the item with no company number is dropped');
+  assertEquals(page.items[0], {
+    companyNumber: '14567890',
+    name: 'METRIS ENERGY LTD',
+    status: 'active',
+    incorporationDate: '2023-02-14',
+    sicCodes: ['62012', '62020'],
+    locality: 'London',
+    postcode: 'EC2A 4NE',
+    postcodeDistrict: 'EC2A',
+  });
+  assertEquals(page.items[1].companyNumber, 'SC789012');
+  assertEquals(page.items[1].postcodeDistrict, 'N1');
+  // A numeric number is zero-padded; a dissolved company is still an item (the caller filters).
+  assertEquals(page.items[2].companyNumber, '09876543');
+  assertEquals(page.items[2].status, 'dissolved');
+  assertEquals(page.items[2].sicCodes, []);
+});
+
+Deno.test('parseAdvancedSearchResults falls back to the item count when hits is missing', () => {
+  assertEquals(parseAdvancedSearchResults({ items: [{ company_name: 'A', company_number: '1' }] }), { hits: 1, items: [{ companyNumber: '00000001', name: 'A', status: null, incorporationDate: null, sicCodes: [], locality: null, postcode: null, postcodeDistrict: null }] });
+  assertEquals(parseAdvancedSearchResults(null), { hits: 0, items: [] });
+});
+
+Deno.test('advancedSearchQuery writes the parameters in a fixed order with the defaults', () => {
+  assertEquals(advancedSearchQuery({ sicCodes: ['62012'], location: 'London', incorporatedFrom: '2020-09-21', startIndex: 200 }), 'company_status=active&sic_codes=62012&incorporated_from=2020-09-21&location=London&size=100&start_index=200');
+  assertEquals(advancedSearchQuery({ sicCodes: [], size: 9000 }), 'company_status=active&size=5000&start_index=0');
+});
+
+Deno.test('advancedSearchCompanies sends Basic auth to /advanced-search/companies and parses the page', async () => {
+  const http = withHttp();
+  try {
+    const page = await advancedSearchCompanies({ sicCodes: ['62012'], location: 'London', incorporatedFrom: '2020-09-21' });
+    assertEquals(page.hits, 2371);
+    assertEquals(page.items.length, 3);
+    assertEquals(http.requests.length, 1);
+    assert(http.requests[0].url.endsWith('/advanced-search/companies?company_status=active&sic_codes=62012&incorporated_from=2020-09-21&location=London&size=100&start_index=0'), http.requests[0].url);
+    assertEquals(http.requests[0].auth, `Basic ${btoa('test-key:')}`);
+  } finally {
+    reset();
+  }
+});
+
+Deno.test('advancedSearchCompanies throws the key note without a key and the HTTP note on a failure', async () => {
+  withHttp(null);
+  try {
+    let caught: unknown = null;
+    try { await advancedSearchCompanies({ sicCodes: ['62012'] }); } catch (e) { caught = e; }
+    assertEquals((caught as Error)?.message, NOTE_KEY_NOT_SET);
+  } finally {
+    reset();
+  }
+  const http = withHttp();
+  http.fail(/advanced-search/, 500);
+  try {
+    let caught: unknown = null;
+    try { await advancedSearchCompanies({ sicCodes: ['62012'] }); } catch (e) { caught = e; }
+    assertEquals((caught as Error)?.message, 'Companies House did not answer (HTTP 500)');
   } finally {
     reset();
   }
