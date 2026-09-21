@@ -145,8 +145,10 @@ test button is a dry run of the week's alert. Brand and firm name in
    tested from the edge runtime, `sync-funding-news` once.
 3. Slice 3 became prospecting (the site finds the companies), live on 21
    September; its brief, first-run results and what is left are in
-   `PROSPECTING-BRIEF.md`. Hunter enrichment of contacts went live the
-   same day. Later: the investors table and page from the funding facts,
+   `PROSPECTING-BRIEF.md`. Hunter enrichment of contacts, the Follow-ups
+   port from He-Giveth (behind `profiles.features.follow_ups`) and the
+   Big Fish brand (teal, the fish mark, the favicon) went live the same
+   day. Later: the investors table and page from the funding facts,
    the map from registered office postcodes, Follow-ups and the
    Shortlister ported from He-Giveth as they are, and the unused
    dependencies (`jspdf`, `leaflet`) removed from `package.json`.
