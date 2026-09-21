@@ -197,8 +197,11 @@ export async function syncFundingNews(supabase: Supabase, options: SyncOptions):
     // Which keys are already stored, so the run can say new against seen again.
     const existing = new Set<string>();
     const keys = rows.map((r) => r.external_key);
-    for (let i = 0; i < keys.length; i += 200) {
-      const { data, error } = await supabase.from('funding_news').select('external_key').in('external_key', keys.slice(i, i + 200));
+    // Google News keys are long URLs and the filter travels in the request
+    // URL, so the batches are small (a 200-key batch answered 400 on the
+    // first live run, 21 September 2026).
+    for (let i = 0; i < keys.length; i += 15) {
+      const { data, error } = await supabase.from('funding_news').select('external_key').in('external_key', keys.slice(i, i + 15));
       if (error) { errors.push(`funding_news read failed: ${error.message}`); break; }
       for (const r of data || []) existing.add(String(r.external_key));
     }
