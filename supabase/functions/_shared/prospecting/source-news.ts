@@ -32,6 +32,27 @@ export const PROSPECT_NEWS_QUERIES: string[] = [
 export const FUNDING_NEWS_DAYS = 30;
 const FEED_CONCURRENCY = 4;
 
+/**
+ * Whether what the headline parser left reads as a company name. The
+ * first live run (21 September 2026) gave "Dragons' Den-backed Sprive",
+ * "Mortgage overpayment app Sprive", "Revolut founder's QuantumLight",
+ * "co-founded by DeepMind creative lead", "TaiSan founded by chess
+ * champion", "Climate change" and "just": a name is at most four words,
+ * carries no descriptor of the company, and is not a phrase of common
+ * words alone.
+ */
+export function looksLikeCompanyName(name: string | null | undefined): boolean {
+  const n = (name || '').replace(/\s+/g, ' ').trim();
+  if (n.length < 2 || n.length > 40) return false;
+  const words = n.split(' ');
+  if (words.length > 4) return false;
+  if (/\b(?:backed|based|founded|co-founded|founder|founders|owned|led|app|platform|startup|start-up|scale-up|scaleup|company|firm|group's|champion|change|the|this|that|just|new|its|his|her|their|our|by|of|for|with|and|to|from|in|on|at|a|an)\b/i.test(n) && !/^(?:the|a|an)\s\S+$/i.test(n)) return false;
+  if (/’s\s|'s\s/.test(n)) return false;
+  // A common word alone ("just", "Build") is not a name; a brand of its own ("kausable", "Stoa") is.
+  if (words.length === 1 && /^(?:just|build|climate|energy|health|money|data|space|time|work|home|life|care|food|water|power|cloud|market|capital|labs?|group|one|two|three|first|next|open|smart|prime|core|edge|flow|shift|scale|growth|impact|future|global|digital|mobile|social|local|urban|green|clean|bright|true|pure|simple|modern|creative|rise|wave|spark|nova)$/i.test(n)) return false;
+  return true;
+}
+
 export function googleNewsQueryFeed(query: string): string {
   return `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-GB&gl=GB&ceid=GB:en`;
 }
@@ -52,7 +73,7 @@ export function candidatesFromFeeds(feeds: FeedFetch[], foundAt: string): { cand
       if (!isRaiseStory(item.title, item.description)) continue;
       raiseStories++;
       const parsed = parseRaise(item.title, item.description);
-      if (!parsed.companyName) { unnamed++; continue; }
+      if (!parsed.companyName || !looksLikeCompanyName(parsed.companyName)) { unnamed++; continue; }
       const date = item.publishedAt ? item.publishedAt.slice(0, 10) : null;
       const candidate: ProspectCandidate = {
         name: parsed.companyName,
@@ -85,7 +106,7 @@ export function candidatesFromFundingNewsRows(rows: FundingNewsRowLike[], foundA
   const byName = new Map<string, ProspectCandidate>();
   for (const r of rows) {
     const name = (r.company_name || '').trim();
-    if (!name) continue;
+    if (!name || !looksLikeCompanyName(name)) continue;
     const date = r.published_at ? String(r.published_at).slice(0, 10) : null;
     const sourceLabel = r.source === 'uktn' ? 'UKTN' : r.source === 'sifted' ? 'Sifted' : 'Google News';
     const candidate: ProspectCandidate = {

@@ -27,11 +27,22 @@ export const TALENT_PHRASES: string[] = [
   'first recruiter',
 ];
 
-/** Employer names that are a recruitment business, not the hiring company. */
-const AGENCY_RE = /\b(?:recruit\w*|search|talent partners?|consulting|consultancy|resourcing|staffing|headhunt\w*|executive search)\b|big fish/i;
+/**
+ * Employer names that are a recruitment business, not the hiring company.
+ * First live run, 21 September 2026: the generic words alone let through
+ * Adecco, Hays, Michael Page, Frazer Jones, Huntress, Oakleaf Partnership,
+ * Insight Select, Merrifield Consultants, Ashdown Group, Birchrose
+ * Associates, Centre People Appointments, M4 Talent Group, Technical
+ * Placements, Superb People, Unite Talent and Hire Ground, so the agency
+ * words (partners, associates, appointments, placements, select, people,
+ * resource, talent, hr as the name's noun) and the big names are listed
+ * too. An anonymous or confidential employer is no company either.
+ */
+const AGENCY_RE = /\b(?:recruit\w*|search|talent|consulting|consultancy|consultants|resourcing|resources?|staffing|headhunt\w*|partners?|partnership|associates|appointments|placements|select|selection|people|personnel|hr|executive|jobs|careers?|employment|workforce|interim|anonymous|confidential|undisclosed)\b|big fish/i;
+const AGENCY_NAMES_RE = /\b(?:adecco|hays|michael page|page group|pagegroup|page personnel|robert walters|robert half|reed|huntress|frazer jones|oakleaf|randstad|manpower|morgan mckinley|harnham|la fosse|hudson|nigel frank|tiger|office angels|cordant|kelly services|brook street|blue arrow|badenoch|goodman masson|efinancialcareers|corecruitment|ashdown group|owen reed|larbey evans|creideas|involved solutions|mondrian alpha|platinum|cortex|domus|giving back|my recruiter|jackie wilsher|birchrose|arlington|highpoint|rated traders|french resources|insight select|merrifield|hire ground|m4 talent|technical placements|superb|unite talent|npsg|milltown)\b/i;
 
 export function isAgencyEmployer(name: string | null | undefined): boolean {
-  return !!name && AGENCY_RE.test(name);
+  return !!name && (AGENCY_RE.test(name) || AGENCY_NAMES_RE.test(name));
 }
 
 /** Head of People, VP People, Chief People Officer: scored lower than a talent role. */
@@ -45,19 +56,30 @@ function isFirstRecruiter(title: string): boolean {
 }
 
 /**
+ * Titles that read as HR, coordination or sourcing rather than the talent
+ * function Craig places: an HR manager, a people generalist, a business
+ * partner, a coordinator or a sourcer is not a sign that a first Head of
+ * Talent is coming (first live run, 21 September 2026).
+ */
+const NOT_TALENT_TITLE_RE = /\b(?:hr|human resources|hrbp|generalist|coordinator|co-ordinator|administrator|assistant|sourcer|sourcing|onboarding|payroll|compliance|governance|systems|operations|ops|wellbeing|culture|development|learning|l&d|marketing|player|services|transformation|advisor|adviser|consultant|executive|resourcer)\b/i;
+
+/**
  * Whether a posting's title is one the prospect pass keeps: the role Craig
- * places, another talent role, a head of people, or a first recruiter. A
- * plain "Recruiter" is a seat on an existing team and is not kept.
+ * places, a talent acquisition partner, manager or specialist, a head of
+ * people, or a first recruiter. A plain "Recruiter", an HR role, a people
+ * generalist, a coordinator or a sourcer is not.
  */
 export function isProspectPostingTitle(title: string): boolean {
   const t = (title || '').trim();
   if (!t) return false;
-  if (isTalentLeadRole(t)) return true;
-  if (isHeadOfPeopleRole(t)) return true;
+  if (isTalentLeadRole(t) && !/\b(?:coordinator|co-ordinator|player|development|governance|compliance|systems|services)\b/i.test(t)) return true;
+  if (isHeadOfPeopleRole(t) && !/\b(?:systems|services|operations|ops|transformation|governance|payroll)\b/i.test(t)) return true;
   if (isFirstRecruiter(t)) return true;
   if (!isTalentRole(t)) return false;
+  if (NOT_TALENT_TITLE_RE.test(t)) return false;
+  if (!/\b(?:talent|recruit)/i.test(t)) return false;
   // A talent role that is not a lead: a partner, a manager, a specialist. A bare recruiter is not.
-  return !/^(?:senior |junior |graduate |trainee |internal |in-house |contract |temporary |temp |permanent |perm )*(?:tech(?:nical)? |it |sales |engineering )?recruit(?:er|ment consultant|ment executive|ment resourcer)s?$/i.test(t);
+  return !/^(?:senior |junior |graduate |trainee |internal |in-house |contract |temporary |temp |permanent |perm |emea |uk |gtm )*(?:tech(?:nical)? |it |sales |engineering |emea |gtm )?recruit(?:er|ment consultant|ment executive|ment resourcer)s?(?:\s*[(-].*)?$/i.test(t);
 }
 
 /** Job boards and aggregators: a landing there is not the employer's website. */

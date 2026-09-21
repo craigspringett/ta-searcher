@@ -15,7 +15,7 @@ import { raiseReadsEarly, scoreProspect } from './score.ts';
 import { settingsFromValue } from './settings.ts';
 import { adzunaSearchUrl, adzunaSource, parseAdzunaResults, siftPostings } from './source-adzuna.ts';
 import { candidateFromRegisterHit, incorporatedFromIso, nextWatermark, planWalk, walkPairs, walkRegister } from './source-companies-house.ts';
-import { candidatesFromFeeds, candidatesFromFundingNewsRows, newsFeedSpecs, newsSource, PROSPECT_NEWS_QUERIES } from './source-news.ts';
+import { candidatesFromFeeds, candidatesFromFundingNewsRows, looksLikeCompanyName, newsFeedSpecs, newsSource, PROSPECT_NEWS_QUERIES } from './source-news.ts';
 import { parseReedResults, reedDateToIso, reedSource } from './source-reed.ts';
 import type { ProspectCandidate, ProspectRow } from './types.ts';
 import { checkWebsite, domainWords, guessWebsite, hostOf, originOf, pageNamesCompany, websiteCandidates } from './website.ts';
@@ -43,6 +43,13 @@ Deno.test('job-apis: the titles the pass keeps', () => {
   assert(!isProspectPostingTitle('Senior Tech Recruiter'));
   assert(!isProspectPostingTitle('Head of Sales'));
   assert(!isProspectPostingTitle(''));
+  // The first live run's noise.
+  for (const t of ['Head of HR / HR Manager / Senior HR Lead', 'HR Manager', 'HR Generalist', 'Senior HRBP (Tech, Product Ops)', 'People Generalist', 'People Business Partner', 'Recruitment Coordinator', 'Senior Recruiting Coordinator (R5646)', 'Staff Talent Sourcer - UK & EU', 'Head of People Systems', 'Head of People Services Transformation - OH & Wellbeing', 'Talent Acquisition Governance and Compliance Manager', 'Talent development lead', 'Director, Talent & Player Marketing', 'EMEA Recruiter', 'Senior Recruiter (12-Month Contract)', 'HR and Talent Advisor', 'Senior People Operations Specialist', 'Recruitment Consultant - Maidenhead', 'Recruiter (GTM & Business)']) {
+    assert(!isProspectPostingTitle(t), `kept: ${t}`);
+  }
+  for (const t of ['Talent Acquisition Partner', 'Senior Talent Acquisition Partner, Engineering', 'Talent Acquisition Manager', 'Talent Partner, GTM', 'Talent Lead, Europe', 'Head of Talent Acquisition (6-month contract)', 'Recruitment Manager - Tech', 'Head of People & Culture', 'Founding Recruiter (GTM)']) {
+    assert(isProspectPostingTitle(t), `dropped: ${t}`);
+  }
 });
 
 Deno.test('job-apis: agency employers and head of people', () => {
@@ -51,6 +58,12 @@ Deno.test('job-apis: agency employers and head of people', () => {
   assert(isAgencyEmployer('Harvey Nash Executive Search'));
   assert(!isAgencyEmployer('Metris Energy'));
   assert(!isAgencyEmployer('Searchable'), '"search" as a word only');
+  for (const n of ['Adecco', 'Michael Page HR', 'Frazer Jones', 'Huntress', 'Oakleaf Partnership', 'Insight Select Ltd', 'Merrifield Consultants', 'Ashdown Group', 'Birchrose Associates', 'Centre People Appointments', 'M4 Talent Group Limited', 'Technical Placements Ltd', 'Superb People', 'Unite Talent', 'Hire Ground Ltd', 'Anonymous Recruiter', 'Reed', 'eFinancialCareers', 'Hays Specialist Recruitment Limited', 'COREcruitment International']) {
+    assert(isAgencyEmployer(n), `not an agency: ${n}`);
+  }
+  for (const n of ['Cledara', 'CarbonChain', 'Legora', 'Lendable', 'Mention Me', 'Upwind Security', 'XYZ Reality', 'Entrepreneurs First', 'Gigs', 'Shield AI']) {
+    assert(!isAgencyEmployer(n), `an agency: ${n}`);
+  }
   assert(isHeadOfPeopleRole('Head of People'));
   assert(isHeadOfPeopleRole('Chief People Officer'));
   assert(!isHeadOfPeopleRole('Head of Talent'));
@@ -162,6 +175,11 @@ Deno.test('companies-house: the walk reads its pages, keeps active companies and
 });
 
 // ---------------------------------------------------------------- the news
+
+Deno.test('news: what reads as a company name', () => {
+  for (const n of ['Metris Energy', 'Sprive', 'Jack & Jill', 'kausable', 'Stoa', 'Luffy AI', 'London Quantum Group', 'Magnitude Biosciences', 'SORRY SUGAR', 'The Newman']) assert(looksLikeCompanyName(n), `rejected: ${n}`);
+  for (const n of ['Dragons’ Den-backed Sprive', 'Mortgage overpayment app Sprive', 'Revolut founder’s QuantumLight', 'co-founded by DeepMind creative lead', 'TaiSan founded by chess champion', 'SA AI coding HyperDev platform', 'Climate change', 'just', 'Build', '', 'a', 'AI writing startup co-founded by DeepMind creative lead raises']) assert(!looksLikeCompanyName(n), `accepted: ${n}`);
+});
 
 Deno.test('news: the extra queries, feed candidates and the unmatched funding_news rows', async () => {
   assertEquals(newsFeedSpecs().length, PROSPECT_NEWS_QUERIES.length);
