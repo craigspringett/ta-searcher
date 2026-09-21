@@ -164,6 +164,9 @@ export function investorsFromText(raw: string): string[] {
 
 /** The date a hint gives, as far as it goes: "12 March 2026" is 2026-03-12, "March 2026" is 2026-03, "2025" is 2025. */
 export function dateFromHint(hint: string | null | undefined): string | null {
+  // An ISO date as a hint (a funding news row's published_at) is already the answer.
+  const iso = (hint || '').match(/\b((?:19|20)\d{2}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01]))\b/);
+  if (iso) return iso[1];
   const year = yearFromDateHint(hint);
   if (year === null) return null;
   const month = monthFromDateHint(hint);

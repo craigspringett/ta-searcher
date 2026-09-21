@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Loader2, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -55,7 +56,11 @@ export function normaliseUrl(s: string): string {
  * alone.
  */
 export function AddCompanyForm({ disabled, analysing, current, onAnalyse, onNewSearch }: Props) {
-  const [query, setQuery] = useState("");
+  // "/companies?add=Metris Energy" (the New raises card) prefills the
+  // register search; the search effect below then runs once for it.
+  const [params] = useSearchParams();
+  const prefill = (params.get("add") || "").trim();
+  const [query, setQuery] = useState(prefill);
   const [hits, setHits] = useState<CompanySearchHit[]>([]);
   const [busy, setBusy] = useState(false);
   const [configured, setConfigured] = useState<boolean | null>(null);
@@ -64,6 +69,13 @@ export function AddCompanyForm({ disabled, analysing, current, onAnalyse, onNewS
   const [companyNumber, setCompanyNumber] = useState("");
   const [byUrl, setByUrl] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!prefill) return;
+    setQuery(prefill);
+    setSelected(null);
+    setByUrl(false);
+  }, [prefill]);
 
   useEffect(() => {
     const q = query.trim();

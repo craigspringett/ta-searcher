@@ -244,6 +244,7 @@ the questions).
 | every 10 min | close stale refresh runs |
 | 04:40 daily | `sync-companies-house` (status, officers, capital filings for every tracked company) |
 | 04:50 daily | `sync-ats-boards` (every confirmed feed) |
+| 05:20 daily | `sync-funding-news` (UKTN, Sifted, Google News and a Google News search per tracked company, matched by name; slice 2) |
 | 05:00 / 05:05 Friday | snapshot, then queue every company for `analyze-company` |
 | 06:40 daily | `refresh-scores` |
 | 06:55 Friday | `send-friday-brief` |
@@ -326,12 +327,45 @@ He-Giveth; a daily cadence is one `cron.alter_job` away.
    `who-finds-leads/ta-searcher/` in one push; then a Supabase project (an
    extra project on the Pro organisation is billed) and a Netlify site.
 
-## Later (slice 2 and after)
+## Slice 2, built
 
-- Funding news: `sync-funding-news` reading UKTN, Sifted and per-company
-  Google News RSS, matched to tracked companies as `funding_round` facts,
-  and "New raises this week" on My patch listing companies not yet tracked
-  with one-click add.
+Funding news (21 September 2026, migration
+`20260921130000_funding_news.sql`, not yet applied). A raise is the moment
+a start-up starts hiring, so the feeds are read every morning at 05:20 UTC
+by `sync-funding-news`: UKTN's RSS, Sifted's RSS, a Google News search for
+raise headlines in London, and a Google News search per tracked company
+(the first 200, newest first) so a tracked company's own round is read
+even when the general feed has moved on. A headline is kept when it says a
+company raised, secured, landed, closed, bagged, picked up or netted money
+with an amount or a round word, and is not a fund closing; the company
+name is what stands before the verb once "London's", "UK", "British",
+"London-based", "Exclusive:" and the descriptor words (startup, firm,
+"legaltech start-up") are taken off, and the amount and the round are read
+with the same parsers as the facts (`_shared/funding-news/`: rss, detect,
+match, sources, run, with the three fixtures and 15 tests). One row per
+canonical article URL in `funding_news` (read by app users, written by
+the service role); a story is matched to a tracked company by name with
+the ATS employer rule (register name, previous names and website host as
+aliases), and unmatched rows of the last 90 days are matched again every
+run, so a company added from the card picks up its story the next
+morning. A matched story joins the company's facts as a `funding_round`
+(`loadFundingNewsFacts`, headline as statement and quote, article as
+source, published date as the hint) in `analyze-company`, in
+`refresh-scores` with `recomputeSignals` and in the copy context, so the
+"Raised recently" signal, the stage and the latest raise see it without a
+page ever mentioning the round; it is never written to `company_facts`.
+My patch shows "New raises this week" (`NewRaisesCard`, rules in
+`src/lib/newRaises.ts`): the last fourteen days, untracked companies
+first with the publisher link and an "Add" link that opens the Companies
+page with the register search filled in (`/companies?add=<name>`), then
+the ones already in the patch, linked to their page. On the fixtures of
+21 September the general feeds yielded 4 raise stories from UKTN's 10
+items, 1 from Sifted's 24 and 97 from Google News's 100 (a search feed
+is raise stories by construction; a few name no company, and those
+show with no name to add).
+
+## Later (slice 3 and after)
+
 - Investors: the `investors` table and page, portfolio in the patch, the
   investor persona's contact from the fund's platform team.
 - Map: registered office postcodes as points.

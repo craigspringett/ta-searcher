@@ -6,7 +6,7 @@
 
 import type { Fact } from '../facts/types.ts';
 import { computeSignals, type Signal } from './compute.ts';
-import { contactsForSignals, loadRegisterForSignals, loadVacanciesForSignals } from './load.ts';
+import { contactsForSignals, loadFundingNewsFacts, loadRegisterForSignals, loadVacanciesForSignals } from './load.ts';
 
 // deno-lint-ignore no-explicit-any
 type Supabase = any;
@@ -31,6 +31,9 @@ export async function recomputeSignalsForCompany(supabase: Supabase, companySear
   if (fErr) throw new Error(`company_facts read failed: ${fErr.message}`);
   // deno-lint-ignore no-explicit-any
   const facts: Fact[] = (factRows || []).map((f: any, i: number) => ({ id: `f${i + 1}`, kind: f.kind, statement: f.statement, quote: f.quote || '', source_url: f.source_url || '', date_hint: f.date_hint ?? null, statement_key: f.statement_key }));
+
+  // Matched funding news joins the facts (slice 2); it is read, never stored as a fact.
+  facts.push(...await loadFundingNewsFacts(supabase, row.id, today));
 
   const vacancyRows = await loadVacanciesForSignals(supabase, row.id);
   const register = await loadRegisterForSignals(supabase, companyNumber);

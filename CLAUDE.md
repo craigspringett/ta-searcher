@@ -2,8 +2,7 @@
 
 Internal buyer-intent and hiring-alert portal for placing Heads of Talent
 Acquisition (Heads of Recruitment) into seed and Series A start-ups. Built
-for Craig Springett (Big Fish Recruitment; the brand is not yet confirmed,
-see the brief) as a replica of He-Giveth, the WhoFoundWho schools portal at
+for Craig Springett's Big Fish Recruitment as a replica of He-Giveth, the WhoFoundWho schools portal at
 `../` in this repository. Consultants add a company by name (Companies
 House) and website; the app reads the site, the register and the company's
 applicant tracking system, tracks its open roles, scores how likely it is
@@ -63,12 +62,26 @@ built and verified on 21 September 2026 and what is not yet applied.
   `send-transactional-email` renders the templates in
   `_shared/transactional-email-templates/` (`new-vacancies-alert`,
   `friday-brief`, `outreach-email`, `engagement-alert`). The sending domain
-  and reply-to are constants in `send-transactional-email` and
-  `auth-send-email` until the brand is confirmed.
+  (`notify.bigfishrecruitment.co.uk`) and reply-to are constants in
+  `send-transactional-email` and `auth-send-email`.
+- Funding news (slice 2): `sync-funding-news` (05:20 UTC) reads UKTN,
+  Sifted and Google News RSS (a general search and one per tracked
+  company) into `funding_news`, one row per canonical article URL,
+  keeping raise headlines only (`_shared/funding-news/`: `rss.ts` the
+  parser, `detect.ts` the raise rule and the company name from the
+  headline, `match.ts` the name match through the ATS employer rule,
+  `sources.ts` the feeds, `run.ts` the pass; fixtures and tests beside
+  them). A matched story joins the company's facts as a `funding_round`
+  through `loadFundingNewsFacts` (`_shared/signals/load.ts`) in
+  `analyze-company`, `recompute.ts` and the copy context, never in
+  `company_facts`. `NewRaisesCard` on My patch (`src/lib/newRaises.ts`
+  the rule, `newRaisesData.ts` the read) lists the fortnight's raises
+  with "Add", which prefills the add form from `/companies?add=<name>`.
+  Migration `20260921130000_funding_news.sql`, applied by the local test.
 - Weekly cadence (UTC): Friday 05:00 snapshot, 05:05 `refresh-all-companies`
   queues every company into `analyze_company_queue` (ten a minute), 06:55
   `send-friday-brief`, 07:30 `auto-refresh-vacancies` compare-and-alert.
-  Daily: 04:40 register, 04:50 ATS feeds, 06:40 scores.
+  Daily: 04:40 register, 04:50 ATS feeds, 05:20 funding news, 06:40 scores.
 
 ## Working in a cloud session
 
@@ -110,6 +123,6 @@ npx tsc --noEmit -p tsconfig.app.json # frontend types
 npx eslint src                        # 0 errors expected
 npm test                              # Vitest for src/lib
 cd supabase/functions && DENO_NO_PACKAGE_JSON=1 deno test --allow-all --no-check --node-modules-dir=none _shared   # unit tests (Deno: curl -fsSL https://deno.land/install.sh | sh -s v2.4.5, then ~/.deno/bin)
-scripts/local-db-test.sh              # the baseline migration and its row security on a throwaway local Postgres 16
+scripts/local-db-test.sh              # the baseline and funding_news migrations and their row security on a throwaway local Postgres 16 (99 assertions)
 node scripts/embed-value-proposition.mjs   # after editing _shared/copy/value-proposition.md
 ```

@@ -60,9 +60,11 @@ export function yearFromDateHint(hint: string | null | undefined): number | null
   return base;
 }
 
-/** Month index (0 to 11) when the hint names one, else null. */
+/** Month index (0 to 11) when the hint names one, or carries an ISO "YYYY-MM" (a funding news date), else null. */
 export function monthFromDateHint(hint: string | null | undefined): number | null {
   if (!hint) return null;
+  const iso = hint.match(/\b(?:19|20)\d{2}-(0[1-9]|1[0-2])(?:-\d{2})?\b/);
+  if (iso) return Number(iso[1]) - 1;
   const months = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
   const lower = hint.toLowerCase();
   for (let i = 0; i < months.length; i++) {

@@ -1072,6 +1072,70 @@ export type Database = {
         }
         Relationships: []
       }
+      funding_news: {
+        Row: {
+          amount_gbp: number | null
+          amount_text: string | null
+          company_name: string | null
+          created_at: string
+          external_key: string
+          first_seen_at: string
+          id: string
+          match_note: string | null
+          matched_company_search_id: string | null
+          published_at: string | null
+          publisher: string | null
+          round: string | null
+          source: string
+          summary: string | null
+          title: string
+          url: string
+        }
+        Insert: {
+          amount_gbp?: number | null
+          amount_text?: string | null
+          company_name?: string | null
+          created_at?: string
+          external_key: string
+          first_seen_at?: string
+          id?: string
+          match_note?: string | null
+          matched_company_search_id?: string | null
+          published_at?: string | null
+          publisher?: string | null
+          round?: string | null
+          source: string
+          summary?: string | null
+          title: string
+          url: string
+        }
+        Update: {
+          amount_gbp?: number | null
+          amount_text?: string | null
+          company_name?: string | null
+          created_at?: string
+          external_key?: string
+          first_seen_at?: string
+          id?: string
+          match_note?: string | null
+          matched_company_search_id?: string | null
+          published_at?: string | null
+          publisher?: string | null
+          round?: string | null
+          source?: string
+          summary?: string | null
+          title?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "funding_news_matched_company_fkey"
+            columns: ["matched_company_search_id"]
+            referencedRelation: "company_searches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       outcomes: {
         Row: {
           callback_at: string | null

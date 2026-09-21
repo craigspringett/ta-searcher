@@ -72,3 +72,6 @@ verify_jwt = true
 
 [functions.sync-ats-boards]
 verify_jwt = true
+
+[functions.sync-funding-news]
+verify_jwt = true

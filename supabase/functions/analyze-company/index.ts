@@ -20,7 +20,7 @@ import { deriveLatestRaise, deriveStage } from '../_shared/facts/derive.ts';
 import { computeSignals, normaliseTitle } from '../_shared/signals/compute.ts';
 import { extractDepartures, fetchNewsPages, type NewsFetch } from '../_shared/facts/newsletters.ts';
 import { computePropensity } from '../_shared/score/propensity.ts';
-import { contactsForSignals, loadRegisterForSignals, loadVacanciesForSignals } from '../_shared/signals/load.ts';
+import { contactsForSignals, loadFundingNewsFacts, loadRegisterForSignals, loadVacanciesForSignals } from '../_shared/signals/load.ts';
 import { applicablePersonas, buildCopyInput, copyIsStale, groupRolesByFamily, legacyScripts, storeCopy, type CopyContext } from '../_shared/copy/assemble.ts';
 import { generatePersonaCopy } from '../_shared/copy/generate.ts';
 import { consultantFromTag } from '../_shared/copy/reviews.ts';
@@ -789,7 +789,14 @@ Deno.serve(async (req) => {
       closed: [],
     };
     const register = trusted ? await loadRegisterForSignals(supabaseClient, trusted.companyNumber) : null;
-    const signals = computeSignals({ today, facts, openVacancies: vacancyRows.open, closedVacancies: vacancyRows.closed, register, contacts: contactsForSignals(result.decisionMakers) });
+    // Funding news (slice 2): the stories matched to this company join the
+    // facts the signals, the stage, the latest raise and the copy read.
+    // They are not page facts: company_facts was written above without
+    // them, and out.facts stays the page's list.
+    const newsFacts = existingRow ? await loadFundingNewsFacts(supabaseClient, existingRow.id, today) : [];
+    const factsWithNews = newsFacts.length ? [...facts, ...newsFacts] : facts;
+    if (newsFacts.length) console.log(`Funding news: ${newsFacts.length} matched stor${newsFacts.length === 1 ? 'y' : 'ies'} joined the facts`);
+    const signals = computeSignals({ today, facts: factsWithNews, openVacancies: vacancyRows.open, closedVacancies: vacancyRows.closed, register, contacts: contactsForSignals(result.decisionMakers) });
     console.log(`Signals: ${signals.map((s) => `${s.code}(${s.strength})`).join(', ') || 'none'}`);
     if (existingRow) {
       try {
@@ -832,8 +839,8 @@ Deno.serve(async (req) => {
     }
 
     // The fields the app reads, all derived from validated data.
-    const stage = deriveStage(facts, trusted, today);
-    const latestRaise = deriveLatestRaise(facts, today);
+    const stage = deriveStage(factsWithNews, trusted, today);
+    const latestRaise = deriveLatestRaise(factsWithNews, today);
     out.stage = stage;
     out.latestRaise = latestRaise;
     const openCount = result.recruitmentInsights.currentVacancies.length;
@@ -867,7 +874,7 @@ Deno.serve(async (req) => {
       // deno-lint-ignore no-explicit-any
       contacts: (existingRow ? await mergedContactsFor(supabaseClient, existingRow.id, result.decisionMakers) : result.decisionMakers).map((d) => ({ name: d.name, role: d.role, email: d.email || undefined, confidence: (d as any).confidence })),
       signals,
-      facts,
+      facts: factsWithNews,
       // deno-lint-ignore no-explicit-any
       openRoles: groupRolesByFamily(result.recruitmentInsights.currentVacancies.map((v: any) => ({ title: String(v.title || ''), department: v.department || null }))),
       consultant: consultantFromTag(refreshConsultant || existingRow?.analysis_result?.consultant || null),

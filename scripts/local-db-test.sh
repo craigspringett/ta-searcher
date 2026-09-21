@@ -12,7 +12,8 @@
 #     supabase_auth_admin), a minimal auth schema (auth.users and the
 #     auth.uid() / auth.role() / auth.jwt() readers of request.jwt.claims,
 #     as Supabase defines them);
-#   * apply supabase/migrations/20260921120000_ta_searcher_baseline.sql only.
+#   * apply supabase/migrations/20260921120000_ta_searcher_baseline.sql, then
+#     20260921130000_funding_news.sql (slice 2, plain SQL).
 #     20260921120050_queues_and_net.sql needs pgmq, pg_net, pg_cron and Vault,
 #     which the local cluster does not have, and 20260921120100_cron_jobs.sql
 #     needs pg_cron; both are skipped here and applied on the hosted project;
@@ -26,6 +27,7 @@ PGBIN="${PGBIN:-/usr/lib/postgresql/16/bin}"
 PORT="${PORT:-54329}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BASELINE="$ROOT/supabase/migrations/20260921120000_ta_searcher_baseline.sql"
+FUNDING_NEWS="$ROOT/supabase/migrations/20260921130000_funding_news.sql"
 GEN_TYPES=0
 KEEP=0
 for arg in "$@"; do
@@ -38,6 +40,7 @@ done
 
 [[ -x "$PGBIN/initdb" ]] || { echo "local-db-test: $PGBIN/initdb not found (install postgresql-16)" >&2; exit 2; }
 [[ -f "$BASELINE" ]] || { echo "local-db-test: $BASELINE not found" >&2; exit 2; }
+[[ -f "$FUNDING_NEWS" ]] || { echo "local-db-test: $FUNDING_NEWS not found" >&2; exit 2; }
 
 WORK="$(mktemp -d)"
 PGDATA="$WORK/data"
@@ -113,6 +116,10 @@ echo "== apply $(basename "$BASELINE")"
 psqlq -f "$BASELINE" >"$WORK/apply.log" 2>&1 || { cat "$WORK/apply.log"; exit 1; }
 grep -i "error" "$WORK/apply.log" && exit 1
 echo "   applied"
+echo "== apply $(basename "$FUNDING_NEWS")"
+psqlq -f "$FUNDING_NEWS" >"$WORK/apply-funding-news.log" 2>&1 || { cat "$WORK/apply-funding-news.log"; exit 1; }
+grep -i "error" "$WORK/apply-funding-news.log" && exit 1
+echo "   applied"
 
 # ---------------------------------------------------------------------------
 # Assertions
@@ -182,12 +189,12 @@ echo "== assertions"
 # Structure
 check "every public table has row security on" \
   "select count(*) = 0 from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind in ('r','p') and not c.relrowsecurity"
-check "32 public tables" \
-  "select count(*) = 32 from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind in ('r','p')"
+check "33 public tables" \
+  "select count(*) = 33 from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind in ('r','p')"
 check "no education table survived the port (school, gias, cfr, ofsted, tender, pupil, shortlist, follow_up, trust, board_fetch, probe)" \
   "select count(*) = 0 from pg_tables where schemaname = 'public' and (tablename ~ '^(school|gias|cfr|ofsted|tender|pupil|shortlist|bh_|follow_up|trust|board_|probe|agency)')"
 check "the tables the code names exist" \
-  "select bool_and(to_regclass('public.' || t) is not null) from unnest(array['company_searches','company_consultants','company_refresh_runs','company_facts','company_signals','company_scores','company_copy','company_contact_edits','company_records','ch_officers','ch_filings','ats_boards','analyze_company_queue','analyze_company_requests','copy_queue','vacancies','outcomes','profiles','consultants','app_settings','email_send_log','email_send_state','email_events','email_signatures','suppressed_emails','email_unsubscribe_tokens','pipeline_runs','vacancy_alert_settings','alert_deliveries','vacancy_feedback','contact_feedback','ai_usage']) t"
+  "select bool_and(to_regclass('public.' || t) is not null) from unnest(array['company_searches','company_consultants','company_refresh_runs','company_facts','company_signals','company_scores','company_copy','company_contact_edits','company_records','ch_officers','ch_filings','ats_boards','analyze_company_queue','analyze_company_requests','copy_queue','vacancies','outcomes','profiles','consultants','app_settings','email_send_log','email_send_state','email_events','email_signatures','suppressed_emails','email_unsubscribe_tokens','pipeline_runs','vacancy_alert_settings','alert_deliveries','vacancy_feedback','contact_feedback','ai_usage','funding_news']) t"
 check "vacancy_source has the eight values in order" \
   "select array_agg(enumlabel order by enumsortorder)::text[] = array['ashby','greenhouse','lever','workable','careers_page','llm','consultant','other'] from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'vacancy_source'"
 check "company_searches has company_number and company_name, no urn" \
@@ -280,6 +287,20 @@ check "deleting a company_records row cascades to officers and filings" "delete 
 check "ats_boards accepts a confirmed Ashby board" "insert into public.ats_boards (company_search_id, provider, slug, board_url, confirmed_at) values ('$CO_ONE', 'ashby', 'one', 'https://jobs.ashbyhq.com/one', now()); select count(*) = 1 from public.ats_boards"
 expect_fail "ats_boards rejects an unknown provider" "insert into public.ats_boards (company_search_id, provider, slug) values ('$CO_ONE', 'bamboo', 'one')"
 expect_fail "ats_boards is one row per company and provider" "insert into public.ats_boards (company_search_id, provider, slug) values ('$CO_ONE', 'ashby', 'one-again')"
+
+# funding_news (slice 2)
+check "funding_news accepts a matched story and an unmatched one" "insert into public.funding_news (source, external_key, title, url, publisher, published_at, company_name, amount_text, amount_gbp, round, matched_company_search_id, match_note) values ('uktn', 'https://www.uktech.news/one-raises', 'One raises £2m seed', 'https://www.uktech.news/one-raises', null, now(), 'One', '£2m', 2000000, 'seed', '$CO_ONE', 'exact name match'), ('google_news', 'https://news.google.com/rss/articles/abc', 'Metris Energy raises €4.35 million - EU-Startups', 'https://news.google.com/rss/articles/abc?oc=5', 'EU-Startups', now() - interval '2 days', 'Metris Energy', '€4.35 million', 3697500, null, null, null); select count(*) = 2 and count(*) filter (where first_seen_at is not null and created_at is not null) = 2 from public.funding_news"
+expect_fail "funding_news rejects an unknown source" "insert into public.funding_news (source, external_key, title, url) values ('techcrunch', 'https://x/1', 't', 'https://x/1')"
+expect_fail "funding_news is one row per canonical URL" "insert into public.funding_news (source, external_key, title, url) values ('sifted', 'https://www.uktech.news/one-raises', 'One raises £2m seed again', 'https://www.uktech.news/one-raises')"
+check "consultant reads funding_news (both rows, no per-consultant rule)" "$as_consultant select count(*) = 2 from public.funding_news"
+check "a signed-in user without a profile sees no funding_news" "$as_nobody select count(*) = 0 from public.funding_news"
+expect_fail "anon cannot read funding_news" "$as_anon select count(*) from public.funding_news"
+expect_fail "consultant cannot insert into funding_news" "$as_consultant insert into public.funding_news (source, external_key, title, url) values ('uktn', 'https://x/2', 't', 'https://x/2')"
+expect_fail "consultant cannot update funding_news" "$as_consultant update public.funding_news set matched_company_search_id = '$CO_TWO' where company_name = 'Metris Energy'; select 1 / (select count(*)::int - 1 from public.funding_news where matched_company_search_id = '$CO_TWO')"
+check "authenticated has no write privilege on funding_news" "select not (has_table_privilege('authenticated', 'public.funding_news', 'INSERT') or has_table_privilege('authenticated', 'public.funding_news', 'UPDATE') or has_table_privilege('authenticated', 'public.funding_news', 'DELETE'))"
+check "service role upserts funding_news on external_key and keeps first_seen_at" "set local role service_role; select set_config('request.jwt.claims', '{\"role\":\"service_role\"}', true); update public.funding_news set first_seen_at = now() - interval '5 days' where external_key = 'https://www.uktech.news/one-raises'; insert into public.funding_news (source, external_key, title, url, matched_company_search_id) values ('sifted', 'https://www.uktech.news/one-raises', 'One raises £2m seed round', 'https://www.uktech.news/one-raises', '$CO_ONE') on conflict (external_key) do update set title = excluded.title; select count(*) = 2 and (select title from public.funding_news where external_key = 'https://www.uktech.news/one-raises') = 'One raises £2m seed round' and (select first_seen_at < now() - interval '4 days' from public.funding_news where external_key = 'https://www.uktech.news/one-raises') from public.funding_news"
+check "deleting a company leaves its funding_news row unmatched" "insert into public.company_searches (id, url, company_name, analysis_result) values ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'https://three.example', 'Three Ltd', '{\"summary\":\"three\"}'); update public.funding_news set matched_company_search_id = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee' where company_name = 'Metris Energy'; delete from public.company_searches where id = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee'; select count(*) = 2 and count(*) filter (where matched_company_search_id is not null) = 1 and count(*) filter (where company_name = 'Metris Energy' and matched_company_search_id is null) = 1 from public.funding_news"
+check "funding_news has its two indexes" "select count(*) = 2 from pg_indexes where schemaname = 'public' and tablename = 'funding_news' and indexname in ('idx_funding_news_published', 'idx_funding_news_matched')"
 expect_fail "company_copy rejects a school persona" "insert into public.company_copy (company_search_id, persona, copy, model) values ('$CO_ONE', 'headteacher', '{}', 'm')"
 check "company_copy accepts the five personas" "insert into public.company_copy (company_search_id, persona, copy, model) select '$CO_TWO', p, '{}', 'm' from unnest(array['founder','coo','people','cto','investor']) p; select count(*) = 5 from public.company_copy"
 check "vacancy_feedback accepts wrong_company" "insert into public.vacancy_feedback (vacancy_id, kind) select id, 'wrong_company' from public.vacancies limit 1; select count(*) = 1 from public.vacancy_feedback"
@@ -311,10 +332,12 @@ check "authenticated may call get_pipeline_health() and nothing else internal" \
 expect_fail "http_page_enqueue refuses a caller that is not the service role" "select set_config('request.jwt.claims', '$claims_consultant', true); select public.http_page_enqueue('https://x')"
 if psqlq -f "$ROOT/supabase/migrations/20260921120100_cron_jobs.sql" >"$WORK/cron.log" 2>&1 && ! grep -qi error "$WORK/cron.log"; then PASS=$((PASS + 1)); echo "pass  20260921120100_cron_jobs.sql applies against the cron stand-in"
 else FAIL=$((FAIL + 1)); echo "FAIL  20260921120100_cron_jobs.sql"; cat "$WORK/cron.log"; fi
-check "eleven jobs scheduled with the brief's names" \
-  "select count(*) = 11 and bool_and(jobname in ('process-email-queue','dispatch-analyze-company-queue','dispatch-copy-queue','close-stale-refresh-runs','sync-companies-house','sync-ats-boards','auto-refresh-vacancies-trigger','refresh-all-companies','refresh-scores','send-friday-brief','auto-refresh-vacancies-compare')) from cron.job"
-check "the cron file is idempotent (a second apply keeps eleven jobs)" \
-  "$(cat "$ROOT/supabase/migrations/20260921120100_cron_jobs.sql" | grep -v '^--' | tr '\n' ' ') select count(*) = 11 from cron.job"
+check "twelve jobs scheduled with the brief's names" \
+  "select count(*) = 12 and bool_and(jobname in ('process-email-queue','dispatch-analyze-company-queue','dispatch-copy-queue','close-stale-refresh-runs','sync-companies-house','sync-ats-boards','sync-funding-news','auto-refresh-vacancies-trigger','refresh-all-companies','refresh-scores','send-friday-brief','auto-refresh-vacancies-compare')) from cron.job"
+check "sync-funding-news runs at 05:20 UTC daily" \
+  "select schedule = '20 5 * * *' from cron.job where jobname = 'sync-funding-news'"
+check "the cron file is idempotent (a second apply keeps twelve jobs)" \
+  "$(cat "$ROOT/supabase/migrations/20260921120100_cron_jobs.sql" | grep -v '^--' | tr '\n' ' ') select count(*) = 12 from cron.job"
 check "the monitoring job list names only scheduled jobs" \
   "select bool_and(j ->> 'configured' = 'true') from jsonb_array_elements(public.get_cron_monitoring_jobs_only()) j"
 

@@ -21,6 +21,7 @@ begin
     'close-stale-refresh-runs',
     'sync-companies-house',
     'sync-ats-boards',
+    'sync-funding-news',
     'auto-refresh-vacancies-trigger',
     'refresh-all-companies',
     'refresh-scores',
@@ -48,6 +49,11 @@ select cron.schedule('sync-companies-house', '40 4 * * *',
 -- 04:50 daily: every confirmed ATS feed.
 select cron.schedule('sync-ats-boards', '50 4 * * *',
   $$select public.invoke_edge_function('sync-ats-boards', '{}'::jsonb)$$);
+
+-- 05:20 daily: the funding news feeds (UKTN, Sifted, Google News), matched
+-- to tracked companies. Slice 2.
+select cron.schedule('sync-funding-news', '20 5 * * *',
+  $$select public.invoke_edge_function('sync-funding-news', '{}'::jsonb)$$);
 
 -- Friday 05:00: snapshot the open roles per consultant, then queue every
 -- company for analyze-company (the Friday-only cadence follows Craig's 14

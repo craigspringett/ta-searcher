@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AppHeader } from "@/components/AppHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { BAND_CLASSES, scoreBand } from "@/lib/propensity";
+import { NewRaisesCard } from "@/components/NewRaisesCard";
 
 type SortKey = "name" | "stage" | "openRoles" | "talentRoles" | "raise" | "lastAnalysed" | "nextCallback" | "propensity";
 
@@ -167,6 +168,8 @@ export default function MyPatch() {
           </div>
         )}
         <p className="text-xs text-muted-foreground">{rows.length} companies. "Stage" is the round the company describes itself as being at, from its own words, the funding news and the register (hover for the evidence). "Open roles" counts every live role on its careers feeds and careers page; "Talent roles" counts the ones in the people and talent family (a recruiter, a talent partner, a head of people), the roles this team places. "Latest raise" is the most recent round the evidence found; hover for the date and the investors. "Likely to buy" is the propensity score (0 to 100) from the company's signals and your call outcomes, recomputed after each analysis and every morning; open the company to see every line that made it.</p>
+
+        <NewRaisesCard />
       </main>
     </div>
   );

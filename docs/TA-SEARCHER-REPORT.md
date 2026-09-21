@@ -21,12 +21,12 @@ third is new or rewritten for the start-up market.
 
 | Check | Result |
 |---|---|
-| Deno unit tests, `supabase/functions/_shared` | 284 passed, 0 failed |
-| Vitest, `src/lib` | 32 passed (7 files) |
+| Deno unit tests, `supabase/functions/_shared` | 299 passed, 0 failed |
+| Vitest, `src/lib` | 41 passed (8 files) |
 | `npx tsc --noEmit -p tsconfig.app.json` | 0 errors |
 | `npx eslint src` | 0 errors (23 warnings, the shadcn kit's usual ones) |
 | `npm run build` | passes |
-| `scripts/local-db-test.sh` (throwaway Postgres 16) | 86 assertions passed |
+| `scripts/local-db-test.sh` (throwaway Postgres 16) | 99 assertions passed |
 | `deno check` on every edge function | passes |
 
 The Deno suite covers the register parsers and cache rule (31 tests), the
@@ -98,6 +98,15 @@ queues-and-net file (pgmq, pg_net, pg_cron, Vault) applied on the hosted
 project only, the cron file (eleven jobs), `seed.sql`, regenerated
 frontend types, and `scripts/local-db-test.sh`.
 
+**Funding news (slice 2, built the same day).** `sync-funding-news` (05:20
+UTC) reads UKTN, Sifted and Google News RSS (a general search and one per
+tracked company) into `funding_news`, keeps raise headlines only, matches
+them to tracked companies by name, and a matched story joins the company's
+facts as a funding round for the signals, the stage, the latest raise and
+the copy. "New raises this week" on My patch lists the fortnight's raises
+with one-click Add into the Companies House search. Against today's feeds:
+4 raise stories from UKTN, 1 from Sifted, 97 from the Google News search.
+
 **Frontend.** Routes `/`, `/companies`, `/companies/:id`, `/alerts`,
 `/consultants`, `/pipeline-monitoring`, `/login`; `Index.tsx` down from
 3,240 lines to 703 with the add form (Companies House search, URL-only when
@@ -127,13 +136,15 @@ test button is a dry run of the week's alert. Brand and firm name in
 
 ## Not done, and next
 
-1. Craig's answers to the brief's nine questions, above all the brand, the
-   proof points, the ask and the Companies House key.
-2. The repository, the Supabase project, the secrets, the Netlify site: the
-   apply steps. Then a live `analyze-company` on Searchable and two others,
-   and the Workable feed tested from the edge runtime.
-3. Slice 2: funding news (UKTN, Sifted, Google News RSS per company),
-   "New raises this week" on My patch, the investors table and page.
-4. Later: the map from registered office postcodes, Follow-ups and the
-   Shortlister ported from He-Giveth as they are, and the unused
-   dependencies (`jspdf`, `leaflet`) removed from `package.json`.
+1. Craig's four setup steps (`../scripts/ta-searcher-apply.md`): the
+   repository, the Supabase project, the Companies House key, the Netlify
+   site. Craig answered the brief's questions on 21 September (brand Big
+   Fish Recruitment, the Searchable, Lottie and Attio placements, the ask,
+   the fee wording); they are in the copy layer.
+2. Then the session's steps: migrations, auth hook, secrets, functions, a
+   live `analyze-company` on Searchable and two others, the Workable feed
+   tested from the edge runtime, `sync-funding-news` once.
+3. Slice 3: the investors table and page from the funding facts, the map
+   from registered office postcodes, Follow-ups and the Shortlister ported
+   from He-Giveth as they are, and the unused dependencies (`jspdf`,
+   `leaflet`) removed from `package.json`.

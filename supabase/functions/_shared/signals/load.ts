@@ -1,7 +1,9 @@
 // Loads the data the signal rules need from the database: open and closed
 // vacancy rows, the Companies House register (record, officers, capital
-// filings), and the contacts shaped with a role key.
+// filings), the funding news matched to the company, and the contacts
+// shaped with a role key.
 
+import type { Fact } from '../facts/types.ts';
 import type { CapitalFilingForSignals, ClosedVacancyForSignals, ContactForSignals, OfficerForSignals, RegisterForSignals, VacancyForSignals } from './compute.ts';
 
 // deno-lint-ignore no-explicit-any
@@ -61,6 +63,44 @@ export async function loadRegisterForSignals(supabase: Supabase, companyNumber: 
     officers: ((officers || []) as Array<Record<string, unknown>>).map((o): OfficerForSignals => ({ name: String(o.name || ''), role: String(o.role || ''), appointedOn: (o.appointed_on as string) ?? null, resignedOn: (o.resigned_on as string) ?? null })).filter((o) => o.name),
     capitalFilings: ((filings || []) as Array<Record<string, unknown>>).map((f): CapitalFilingForSignals => ({ date: String(f.date || ''), type: String(f.type || ''), description: String(f.description || '') })).filter((f) => f.date),
   };
+}
+
+/** How far back a matched funding news story still joins the facts. */
+export const FUNDING_NEWS_MONTHS = 12;
+
+/**
+ * The funding news stories matched to a company in the last twelve months
+ * (slice 2), shaped as funding_round facts so computeSignals, deriveStage
+ * and deriveLatestRaise read them as they read a page fact: the headline
+ * is the statement and the quote, the article the source, the published
+ * date the hint. They are not page facts and are never written to
+ * company_facts; their ids and keys carry a "news:" prefix so nothing
+ * mistakes them for one. Never throws: a read failure is an empty list.
+ */
+export async function loadFundingNewsFacts(supabase: Supabase, companySearchId: string, today: Date): Promise<Fact[]> {
+  const since = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - FUNDING_NEWS_MONTHS, today.getUTCDate())).toISOString();
+  const { data, error } = await supabase
+    .from('funding_news')
+    .select('id, external_key, title, url, published_at')
+    .eq('matched_company_search_id', companySearchId)
+    .gte('published_at', since)
+    .order('published_at', { ascending: false })
+    .limit(20);
+  if (error) {
+    console.error('funding_news for signals failed:', error.message);
+    return [];
+  }
+  return ((data || []) as Array<Record<string, unknown>>)
+    .filter((r) => typeof r.title === 'string' && r.title.trim())
+    .map((r): Fact => ({
+      id: `news:${r.id}`,
+      kind: 'funding_round',
+      statement: String(r.title).trim(),
+      quote: String(r.title).trim(),
+      source_url: String(r.url || ''),
+      date_hint: typeof r.published_at === 'string' ? r.published_at.slice(0, 10) : null,
+      statement_key: `news:${r.external_key}`,
+    }));
 }
 
 /**
