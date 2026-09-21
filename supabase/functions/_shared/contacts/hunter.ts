@@ -21,7 +21,7 @@
 
 import { fetchWithTimeout } from '../fetch.ts';
 import type { EmailHit, PersonHit } from './extract.ts';
-import { classifyRole, INVESTOR_RANK } from './resolve.ts';
+import { classifyRole, INVESTOR_RANK, samePerson, type RecordOfficer } from './resolve.ts';
 
 export const HUNTER_BASE = 'https://api.hunter.io/v2/domain-search';
 export const HUNTER_MIN_CONFIDENCE = 50;
@@ -55,6 +55,15 @@ export interface HunterPerson {
   linkedin: string | null;
 }
 
+/** An address Hunter listed that the sift left out, and why (the run notes, at most ten). */
+export interface HunterDropped {
+  email: string;
+  name: string | null;
+  position: string | null;
+  confidence: number | null;
+  why: string;
+}
+
 export interface HunterResult {
   host: string;
   /** False when the key is not set; nothing was asked. */
@@ -66,6 +75,7 @@ export interface HunterResult {
   people: HunterPerson[];
   /** Generic mailboxes (hello@, careers@) kept as addresses only. */
   generic: string[];
+  dropped: HunterDropped[];
   error: string | null;
   fetchedAt: string;
   fromCache?: boolean;
@@ -77,11 +87,17 @@ function str(v: unknown): string | null {
   return s || null;
 }
 
+export interface HunterParseOptions {
+  /** Current officers from the register: a listed person with no usable position who is one of them takes the officer's role. */
+  officers?: RecordOfficer[] | null;
+}
+
 /** The people worth a contact row from a Domain Search answer. */
-export function parseHunterDomainSearch(json: any): { listed: number; people: HunterPerson[]; generic: string[] } {
+export function parseHunterDomainSearch(json: any, options: HunterParseOptions = {}): { listed: number; people: HunterPerson[]; generic: string[]; dropped: HunterDropped[] } {
   const items = Array.isArray(json?.data?.emails) ? json.data.emails : [];
   const people: HunterPerson[] = [];
   const generic: string[] = [];
+  const dropped: HunterDropped[] = [];
   const seen = new Set<string>();
   for (const it of items) {
     const email = str(it?.value)?.toLowerCase();
@@ -90,16 +106,27 @@ export function parseHunterDomainSearch(json: any): { listed: number; people: Hu
     const type = str(it?.type);
     if (type === 'generic') { generic.push(email); continue; }
     const confidence = Number(it?.confidence);
-    if (!Number.isFinite(confidence) || confidence < HUNTER_MIN_CONFIDENCE) continue;
     const first = str(it?.first_name);
     const last = str(it?.last_name);
     const position = str(it?.position) ?? str(it?.position_raw);
-    if (!first || !last || !position) continue;
-    const role = classifyRole(position);
-    if (!role || role.rank === INVESTOR_RANK) continue;
-    people.push({ name: `${first} ${last}`, email, position, confidence: Math.round(confidence), phone: str(it?.phone_number), linkedin: str(it?.linkedin) });
+    const name = first && last ? `${first} ${last}` : first ?? last;
+    const drop = (why: string) => { if (dropped.length < 10) dropped.push({ email, name, position, confidence: Number.isFinite(confidence) ? Math.round(confidence) : null, why }); };
+    if (!Number.isFinite(confidence) || confidence < HUNTER_MIN_CONFIDENCE) { drop(`confidence under ${HUNTER_MIN_CONFIDENCE}`); continue; }
+    if (!first || !last) { drop('no full name'); continue; }
+    const fullName = `${first} ${last}`;
+    let role = position ? classifyRole(position) : null;
+    let kept = position;
+    if (!role || role.rank === INVESTOR_RANK) {
+      // The register knows this person: keep them with the officer's role.
+      const officer = (options.officers || []).find((o) => o.jobTitle && samePerson(o.name, fullName));
+      if (officer) { kept = officer.jobTitle; role = classifyRole(officer.jobTitle!); }
+    }
+    if (!kept) { drop('no position'); continue; }
+    if (!role) { drop('the position is not a role the app contacts'); continue; }
+    if (role.rank === INVESTOR_RANK) { drop('an investor'); continue; }
+    people.push({ name: fullName, email, position: kept, confidence: Math.round(confidence), phone: str(it?.phone_number), linkedin: str(it?.linkedin) });
   }
-  return { listed: items.length, people, generic };
+  return { listed: items.length, people, generic, dropped };
 }
 
 /** The hits the resolver takes: a PersonHit per person with the address in the same row, an EmailHit per address. */
@@ -119,10 +146,10 @@ export function hunterHits(result: Pick<HunterResult, 'host' | 'people' | 'gener
 type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
 
 /** Ask Hunter for a domain. Never throws. */
-export async function hunterDomainSearch(host: string, options: { key?: string | null; fetch?: FetchLike; now?: Date } = {}): Promise<HunterResult> {
+export async function hunterDomainSearch(host: string, options: { key?: string | null; fetch?: FetchLike; now?: Date } & HunterParseOptions = {}): Promise<HunterResult> {
   const key = options.key === undefined ? hunterKey() : options.key;
   const fetchedAt = (options.now ?? new Date()).toISOString();
-  const base: HunterResult = { host, configured: !!key, ok: false, status: 0, listed: 0, people: [], generic: [], error: null, fetchedAt };
+  const base: HunterResult = { host, configured: !!key, ok: false, status: 0, listed: 0, people: [], generic: [], dropped: [], error: null, fetchedAt };
   if (!key) return { ...base, error: 'HUNTER_API_KEY not set' };
   const doFetch = options.fetch ?? ((u: string, i?: RequestInit) => fetchWithTimeout(u, FETCH_MS, i));
   const q = new URLSearchParams({ domain: host, api_key: key, limit: String(HUNTER_LIMIT) });
@@ -134,7 +161,7 @@ export async function hunterDomainSearch(host: string, options: { key?: string |
       const why = res.status === 401 ? 'the key was refused' : res.status === 429 ? 'the monthly quota is spent' : `HTTP ${res.status}`;
       return { ...base, status: res.status, error: detail ? `${why}: ${detail}` : why };
     }
-    const parsed = parseHunterDomainSearch(await res.json());
+    const parsed = parseHunterDomainSearch(await res.json(), { officers: options.officers });
     return { ...base, ok: true, status: res.status, ...parsed };
   } catch (e) {
     return { ...base, error: e instanceof Error ? e.message : String(e) };
@@ -148,5 +175,5 @@ export function cachedHunterResult(stored: unknown, host: string, now: Date): Hu
   if (r.host !== host || !r.ok || !r.fetchedAt) return null;
   const age = now.getTime() - Date.parse(r.fetchedAt);
   if (!Number.isFinite(age) || age > HUNTER_CACHE_DAYS * 86_400_000) return null;
-  return { host, configured: true, ok: true, status: r.status ?? 200, listed: r.listed ?? 0, people: Array.isArray(r.people) ? r.people : [], generic: Array.isArray(r.generic) ? r.generic : [], error: null, fetchedAt: r.fetchedAt, fromCache: true };
+  return { host, configured: true, ok: true, status: r.status ?? 200, listed: r.listed ?? 0, people: Array.isArray(r.people) ? r.people : [], generic: Array.isArray(r.generic) ? r.generic : [], dropped: Array.isArray(r.dropped) ? r.dropped : [], error: null, fetchedAt: r.fetchedAt, fromCache: true };
 }

@@ -175,7 +175,10 @@ export function samePerson(a: string, b: string): boolean {
   const pa = nameParts(a), pb = nameParts(b);
   if (!pa.last || !pb.last || pa.last !== pb.last) return false;
   if (pa.last.length < 3) return false;
-  if (pa.first && pb.first) return pa.first === pb.first;
+  // "Chris" and "Christopher", "Ben" and "Benjamin": a short form is the
+  // other's leading letters (three or more), as the register writes the
+  // full name and a website or Hunter the everyday one.
+  if (pa.first && pb.first) return pa.first === pb.first || (Math.min(pa.first.length, pb.first.length) >= 3 && (pa.first.startsWith(pb.first) || pb.first.startsWith(pa.first)));
   if (pa.initial && pb.initial) return pa.initial === pb.initial;
   return true;
 }

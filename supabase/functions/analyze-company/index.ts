@@ -497,13 +497,18 @@ Deno.serve(async (req) => {
       allPeople.push(...extractPeople(src, p.url));
       if (p.tier === 'home' || p.tier === 'contact') allPhones.push(...extractPhones(src, p.url));
     }
+    // Current directors from the register join the people list as name only
+    // (a website entry with the same name gains the register note instead).
+    const recordOfficers = officers
+      .filter((o) => !o.resignedOn && /director|member/i.test(o.role))
+      .map((o) => ({ name: o.name, jobTitle: 'Director', source: 'Companies House register', appointedOn: o.appointedOn }));
     // Hunter's Domain Search: named people with a work address for a site
     // that names nobody itself. One search per company, kept on the run
     // and reused for thirty days (the plan's quota is small).
     let hunter: HunterResult | null = null;
     if (hunterConfigured()) {
       const hunterHost = new URL(siteUrl).hostname.toLowerCase().replace(/^www\./, '');
-      hunter = cachedHunterResult(existingRow?.analysis_result?.contactsRun?.hunter, hunterHost, today) ?? await hunterDomainSearch(hunterHost, { now: today });
+      hunter = cachedHunterResult(existingRow?.analysis_result?.contactsRun?.hunter, hunterHost, today) ?? await hunterDomainSearch(hunterHost, { now: today, officers: recordOfficers });
       const hits = hunterHits(hunter);
       allPeople.push(...hits.people);
       allEmails.push(...hits.emails);
@@ -518,11 +523,6 @@ Deno.serve(async (req) => {
         if (f.contact_name) suppressedNames.add(stripTitle(String(f.contact_name)).toLowerCase().replace(/[^a-z]/g, ''));
       }
     }
-    // Current directors from the register join the people list as name only
-    // (a website entry with the same name gains the register note instead).
-    const recordOfficers = officers
-      .filter((o) => !o.resignedOn && /director|member/i.test(o.role))
-      .map((o) => ({ name: o.name, jobTitle: 'Director', source: 'Companies House register', appointedOn: o.appointedOn }));
     const resolved = resolveContacts({ emails: allEmails, people: allPeople, phones: allPhones, siteHost: new URL(siteUrl).hostname, careersPageUrls, suppressedEmails, suppressedNames, recordOfficers, companyName: officialName });
     resolvedContacts = resolved.contacts;
     const uniqueEmails = Array.from(new Set(allEmails.map((e) => e.email)));
@@ -538,7 +538,7 @@ Deno.serve(async (req) => {
       patternNote: resolved.patternNote,
       officePhone: resolved.officePhone,
       officers: officers.filter((o) => !o.resignedOn).length,
-      hunter: hunter ? { host: hunter.host, ok: hunter.ok, status: hunter.status, listed: hunter.listed, people: hunter.people, generic: hunter.generic, error: hunter.error, fetchedAt: hunter.fetchedAt, fromCache: hunter.fromCache === true } : null,
+      hunter: hunter ? { host: hunter.host, ok: hunter.ok, status: hunter.status, listed: hunter.listed, people: hunter.people, generic: hunter.generic, dropped: hunter.dropped, error: hunter.error, fetchedAt: hunter.fetchedAt, fromCache: hunter.fromCache === true } : null,
       ms: site.notes.ms + (Date.now() - contactsStarted),
     };
     console.log(`Contacts: ${uniqueEmails.length} addresses, ${allPeople.length} people, ${resolved.contacts.length} contacts (${resolved.contacts.filter((c) => c.confidence === 'found').length} found, ${resolved.contacts.filter((c) => c.confidence === 'pattern_guess').length} pattern guesses, ${resolved.contacts.filter((c) => c.confidence === 'role_only').length} name only)`);

@@ -12,7 +12,12 @@ Deno.test('hunter: the fixture keeps the named, confident, placeable people and 
   assertEquals(r.people[0].position, 'Co-founder and CEO');
   assertEquals(r.people[1].phone, '+44 20 7946 0000');
   assertEquals(r.generic, ['hello@metrisenergy.com']);
+  assertEquals(r.dropped.map((d) => `${d.email}: ${d.why}`), ['dave@metrisenergy.com: the position is not a role the app contacts', 'erin@metrisenergy.com: confidence under 50', 'frank@metrisenergy.com: no full name']);
   assertEquals(parseHunterDomainSearch({ data: { emails: [] } }).people, []);
+  // Searchable, 21 September 2026: Hunter lists chris@ with no position; the register has Christopher Donnelly as a director.
+  const withOfficer = parseHunterDomainSearch({ data: { emails: [{ value: 'chris@searchable.com', type: 'personal', confidence: 85, first_name: 'Chris', last_name: 'Donnelly', position: null }] } }, { officers: [{ name: 'Christopher Stuart Stanton Donnelly', jobTitle: 'Director', source: 'Companies House register' }] });
+  assertEquals(withOfficer.people.map((p) => `${p.name} / ${p.position}`), ['Chris Donnelly / Director']);
+  assertEquals(parseHunterDomainSearch({ data: { emails: [{ value: 'chris@searchable.com', type: 'personal', confidence: 85, first_name: 'Chris', last_name: 'Donnelly', position: null }] } }).dropped[0].why, 'no position');
   assertEquals(parseHunterDomainSearch(null).listed, 0);
 });
 
