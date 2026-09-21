@@ -32,6 +32,7 @@ import { configureDatabaseFetch, fetchHomepage, fetchPage, htmlToText, wantedPag
 import { fetchContactPages } from '../_shared/contacts/pages.ts';
 import { extractEmails, extractPeople, extractPhones, type EmailHit, type PersonHit, type PhoneHit } from '../_shared/contacts/extract.ts';
 import { resolveContacts, stripTitle, type Contact } from '../_shared/contacts/resolve.ts';
+import { cachedHunterResult, hunterConfigured, hunterDomainSearch, hunterHits, type HunterResult } from '../_shared/contacts/hunter.ts';
 import { applyModelContactReview, mergeProvidedContacts, toDecisionMaker, type DecisionMaker } from '../_shared/contacts/review.ts';
 import { mergedContactsFor } from '../_shared/contacts/edits.ts';
 import { isDefunctStatus, normaliseCompanyNumber, resolveCompanyRecord, sectorFromSic, syncRegisterDetails, type CompanyRecord, type Officer } from '../_shared/companies-house.ts';
@@ -496,6 +497,18 @@ Deno.serve(async (req) => {
       allPeople.push(...extractPeople(src, p.url));
       if (p.tier === 'home' || p.tier === 'contact') allPhones.push(...extractPhones(src, p.url));
     }
+    // Hunter's Domain Search: named people with a work address for a site
+    // that names nobody itself. One search per company, kept on the run
+    // and reused for thirty days (the plan's quota is small).
+    let hunter: HunterResult | null = null;
+    if (hunterConfigured()) {
+      const hunterHost = new URL(siteUrl).hostname.toLowerCase().replace(/^www\./, '');
+      hunter = cachedHunterResult(existingRow?.analysis_result?.contactsRun?.hunter, hunterHost, today) ?? await hunterDomainSearch(hunterHost, { now: today });
+      const hits = hunterHits(hunter);
+      allPeople.push(...hits.people);
+      allEmails.push(...hits.emails);
+      console.log(`Hunter: ${hunter.ok ? `${hunter.people.length} people of ${hunter.listed} addresses${hunter.fromCache ? ' (from the last run)' : ''}` : hunter.error}`);
+    }
     const suppressedEmails = new Set<string>();
     const suppressedNames = new Set<string>();
     if (existingRow) {
@@ -525,6 +538,7 @@ Deno.serve(async (req) => {
       patternNote: resolved.patternNote,
       officePhone: resolved.officePhone,
       officers: officers.filter((o) => !o.resignedOn).length,
+      hunter: hunter ? { host: hunter.host, ok: hunter.ok, status: hunter.status, listed: hunter.listed, people: hunter.people, generic: hunter.generic, error: hunter.error, fetchedAt: hunter.fetchedAt, fromCache: hunter.fromCache === true } : null,
       ms: site.notes.ms + (Date.now() - contactsStarted),
     };
     console.log(`Contacts: ${uniqueEmails.length} addresses, ${allPeople.length} people, ${resolved.contacts.length} contacts (${resolved.contacts.filter((c) => c.confidence === 'found').length} found, ${resolved.contacts.filter((c) => c.confidence === 'pattern_guess').length} pattern guesses, ${resolved.contacts.filter((c) => c.confidence === 'role_only').length} name only)`);
