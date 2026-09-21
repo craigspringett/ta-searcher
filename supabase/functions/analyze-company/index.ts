@@ -21,7 +21,7 @@ import { computeSignals, normaliseTitle } from '../_shared/signals/compute.ts';
 import { extractDepartures, fetchNewsPages, type NewsFetch } from '../_shared/facts/newsletters.ts';
 import { computePropensity } from '../_shared/score/propensity.ts';
 import { contactsForSignals, loadRegisterForSignals, loadVacanciesForSignals } from '../_shared/signals/load.ts';
-import { applicablePersonas, buildCopyInput, copyIsStale, legacyScripts, storeCopy, type CopyContext } from '../_shared/copy/assemble.ts';
+import { applicablePersonas, buildCopyInput, copyIsStale, groupRolesByFamily, legacyScripts, storeCopy, type CopyContext } from '../_shared/copy/assemble.ts';
 import { generatePersonaCopy } from '../_shared/copy/generate.ts';
 import { consultantFromTag } from '../_shared/copy/reviews.ts';
 import { logAiUsage, type UsageRecord } from '../_shared/copy/usage.ts';
@@ -465,7 +465,7 @@ Deno.serve(async (req) => {
     // ATS boards: anything the homepage or the fetched pages link to that is
     // not already confirmed is checked once and stored; a feed is read only
     // for a confirmed slug.
-    await setStage('boards');
+    await setStage('vacancies');
     const detected = new Map<string, AtsBoard>();
     for (const b of detectAtsBoards(mainPageHtml, siteUrl)) detected.set(`${b.provider}:${b.slug}`, b);
     for (const p of site.pages) if (p.html) for (const b of detectAtsBoards(p.html, p.url)) detected.set(`${b.provider}:${b.slug}`, b);
@@ -722,7 +722,7 @@ Deno.serve(async (req) => {
     if (summary.degraded && existingRow) {
       result.recruitmentInsights.currentVacancies = previousVacancies;
     } else if (persisted) {
-      result.recruitmentInsights.currentVacancies = toCurrentVacancies(persisted) as Array<Record<string, unknown>>;
+      result.recruitmentInsights.currentVacancies = toCurrentVacancies(persisted) as unknown as Array<Record<string, unknown>>;
     } else {
       result.recruitmentInsights.currentVacancies = finalMerge.kept.map((v) => ({
         title: v.title,
@@ -836,11 +836,10 @@ Deno.serve(async (req) => {
     result.summary = summaryFromFacts({
       name: officialName,
       status: trusted?.status ?? null,
-      incorporationDate: trusted?.incorporationDate ?? null,
+      incorporatedYear: trusted?.incorporationDate ? Number(trusted.incorporationDate.slice(0, 4)) : null,
       locality: trusted?.registeredOffice?.locality ?? null,
       sector: trusted ? sectorFromSic(trusted.sicCodes) : null,
-      stage: stage.label,
-      latestRaise: latestRaise?.amountText ?? null,
+      stageLabel: stage.label,
     }, facts, openCount);
     result.buyerIntentSignals = signals.map((s) => `${s.label}: ${s.explanation}`);
     result.recruitmentInsights.recruitmentPatterns = openCount === 0 && !summary.degraded
@@ -859,14 +858,14 @@ Deno.serve(async (req) => {
     const existingCopy: Record<string, any> = existingRow?.analysis_result?.copy && typeof existingRow.analysis_result.copy === 'object' ? existingRow.analysis_result.copy : {};
     out.copy = { ...existingCopy };
     const copyCtx: CopyContext = {
-      company: { name: officialName, record: trusted, stage, latestRaise },
+      company: { name: officialName, record: trusted ? { companyNumber: trusted.companyNumber, status: trusted.status, incorporationDate: trusted.incorporationDate, locality: trusted.registeredOffice?.locality ?? null, sector: sectorFromSic(trusted.sicCodes) } : null, stage, latestRaise },
       // With the consultants' contact edits laid over, so the script names the corrected person.
       // deno-lint-ignore no-explicit-any
       contacts: (existingRow ? await mergedContactsFor(supabaseClient, existingRow.id, result.decisionMakers) : result.decisionMakers).map((d) => ({ name: d.name, role: d.role, email: d.email || undefined, confidence: (d as any).confidence })),
       signals,
       facts,
       // deno-lint-ignore no-explicit-any
-      vacancies: result.recruitmentInsights.currentVacancies.map((v: any) => ({ title: v.title, source: v.sourceLabel || v.source || 'advert', firstSeen: v.firstSeen || null, department: v.department || null, location: v.location || null, url: v.url || null })),
+      openRoles: groupRolesByFamily(result.recruitmentInsights.currentVacancies.map((v: any) => ({ title: String(v.title || ''), department: v.department || null }))),
       consultant: consultantFromTag(refreshConsultant || existingRow?.analysis_result?.consultant || null),
       fingerprint,
     };

@@ -106,16 +106,10 @@ export const template: TemplateEntry = {
   displayName: 'Outreach email (Follow-ups and Shortlister)',
   previewData: {
     subject: 'Fifteen minutes on your hiring plan',
-    body: "Dear Jane,
-
-I saw the Head of Talent post on your Ashby board this week, alongside twelve other open roles. I placed the Head of Recruitment at Searchable, a Series A team at the same stage, and it may be worth fifteen minutes on what that build-out looked like.
-
-Would Tuesday or Wednesday afternoon suit?
-
-Best wishes,",
+    body: "Dear Jane,\n\nI saw the Head of Talent post on your Ashby board this week, alongside twelve other open roles. I placed the Head of Recruitment at Searchable, a Series A team at the same stage, and it may be worth fifteen minutes on what that build-out looked like.\n\nWould Tuesday or Wednesday afternoon suit?\n\nBest wishes,",
     signature: {
-      name: 'Kim Webb',
-      title: 'Associate Director – Wellbeing & People Experience',
+      name: 'Craig Springett',
+      title: 'Founder',
       company: 'Big Fish Recruitment',
       phone: '07742 023944',
       website: 'bigfishrecruitment.co.uk',

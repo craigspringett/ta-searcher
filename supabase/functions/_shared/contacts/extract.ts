@@ -167,7 +167,8 @@ export function visibleTextWithMailto(html: string): string {
     const a = decodeEntities(addr).trim();
     return text.toLowerCase().includes(a.toLowerCase()) ? ` ${text} ` : ` ${text} ${a} `;
   }).replace(/data-email="([^"]+)"/gi, ' $1 ');
-  return htmlToText(withAddresses);
+  // The named entities a marketing site writes between a name and an address (&mdash;, &ndash;, &nbsp;) become plain characters.
+  return decodeEntities(htmlToText(withAddresses));
 }
 
 /** Top-level domains an obfuscated company address can plausibly end in; "lunchtime. Then" is prose, not a domain. */
@@ -352,7 +353,7 @@ export function looksLikeName(text: string): boolean {
 }
 
 function splitNameAndRole(cell: string): { name: string; role: string } | null {
-  // "Ms Sharon Collins (PA to the Headteacher)" or "Mr J Smith - Head of Year 7"
+  // "Tom Patel (EA to the CEO)" or "Amy Jones - Chief of Staff"
   const t = cleanName(cell);
   let m = t.match(/^(.+?)\s*\(([^)]{3,100})\)\s*$/);
   if (m && looksLikeName(m[1]) && looksLikeRole(m[2])) return { name: cleanName(m[1]), role: m[2].trim() };
@@ -373,8 +374,11 @@ function firstEmailIn(text: string): string | undefined {
   return e ?? undefined;
 }
 
+/** The text without its addresses: plain ones, and the "[at]" and "name at domain dot io" forms, so "Priya Shah — p.shah [at] x [dot] io" still reads as a name. */
 function stripEmails(text: string): string {
-  return text.replace(EMAIL_RE, ' ').replace(/\s+/g, ' ').trim();
+  let t = text.replace(EMAIL_RE, ' ');
+  for (const d of deobfuscateText(t)) t = t.replace(d.original, ' ');
+  return t.replace(/\(\s*\)/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
 export function extractPeople(htmlOrText: string, pageUrl: string): PersonHit[] {
@@ -507,7 +511,7 @@ export function extractPeople(htmlOrText: string, pageUrl: string): PersonHit[] 
     const nextLineEmail = li + 1 < lines.length && /^(?:contact details|contact|e-?mail|e)\s*[:\-–]?\s*[a-z0-9][a-z0-9._%+'-]*@/i.test(lines[li + 1]) ? firstEmailIn(lines[li + 1]) : undefined;
     const split = splitNameAndRole(stripEmails(line));
     if (split) { add(split.name, split.role, line, firstEmailIn(line) ?? nextLineEmail); continue; }
-    // "Headteacher: Jamie Brownhill Chair of Governors: Simon Dodds" (several on one line)
+    // "Founder: Jamie Brownhill Chief of Staff: Simon Dodds" (several on one line)
     const multi = /([A-Z][A-Za-z'’()\/&\s-]{2,80}?)\s*[:–—-]\s*((?:(?:Mr|Mrs|Ms|Miss|Mx|Dr|Rev|Revd|Fr|Sr|Prof|Sir)\.?\s+)?[A-Z][a-z'’-]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z'’-]+){0,3})(?=\s+[A-Z][A-Za-z'’()\/&\s-]{2,80}?\s*[:–—-]|\s*[a-z0-9._%+'-]+@|\s*$)/g;
     const matches: Array<{ name: string; role: string; end: number }> = [];
     let mm: RegExpExecArray | null;
@@ -521,7 +525,7 @@ export function extractPeople(htmlOrText: string, pageUrl: string): PersonHit[] 
       });
       continue;
     }
-    // "Mrs Sarah Brown, Headteacher" or "Headteacher Mrs Sarah Brown"
+    // "Dr Sarah Brown, CTO" or "CTO Dr Sarah Brown" (a titled name; plain names go through the line patterns above)
     NAME_WITH_TITLE.lastIndex = 0;
     let nm: RegExpExecArray | null;
     const named: Array<{ name: string; role: string; end: number }> = [];

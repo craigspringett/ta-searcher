@@ -24,7 +24,7 @@ export class PageErrorBoundary extends React.Component<{ children: React.ReactNo
         <pre style={{ whiteSpace: "pre-wrap", background: "#F5F7F9", padding: 12, borderRadius: 6, fontSize: 13 }}>{message}</pre>
         <p style={{ marginTop: 12 }}>
           <button type="button" onClick={() => window.location.reload()} style={{ padding: "8px 14px", borderRadius: 6, border: "1px solid #C9D1DA", background: "white", cursor: "pointer" }}>Reload the page</button>
-          <a href="/" style={{ marginLeft: 12 }}>Back to He-Giveth</a>
+          <a href="/" style={{ marginLeft: 12 }}>Back to My patch</a>
         </p>
       </div>
     );

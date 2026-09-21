@@ -92,6 +92,8 @@ function absorb(into: MergedVacancy, v: MergedVacancy, dropped: MergeOutcome['dr
   dropped.push({ title: v.title, source: v.source, reason });
 }
 
+const ATS_SOURCES: ReadonlySet<string> = new Set(['ashby', 'greenhouse', 'lever', 'workable']);
+
 export function mergeVacancies(candidates: CandidateVacancy[], _ctx: Pick<CompanyContext, 'name'> | null = null, today: Date = new Date()): MergeOutcome {
   const byKey = new Map<string, MergedVacancy>();
   const dropped: MergeOutcome['dropped'] = [];
@@ -144,12 +146,22 @@ export function mergeVacancies(candidates: CandidateVacancy[], _ctx: Pick<Compan
   }
   // The same role on the feed and the careers page has two URLs: collapse
   // identical titles within this company, keeping the higher-priority source.
+  // Two postings with the same title on one feed, each with its own URL
+  // (Searchable's London and Utah "Account Executive"), are two roles: the
+  // feed keys them apart and each is hiring load. Only a title seen on a
+  // different source, or without a URL of its own, collapses.
   const byTitle = new Map<string, MergedVacancy>();
+  const distinct: MergedVacancy[] = [];
   for (const v of byKey.values()) {
     const t = normaliseTitle(v.title);
     const existing = byTitle.get(t);
     if (!existing) {
       byTitle.set(t, v);
+      continue;
+    }
+    const bothOnOneFeed = existing.source === v.source && ATS_SOURCES.has(v.source) && v.key.startsWith('url:') && existing.key.startsWith('url:');
+    if (bothOnOneFeed) {
+      distinct.push(v);
       continue;
     }
     absorb(existing, v, dropped, `same title as ${existing.source} listing`);
@@ -159,7 +171,7 @@ export function mergeVacancies(candidates: CandidateVacancy[], _ctx: Pick<Compan
   // feed with the same words are two roles (the feed keys them apart) and
   // are left alone.
   const kept: MergedVacancy[] = [];
-  for (const v of byTitle.values()) {
+  for (const v of [...byTitle.values(), ...distinct]) {
     const existing = kept.find((k) => k.source !== v.source && samePost(k.title, v.title));
     if (!existing) {
       kept.push(v);

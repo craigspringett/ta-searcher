@@ -45,9 +45,9 @@ Deno.test('mergeVacancies: two postings with the same words on one feed are two 
     { title: 'Sales Development Representative (SDR) - SMB', url: 'https://jobs.ashbyhq.com/searchable/sdr-s', source: 'ashby' },
     { title: 'Account Executives', url: 'https://searchable.ai/careers/ae', source: 'careers_page' },
   ], ctx, today);
-  // Identical titles collapse by title (the two London and Utah AEs are one line: the feed keys them apart but the merge cannot tell them from a re-post), the page's plural joins it.
-  assertEquals(out.kept.map((v) => v.title), ['Account Executive', 'Sales Development Representative (SDR) - Enterprise', 'Sales Development Representative (SDR) - SMB']);
-  assertEquals(out.dropped.map((d) => d.reason), ['same title as ashby listing', 'near-identical to ashby listing "Account Executive"']);
+  // The London and Utah AEs are two roles (one feed, two URLs: each is hiring load); the page's plural joins the first.
+  assertEquals(out.kept.map((v) => v.title), ['Account Executive', 'Sales Development Representative (SDR) - Enterprise', 'Sales Development Representative (SDR) - SMB', 'Account Executive']);
+  assertEquals(out.dropped.map((d) => d.reason), ['near-identical to ashby listing "Account Executive"']);
 });
 
 Deno.test('mergeVacancies: a careers-page job description joins its advert as a document; a stale document is dropped; feed titles with years are untouched', () => {

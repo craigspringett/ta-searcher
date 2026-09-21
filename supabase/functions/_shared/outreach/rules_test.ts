@@ -1,24 +1,14 @@
 import { assert, assertEquals } from '../test-assert.ts';
-import { alreadyEmailedToday, checkOutreachText, londonDay, parseOutreachRequest, SERVICE_PHRASES } from './rules.ts';
-
-Deno.test('daily supply is a hard stop, whatever the wording', () => {
-  assert(SERVICE_PHRASES.includes('daily supply'));
-  assert(SERVICE_PHRASES.includes('emergency cover'));
-  assert(!SERVICE_PHRASES.includes('reach out'));
-  const r = checkOutreachText('Cover for Year 4', 'We can help with Daily Supply and planned cover from January.');
-  assertEquals(r.blocked.length, 1);
-  assert(r.blocked[0].includes('"daily supply"'));
-  assertEquals(r.warnings, []);
-});
+import { alreadyEmailedToday, checkOutreachText, londonDay, parseOutreachRequest } from './rules.ts';
 
 Deno.test('a margin or fee figure is a hard stop; the bare word is a warning', () => {
   const figure = checkOutreachText('Rates', 'Our margin is £45 a day and our permanent fee is 12%.');
   assertEquals(figure.blocked.length, 1);
-  assert(figure.blocked[0].includes('margin or fee figure'));
+  assert(figure.blocked[0].includes('fee, margin or retainer figure'));
   const word = checkOutreachText('Rates', 'Happy to show you our margin on a call.');
   assertEquals(word.blocked, []);
   assertEquals(word.warnings.length, 1);
-  assert(word.warnings[0].includes('margin or fee'));
+  assert(word.warnings[0].includes('fee or margin'));
 });
 
 Deno.test('style phrases only warn, and a clean email passes', () => {

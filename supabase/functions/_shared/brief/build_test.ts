@@ -32,7 +32,7 @@ Deno.test('toBriefCompany: reason, further signals, band and links', () => {
   assertEquals(b.rank, 3);
   assertEquals(b.band, 'warm');
   assertEquals(b.reason, '8 roles are open.');
-  assertEquals(b.alsoSignals, ['Framework window (RM6376)']);
+  assertEquals(b.alsoSignals, ['Accelerator alumni']);
   assertEquals(b.appUrl, 'https://app.example/companies/id-x');
   assertEquals(b.contact?.email, 'head@oak.sch.uk');
   assertEquals(b.consultant, undefined);

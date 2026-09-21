@@ -57,7 +57,8 @@ Deno.test('role taxonomy: founder, coo, cto, people, talent, exec, ea, investor 
   assertEquals(classifyRole('Product Designer'), null);
   assertEquals(roleLabel('Head of Talent Acquisition'), 'Head of Talent');
   assertEquals(roleLabel('Co-founder'), 'Founder / CEO');
-  assertEquals(roleLabel('Partner at Seedcamp'), null, 'a partner is an investor only when the word leads the title');
+  assertEquals(roleLabel('Partner at Seedcamp'), 'Investor / Board', 'a partner at a fund is an investor');
+  assertEquals(classifyRole('Partnerships Manager'), null);
   assertEquals(classifyRole('General Partner, Seedcamp')?.key, 'investor');
 });
 
@@ -75,7 +76,7 @@ Deno.test('generic mailboxes: the ranked ones map to a role, the deny list never
 });
 
 Deno.test('the team cards site end to end: founders found in-card, name-only leaders, a guess for the Head of Talent, investors never guessed', () => {
-  const out = resolveFixture('startup-team-cards.html', 'https://lumenly.ai/team');
+  const out = resolveFixture('startup-team-cards.html', 'https://lumenly.ai/team', { maxContacts: 12 });
   const by = Object.fromEntries(out.contacts.map((c) => [c.name, c]));
   assertEquals(by['Sarah Green'].confidence, 'found');
   assertEquals(by['Sarah Green'].email, 'sarah.green@lumenly.ai');
@@ -164,10 +165,9 @@ Deno.test('two found addresses sharing first.last produce a labelled guess on th
     { name: 'Rob Hill', role: 'Director', email: '', confidence: 'role_only', source_url: 'Companies House register', evidence: 'record', rank: 6 },
     { name: 'Kim Park', role: 'Talent Partner', email: '', confidence: 'role_only', source_url: 'https://jobs.ashbyhq.com/lumenly', evidence: 'board', rank: 5, level: 'careers' },
   ];
-  const r = guessByPattern(contacts, 'lumenly.ai', new Set(['omar.khan@lumenly.ai']));
+  const r = guessByPattern(contacts.map((c) => ({ ...c })), 'lumenly.ai', new Set(['omar.khan@lumenly.ai']));
   assertEquals(r.guessed, 1, 'a suppressed address is never guessed; the careers-page person still is');
-  assertEquals(contacts[2].email, '');
-  const fresh = contacts.map((c) => ({ ...c, email: c.confidence === 'role_only' ? '' : c.email, confidence: c.confidence === 'pattern_guess' ? 'role_only' as const : c.confidence }));
+  const fresh = contacts.map((c) => ({ ...c }));
   const r2 = guessByPattern(fresh, 'lumenly.ai', new Set());
   assertEquals(r2.guessed, 2);
   assertEquals(fresh[2].email, 'omar.khan@lumenly.ai');
@@ -181,7 +181,7 @@ Deno.test('two found addresses sharing first.last produce a labelled guess on th
 
 Deno.test('Companies House officers: added as name-only when absent, noted on the website\'s entry when present', () => {
   const officers = [{ name: 'Sarah Green', jobTitle: 'Director', source: 'Companies House register', appointedOn: '2024-03-01' }, { name: 'Peter Someone', jobTitle: 'Director', source: 'Companies House register', appointedOn: '2025-01-10' }];
-  const out = resolveFixture('startup-team-cards.html', 'https://lumenly.ai/team', { recordOfficers: officers });
+  const out = resolveFixture('startup-team-cards.html', 'https://lumenly.ai/team', { recordOfficers: officers, maxContacts: 12 });
   const sarah = out.contacts.find((c) => c.name === 'Sarah Green')!;
   assertEquals(sarah.email, 'sarah.green@lumenly.ai', 'the website entry wins');
   assert(/Director since 2024-03-01 on the Companies House register/.test(sarah.evidence), sarah.evidence);
@@ -247,7 +247,8 @@ Deno.test('the same person on two pages is one contact, with the address from th
 Deno.test('the company name is not a person; "Head of Sales" and "Founding Engineer" are not decision makers', () => {
   assertEquals(classifyRole('Head of Sales'), null);
   assertEquals(classifyRole('Founding Engineer'), null);
-  assertEquals(classifyRole('Head of Talent and People')?.key, 'people', 'head of people wins the tie by rank');
+  assertEquals(classifyRole('Head of Talent and People')?.key, 'talent', 'a combined title reads as the talent role');
+  assertEquals(classifyRole('Head of People and Talent')?.key, 'people');
   const out = resolveContacts({
     emails: [], phones: [], siteHost: 'lumenly.ai', companyName: 'Lumenly Ltd',
     people: [

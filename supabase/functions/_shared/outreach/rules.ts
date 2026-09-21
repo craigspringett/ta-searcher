@@ -1,10 +1,8 @@
 // The rules an outreach email must keep (Follow-ups slice 1, docs/FOLLOW-UPS-BRIEF.md).
 //
 // The consultant writes the email; TA Searcher checks it before it goes:
-//   * never daily supply: the same phrases the script writer is refused
-//     (BANNED_PHRASES in _shared/copy/checks.ts, the service block), a
+//   * never a margin, fee or retainer figure (feeFigureViolations), a
 //     hard stop;
-//   * never a margin or fee figure (feeFigureViolations), a hard stop;
 //   * the fluff the style guide bans ("reach out", "hope this finds you
 //     well"): a warning the consultant sees and may send through;
 //   * one send per contact per day: refused with a clear message;
@@ -13,11 +11,8 @@
 
 import { BANNED_PHRASES, feeFigureViolations } from '../copy/checks.ts';
 
-/** The phrases that describe a service Big Fish Recruitment does not offer: a hard stop, never a warning. */
-export const SERVICE_PHRASES = BANNED_PHRASES.filter((p) => /supply|cover|6[.:]30am/.test(p));
-
-/** The bare words that only ever go with a figure a company must not see. */
-const FEE_WORDS = /\b(margins?|fees?|commission|mark-?ups?)\b/i;
+/** The bare words that only ever go with a figure a company must not see in writing. */
+const FEE_WORDS = /\b(margins?|fees?|commission|mark-?ups?|retainers?|placement fees?)\b/i;
 
 export interface BodyCheck {
   /** Reasons the email must not go as written. */
@@ -36,13 +31,11 @@ export function checkOutreachText(subject: string, body: string): BodyCheck {
   const all = `${subject || ''}\n${body || ''}`;
   const blocked: string[] = [];
   const warnings: string[] = [];
-  const service = phraseHits(all, SERVICE_PHRASES);
-  if (service.length) blocked.push(`We only place long-term, permanent and planned cover, never daily supply. Take out: ${[...new Set(service)].map((s) => `"${s}"`).join(', ')}.`);
   const fee = feeFigureViolations(all);
-  if (fee.length) blocked.push(`Never put a margin or fee figure in writing; invite them to see it on a call instead. Take out: "${fee[0].slice(0, 80)}".`);
-  const style = phraseHits(all, BANNED_PHRASES.filter((p) => !SERVICE_PHRASES.includes(p)));
+  if (fee.length) blocked.push(`Never put a fee, margin or retainer figure in writing; talk it through on a call instead. Take out: "${fee[0].slice(0, 80)}".`);
+  const style = phraseHits(all, BANNED_PHRASES);
   if (style.length) warnings.push(`Plain words read better than ${[...new Set(style)].map((s) => `"${s}"`).join(', ')}.`);
-  if (!fee.length && FEE_WORDS.test(all)) warnings.push('This mentions a margin or fee. Keep it to "framework rates" and an offer to show the figure on a call.');
+  if (!fee.length && FEE_WORDS.test(all)) warnings.push('This mentions a fee or margin. Keep it to how we work and an offer to talk figures on a call.');
   return { blocked, warnings };
 }
 
