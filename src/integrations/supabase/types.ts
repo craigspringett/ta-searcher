@@ -70,6 +70,7 @@ export type Database = {
           {
             foreignKeyName: "ai_usage_company_search_id_fkey"
             columns: ["company_search_id"]
+            isOneToOne: false
             referencedRelation: "company_searches"
             referencedColumns: ["id"]
           },
@@ -101,12 +102,14 @@ export type Database = {
           {
             foreignKeyName: "alert_deliveries_config_id_fkey"
             columns: ["config_id"]
+            isOneToOne: false
             referencedRelation: "vacancy_alert_settings"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "alert_deliveries_vacancy_id_fkey"
             columns: ["vacancy_id"]
+            isOneToOne: false
             referencedRelation: "vacancies"
             referencedColumns: ["id"]
           },
@@ -118,7 +121,7 @@ export type Database = {
           enqueued_at: string
           error: string | null
           id: number
-          payload: NonNullable<Json>
+          payload: Json
           prefetched_at: string | null
           request_id: number | null
           target_url: string
@@ -128,7 +131,7 @@ export type Database = {
           enqueued_at?: string
           error?: string | null
           id?: number
-          payload: NonNullable<Json>
+          payload: Json
           prefetched_at?: string | null
           request_id?: number | null
           target_url: string
@@ -138,7 +141,7 @@ export type Database = {
           enqueued_at?: string
           error?: string | null
           id?: number
-          payload?: NonNullable<Json>
+          payload?: Json
           prefetched_at?: string | null
           request_id?: number | null
           target_url?: string
@@ -171,19 +174,19 @@ export type Database = {
           key: string
           updated_at: string
           updated_by: string | null
-          value: NonNullable<Json>
+          value: Json
         }
         Insert: {
           key: string
           updated_at?: string
           updated_by?: string | null
-          value?: NonNullable<Json>
+          value?: Json
         }
         Update: {
           key?: string
           updated_at?: string
           updated_by?: string | null
-          value?: NonNullable<Json>
+          value?: Json
         }
         Relationships: []
       }
@@ -231,6 +234,7 @@ export type Database = {
           {
             foreignKeyName: "ats_boards_company_search_id_fkey"
             columns: ["company_search_id"]
+            isOneToOne: false
             referencedRelation: "company_searches"
             referencedColumns: ["id"]
           },
@@ -280,6 +284,7 @@ export type Database = {
           {
             foreignKeyName: "ch_filings_company_number_fkey"
             columns: ["company_number"]
+            isOneToOne: false
             referencedRelation: "company_records"
             referencedColumns: ["company_number"]
           },
@@ -335,6 +340,7 @@ export type Database = {
           {
             foreignKeyName: "ch_officers_company_number_fkey"
             columns: ["company_number"]
+            isOneToOne: false
             referencedRelation: "company_records"
             referencedColumns: ["company_number"]
           },
@@ -360,12 +366,14 @@ export type Database = {
           {
             foreignKeyName: "company_consultants_company_search_id_fkey"
             columns: ["company_search_id"]
+            isOneToOne: false
             referencedRelation: "company_searches"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "company_consultants_consultant_id_fkey"
             columns: ["consultant_id"]
+            isOneToOne: false
             referencedRelation: "consultants"
             referencedColumns: ["id"]
           },
@@ -421,12 +429,14 @@ export type Database = {
           {
             foreignKeyName: "company_contact_edits_company_search_id_fkey"
             columns: ["company_search_id"]
+            isOneToOne: false
             referencedRelation: "company_searches"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "company_contact_edits_edited_by_fkey"
             columns: ["edited_by"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -436,7 +446,7 @@ export type Database = {
         Row: {
           company_search_id: string
           contact: Json | null
-          copy: NonNullable<Json>
+          copy: Json
           created_at: string
           evidence_fingerprint: string | null
           generated_at: string
@@ -449,7 +459,7 @@ export type Database = {
         Insert: {
           company_search_id: string
           contact?: Json | null
-          copy: NonNullable<Json>
+          copy: Json
           created_at?: string
           evidence_fingerprint?: string | null
           generated_at?: string
@@ -462,7 +472,7 @@ export type Database = {
         Update: {
           company_search_id?: string
           contact?: Json | null
-          copy?: NonNullable<Json>
+          copy?: Json
           created_at?: string
           evidence_fingerprint?: string | null
           generated_at?: string
@@ -476,6 +486,7 @@ export type Database = {
           {
             foreignKeyName: "company_copy_company_search_id_fkey"
             columns: ["company_search_id"]
+            isOneToOne: false
             referencedRelation: "company_searches"
             referencedColumns: ["id"]
           },
@@ -531,6 +542,7 @@ export type Database = {
           {
             foreignKeyName: "company_facts_company_search_id_fkey"
             columns: ["company_search_id"]
+            isOneToOne: false
             referencedRelation: "company_searches"
             referencedColumns: ["id"]
           },
@@ -637,6 +649,7 @@ export type Database = {
           {
             foreignKeyName: "company_refresh_runs_company_search_id_fkey"
             columns: ["company_search_id"]
+            isOneToOne: false
             referencedRelation: "company_searches"
             referencedColumns: ["id"]
           },
@@ -644,7 +657,7 @@ export type Database = {
       }
       company_scores: {
         Row: {
-          breakdown: NonNullable<Json>
+          breakdown: Json
           company_search_id: string
           computed_at: string
           score: number
@@ -653,7 +666,7 @@ export type Database = {
           top_reason: string | null
         }
         Insert: {
-          breakdown?: NonNullable<Json>
+          breakdown?: Json
           company_search_id: string
           computed_at?: string
           score: number
@@ -662,7 +675,7 @@ export type Database = {
           top_reason?: string | null
         }
         Update: {
-          breakdown?: NonNullable<Json>
+          breakdown?: Json
           company_search_id?: string
           computed_at?: string
           score?: number
@@ -674,6 +687,7 @@ export type Database = {
           {
             foreignKeyName: "company_scores_company_search_id_fkey"
             columns: ["company_search_id"]
+            isOneToOne: true
             referencedRelation: "company_searches"
             referencedColumns: ["id"]
           },
@@ -681,37 +695,37 @@ export type Database = {
       }
       company_searches: {
         Row: {
-          analysis_result: NonNullable<Json>
+          analysis_result: Json
           company_name: string
           company_number: string | null
           created_at: string
           evidence_computed_at: string | null
           evidence_fingerprint: string | null
-          external_refs: NonNullable<Json>
+          external_refs: Json
           id: string
           updated_at: string
           url: string
         }
         Insert: {
-          analysis_result: NonNullable<Json>
+          analysis_result: Json
           company_name: string
           company_number?: string | null
           created_at?: string
           evidence_computed_at?: string | null
           evidence_fingerprint?: string | null
-          external_refs?: NonNullable<Json>
+          external_refs?: Json
           id?: string
           updated_at?: string
           url: string
         }
         Update: {
-          analysis_result?: NonNullable<Json>
+          analysis_result?: Json
           company_name?: string
           company_number?: string | null
           created_at?: string
           evidence_computed_at?: string | null
           evidence_fingerprint?: string | null
-          external_refs?: NonNullable<Json>
+          external_refs?: Json
           id?: string
           updated_at?: string
           url?: string
@@ -723,7 +737,7 @@ export type Database = {
           code: string
           company_search_id: string
           computed_at: string
-          evidence: NonNullable<Json>
+          evidence: Json
           explanation: string
           id: string
           label: string
@@ -733,7 +747,7 @@ export type Database = {
           code: string
           company_search_id: string
           computed_at?: string
-          evidence?: NonNullable<Json>
+          evidence?: Json
           explanation: string
           id?: string
           label: string
@@ -743,7 +757,7 @@ export type Database = {
           code?: string
           company_search_id?: string
           computed_at?: string
-          evidence?: NonNullable<Json>
+          evidence?: Json
           explanation?: string
           id?: string
           label?: string
@@ -753,6 +767,7 @@ export type Database = {
           {
             foreignKeyName: "company_signals_company_search_id_fkey"
             columns: ["company_search_id"]
+            isOneToOne: false
             referencedRelation: "company_searches"
             referencedColumns: ["id"]
           },
@@ -764,7 +779,7 @@ export type Database = {
           brief_copies: string[]
           created_at: string
           email: string | null
-          external_refs: NonNullable<Json>
+          external_refs: Json
           id: string
           name: string
           profile_id: string | null
@@ -775,7 +790,7 @@ export type Database = {
           brief_copies?: string[]
           created_at?: string
           email?: string | null
-          external_refs?: NonNullable<Json>
+          external_refs?: Json
           id?: string
           name: string
           profile_id?: string | null
@@ -786,7 +801,7 @@ export type Database = {
           brief_copies?: string[]
           created_at?: string
           email?: string | null
-          external_refs?: NonNullable<Json>
+          external_refs?: Json
           id?: string
           name?: string
           profile_id?: string | null
@@ -796,6 +811,7 @@ export type Database = {
           {
             foreignKeyName: "consultants_profile_id_fkey"
             columns: ["profile_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -836,6 +852,7 @@ export type Database = {
           {
             foreignKeyName: "contact_feedback_company_search_id_fkey"
             columns: ["company_search_id"]
+            isOneToOne: false
             referencedRelation: "company_searches"
             referencedColumns: ["id"]
           },
@@ -879,6 +896,7 @@ export type Database = {
           {
             foreignKeyName: "copy_queue_company_search_id_fkey"
             columns: ["company_search_id"]
+            isOneToOne: false
             referencedRelation: "company_searches"
             referencedColumns: ["id"]
           },
@@ -934,12 +952,14 @@ export type Database = {
           {
             foreignKeyName: "email_events_company_search_id_fkey"
             columns: ["company_search_id"]
+            isOneToOne: false
             referencedRelation: "company_searches"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "email_events_consultant_id_fkey"
             columns: ["consultant_id"]
+            isOneToOne: false
             referencedRelation: "consultants"
             referencedColumns: ["id"]
           },
@@ -1043,6 +1063,7 @@ export type Database = {
           {
             foreignKeyName: "email_signatures_updated_by_fkey"
             columns: ["updated_by"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -1131,6 +1152,7 @@ export type Database = {
           {
             foreignKeyName: "funding_news_matched_company_fkey"
             columns: ["matched_company_search_id"]
+            isOneToOne: false
             referencedRelation: "company_searches"
             referencedColumns: ["id"]
           },
@@ -1145,7 +1167,7 @@ export type Database = {
           contact_role: string | null
           created_at: string
           created_by: string | null
-          external_refs: NonNullable<Json>
+          external_refs: Json
           id: string
           kind: string
           note: string | null
@@ -1159,7 +1181,7 @@ export type Database = {
           contact_role?: string | null
           created_at?: string
           created_by?: string | null
-          external_refs?: NonNullable<Json>
+          external_refs?: Json
           id?: string
           kind: string
           note?: string | null
@@ -1173,7 +1195,7 @@ export type Database = {
           contact_role?: string | null
           created_at?: string
           created_by?: string | null
-          external_refs?: NonNullable<Json>
+          external_refs?: Json
           id?: string
           kind?: string
           note?: string | null
@@ -1183,18 +1205,21 @@ export type Database = {
           {
             foreignKeyName: "outcomes_company_search_id_fkey"
             columns: ["company_search_id"]
+            isOneToOne: false
             referencedRelation: "company_searches"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "outcomes_consultant_id_fkey"
             columns: ["consultant_id"]
+            isOneToOne: false
             referencedRelation: "consultants"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "outcomes_created_by_fkey"
             columns: ["created_by"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -1248,7 +1273,7 @@ export type Database = {
           created_at: string
           display_name: string | null
           email: string
-          features: NonNullable<Json>
+          features: Json
           id: string
           role: string
           updated_at: string
@@ -1258,7 +1283,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           email: string
-          features?: NonNullable<Json>
+          features?: Json
           id: string
           role?: string
           updated_at?: string
@@ -1268,7 +1293,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           email?: string
-          features?: NonNullable<Json>
+          features?: Json
           id?: string
           role?: string
           updated_at?: string
@@ -1305,7 +1330,7 @@ export type Database = {
           company_search_id: string | null
           created_at: string
           employer_name: string | null
-          external_refs: NonNullable<Json>
+          external_refs: Json
           first_seen: string
           id: string
           last_seen: string
@@ -1324,7 +1349,7 @@ export type Database = {
           company_search_id?: string | null
           created_at?: string
           employer_name?: string | null
-          external_refs?: NonNullable<Json>
+          external_refs?: Json
           first_seen?: string
           id?: string
           last_seen?: string
@@ -1343,7 +1368,7 @@ export type Database = {
           company_search_id?: string | null
           created_at?: string
           employer_name?: string | null
-          external_refs?: NonNullable<Json>
+          external_refs?: Json
           first_seen?: string
           id?: string
           last_seen?: string
@@ -1361,6 +1386,7 @@ export type Database = {
           {
             foreignKeyName: "vacancies_company_search_id_fkey"
             columns: ["company_search_id"]
+            isOneToOne: false
             referencedRelation: "company_searches"
             referencedColumns: ["id"]
           },
@@ -1419,6 +1445,7 @@ export type Database = {
           {
             foreignKeyName: "vacancy_alert_settings_consultant_id_fkey"
             columns: ["consultant_id"]
+            isOneToOne: false
             referencedRelation: "consultants"
             referencedColumns: ["id"]
           },
@@ -1453,6 +1480,7 @@ export type Database = {
           {
             foreignKeyName: "vacancy_feedback_vacancy_id_fkey"
             columns: ["vacancy_id"]
+            isOneToOne: false
             referencedRelation: "vacancies"
             referencedColumns: ["id"]
           },
@@ -1463,7 +1491,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      app_role: { Args: Record<PropertyKey, never>; Returns: string }
+      app_role: { Args: never; Returns: string }
       auth_before_user_created: { Args: { event: Json }; Returns: Json }
       close_stale_refresh_runs: {
         Args: { p_minutes?: number }
@@ -1497,25 +1525,16 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
-      get_ai_usage_summary: { Args: Record<PropertyKey, never>; Returns: Json }
+      get_ai_usage_summary: { Args: never; Returns: Json }
       get_cron_last_run: { Args: { p_jobid: number }; Returns: Json }
-      get_cron_monitoring_jobs_only: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
-      get_cron_monitoring_status: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
+      get_cron_monitoring_jobs_only: { Args: never; Returns: Json }
+      get_cron_monitoring_status: { Args: never; Returns: Json }
       get_cron_recent_runs: {
         Args: { p_jobid: number; p_limit?: number }
         Returns: Json
       }
-      get_pipeline_health: { Args: Record<PropertyKey, never>; Returns: Json }
-      get_vacancy_email_counters: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
+      get_pipeline_health: { Args: never; Returns: Json }
+      get_vacancy_email_counters: { Args: never; Returns: Json }
       has_feature: { Args: { p_feature: string }; Returns: boolean }
       http_page_enqueue: {
         Args: { p_timeout_ms?: number; p_url: string }
@@ -1527,8 +1546,8 @@ export type Database = {
         Returns: number
       }
       is_allowed_login_email: { Args: { p_email: string }; Returns: boolean }
-      is_app_user: { Args: Record<PropertyKey, never>; Returns: boolean }
-      is_manager: { Args: Record<PropertyKey, never>; Returns: boolean }
+      is_app_user: { Args: never; Returns: boolean }
+      is_manager: { Args: never; Returns: boolean }
       move_to_dlq: {
         Args: {
           dlq_name: string
@@ -1538,15 +1557,12 @@ export type Database = {
         }
         Returns: number
       }
-      my_consultant_ids: { Args: Record<PropertyKey, never>; Returns: string[] }
+      my_consultant_ids: { Args: never; Returns: string[] }
       owns_alert_setting: {
         Args: { p_consultant_id: string; p_email: string }
         Returns: boolean
       }
-      process_email_queue_tick: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      process_email_queue_tick: { Args: never; Returns: undefined }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
         Returns: {

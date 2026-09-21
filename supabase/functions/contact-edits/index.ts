@@ -25,9 +25,8 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { identifyCaller } from '../_shared/auth.ts';
 import { mergeContacts, removedContacts } from '../_shared/contacts.ts';
-import { activeRunWarning, checkContactEdit, editorName, parseContactEditRequest, savedMessage, sequenceEmailChange, type ActiveSequence } from '../_shared/contacts/edit-rules.ts';
+import { activeRunWarning, checkContactEdit, editorName, parseContactEditRequest, savedMessage, type ActiveSequence } from '../_shared/contacts/edit-rules.ts';
 import { CONTACT_EDIT_COLUMNS, loadContactEdits } from '../_shared/contacts/edits.ts';
-import { logNote } from '../_shared/follow-ups/store.ts';
 import { cors, json, myConsultantIds } from '../_shared/outreach/caller.ts';
 
 const suppressedWords = (reason: string) => (reason === 'complaint' ? 'marked an earlier email as spam' : reason === 'bounce' ? 'bounced before' : 'asked not to be emailed');
@@ -101,20 +100,10 @@ Deno.serve(async (req): Promise<Response> => {
     }).select(CONTACT_EDIT_COLUMNS).single();
     if (insErr) return json({ error: `Could not save: ${insErr.message}` }, 500);
 
-    // Follow-ups: an active run with this person emails the new address from now on.
-    const { data: seqRows } = await supabase.from('follow_up_sequences').select('id, status, contact_name, contact_email, contact_role, company_search_id, consultant_id').eq('company_search_id', company.id).eq('status', 'active');
-    const sequences = (seqRows || []) as Array<ActiveSequence & { company_search_id: string; consultant_id: string | null }>;
-    const change = sequenceEmailChange(r, current, sequences, byName);
-    let sequenceUpdated: { sequenceId: string; note: string } | null = null;
-    if (change) {
-      const { error: seqErr } = await supabase.from('follow_up_sequences').update({ contact_email: change.to }).eq('id', change.sequenceId).eq('status', 'active');
-      if (seqErr) console.warn('contact-edits: follow-up sequence not updated', { message: seqErr.message });
-      else {
-        const seq = sequences.find((s) => s.id === change.sequenceId)!;
-        await logNote(supabase, { id: seq.id, company_search_id: seq.company_search_id, consultant_id: seq.consultant_id, contact_name: seq.contact_name, contact_role: seq.contact_role }, change.note, caller.userId, { action: 'contact_edit', edit_id: row.id, from: change.from, to: change.to });
-        sequenceUpdated = { sequenceId: seq.id, note: change.note };
-      }
-    }
+    // Follow-ups are not ported to TA Searcher yet: no sequence to move.
+    const sequences: Array<ActiveSequence & { company_search_id: string; consultant_id: string | null }> = [];
+    // deno-lint-ignore prefer-const
+    let sequenceUpdated = null as { sequenceId: string; note: string } | null;
     const warning = activeRunWarning(r, current, sequences);
     const suppressed = await suppression(r.email);
 
@@ -126,7 +115,7 @@ Deno.serve(async (req): Promise<Response> => {
       suppressed,
       sequenceUpdated,
       warning,
-      message: savedMessage(r, change),
+      message: savedMessage(r, null),
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
