@@ -112,7 +112,8 @@ built and verified on 21 September 2026 and what is not yet applied.
   `_shared/follow-ups/` (`schedule.ts` London time, `plan.ts` days 0, 4,
   8, 14, `stop.ts`, `prompt.ts` the start-up prompt with the five persona
   notes, `draft.ts` one Claude call per draft, `store.ts`); functions
-  `follow-ups` (plan, start, skip, done, stop, redraft), `draft-follow-up`,
+  `follow-ups` (plan, start, skip, done, mark_sent for an email sent from
+  Outlook, stop, redraft), `draft-follow-up`,
   `tick-follow-ups` (every 15 minutes, never sends), `resend-domains`
   (managers: list, add, verify a Resend domain). `handle-email-events`
   writes `email_events`. App: `EmailContactDialog`, `ContactEngagement`
@@ -168,6 +169,6 @@ npx tsc --noEmit -p tsconfig.app.json # frontend types
 npx eslint src                        # 0 errors expected
 npm test                              # Vitest for src/lib
 cd supabase/functions && DENO_NO_PACKAGE_JSON=1 deno test --allow-all --no-check --node-modules-dir=none _shared   # unit tests (Deno: curl -fsSL https://deno.land/install.sh | sh -s v2.4.5, then ~/.deno/bin)
-scripts/local-db-test.sh              # every plain-SQL migration and its row security on a throwaway local Postgres 16 (131 assertions)
+scripts/local-db-test.sh              # every plain-SQL migration and its row security on a throwaway local Postgres 16 (130 assertions)
 node scripts/embed-value-proposition.mjs   # after editing _shared/copy/value-proposition.md
 ```

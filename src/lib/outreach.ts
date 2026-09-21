@@ -47,3 +47,15 @@ export function greeting(name: string | null | undefined): string {
   if (title && parts.length >= 2) return `Dear ${parts[0]} ${parts[parts.length - 1]},`;
   return `Dear ${parts[0]},`;
 }
+
+
+/**
+ * The email as plain text for the clipboard, when the consultant sends it
+ * from Outlook instead of through TA Searcher: the subject on its own line,
+ * a blank line, the body, then the signature the template would have added
+ * (name, Big Fish Recruitment, phone).
+ */
+export function clipboardText(subject: string, body: string, signature: { name: string; firm: string; phone?: string | null }): string {
+  const sig = [signature.name, signature.firm, (signature.phone || "").trim() || null].filter(Boolean).join("\n");
+  return `Subject: ${subject.trim()}\n\n${body.trim()}\n${sig}`;
+}

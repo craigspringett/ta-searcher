@@ -160,7 +160,7 @@ Deno.serve(async (req): Promise<Response> => {
       return json({ ok: true, sequence: full, drafting, message: `Follow-ups started for ${contactName}. The first call is due now; the emails are drafted for you to approve.` });
     }
 
-    if (action === 'skip' || action === 'done' || action === 'redraft') {
+    if (action === 'skip' || action === 'done' || action === 'redraft' || action === 'mark_sent') {
       const stepId = typeof b.stepId === 'string' && UUID.test(b.stepId) ? b.stepId : null;
       if (!stepId) return json({ error: 'stepId (uuid) is required' }, 400);
       const found = await loadStep(supabase, stepId);
@@ -177,6 +177,32 @@ Deno.serve(async (req): Promise<Response> => {
         await logNote(supabase, sequence, `Skipped follow-up ${describeStep(step)}.`, caller.userId, { action: 'skip', step_no: step.step_no });
         const done = await finishIfDone(supabase, sequence.id, now);
         return json({ ok: true, sequence: await loadSequence(supabase, sequence.id), message: done ? 'Skipped. That was the last step, so the follow-ups are finished.' : 'Skipped.' });
+      }
+
+      // The consultant copied the email into Outlook and sent it there
+      // (21 September 2026: Craig would rather not verify a sending domain
+      // yet). The step is sent, an "emailed" outcome is logged, opens and
+      // clicks are not tracked for it.
+      if (action === 'mark_sent') {
+        if (step.kind !== 'email') return json({ error: 'Only an email step is marked sent; a call is logged with its outcome.' }, 400);
+        if (!['scheduled', 'due', 'approved'].includes(step.status)) return json({ error: `This email was already ${step.status}.` }, 409);
+        const subject = typeof b.subject === 'string' && b.subject.trim() ? b.subject.trim().slice(0, 150) : step.subject;
+        const body = typeof b.body === 'string' && b.body.trim() ? b.body.trim().slice(0, 20000) : step.body;
+        const { data: outcome, error } = await supabase.from('outcomes').insert({
+          company_search_id: sequence.company_search_id,
+          consultant_id: sequence.consultant_id,
+          created_by: caller.userId,
+          contact_name: sequence.contact_name,
+          contact_role: sequence.contact_role,
+          kind: 'emailed',
+          note: `Sent from Outlook${subject ? `: ${subject}` : ''}`,
+          external_refs: { sequence_id: sequence.id, step_no: step.step_no, via: 'outlook' },
+        }).select('id').single();
+        if (error) return json({ error: `Could not log the email: ${error.message}` }, 500);
+        const { error: upErr } = await supabase.from('follow_up_steps').update({ status: 'sent', subject, body, outcome_id: outcome.id, completed_at: now.toISOString() }).eq('id', step.id);
+        if (upErr) return json({ error: upErr.message }, 500);
+        const finished = await finishIfDone(supabase, sequence.id, now);
+        return json({ ok: true, sequence: await loadSequence(supabase, sequence.id), message: finished ? 'Marked as sent. That was the last step, so the follow-ups are finished.' : 'Marked as sent from Outlook.' });
       }
 
       if (action === 'done') {
@@ -248,7 +274,7 @@ Deno.serve(async (req): Promise<Response> => {
       return json({ ok: true, sequence: await loadSequence(supabase, sequence.id), message: `Follow-ups stopped: ${reason}.` });
     }
 
-    return json({ error: 'action must be one of plan, start, skip, done, stop, redraft' }, 400);
+    return json({ error: 'action must be one of plan, start, skip, done, mark_sent, stop, redraft' }, 400);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error('follow-ups failed:', { action, message: msg });

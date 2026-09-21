@@ -12,7 +12,7 @@ import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SourceNote } from "@/components/SourceNote";
 
-export const DUE_SOURCE = "Every follow-up step due today (or overdue) across the companies in the list: calls to make and emails to approve. Emails are drafted by TA Searcher from what it knows about the company and go only when you press Approve and send. A reply, a \"spoke to\", a meeting or \"not interested\" stops a run; so does a bounce or a complaint.";
+export const DUE_SOURCE = "Every follow-up step due today (or overdue) across the companies in the list: calls to make and emails to approve. Emails are drafted by TA Searcher from what it knows about the company and go only when you press Approve and send, or when you copy one into Outlook and tick it as sent. A reply, a \"spoke to\", a meeting or \"not interested\" stops a run; so does a bounce or a complaint.";
 
 /**
  * "Follow-ups due today" on My patch (Follow-ups slice 2), above Warm

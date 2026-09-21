@@ -79,7 +79,7 @@ export function FollowUpsCard({ companyId, companyName, onChange }: Props) {
         <>
           <p className="text-sm text-foreground">{sequenceLine(latest, now)}</p>
           <p className="text-xs text-muted-foreground mb-3">
-            {latest.contact_email}{latest.contact_role ? `, ${latest.contact_role}` : ""}. Started {whenWord(latest.started_at, now).replace(" (overdue)", "")}. Emails go only when you press Approve and send; a reply, a "spoke to", a meeting, "not interested", a bounce or a complaint stops the run.
+            {latest.contact_email}{latest.contact_role ? `, ${latest.contact_role}` : ""}. Started {whenWord(latest.started_at, now).replace(" (overdue)", "")}. Emails go only when you press Approve and send, or when you copy one into Outlook and tick it as sent; a reply, a "spoke to", a meeting, "not interested", a bounce or a complaint stops the run.
           </p>
 
           <ol className="space-y-2">

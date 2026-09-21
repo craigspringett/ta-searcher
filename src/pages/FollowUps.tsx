@@ -13,7 +13,7 @@ import { SourceNote } from "@/components/SourceNote";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-const SOURCE = "Every follow-up run you can see (your companies; managers see everyone's), step by step, on the day each is due: the introduction email the same afternoon you start, the first call two days later, a second email on day 4, a second call on day 8, a last email on day 14. Emails are drafted by TA Searcher from what it knows about the company and go only when you press Approve and send. A reply, a \"spoke to\", a meeting or \"not interested\" stops a run; so does a bounce or a complaint. \"Everything\" adds the steps already done, sent or skipped, on the day they happened.";
+const SOURCE = "Every follow-up run you can see (your companies; managers see everyone's), step by step, on the day each is due: the introduction email the same afternoon you start, the first call two days later, a second email on day 4, a second call on day 8, a last email on day 14. Emails are drafted by TA Searcher from what it knows about the company and go only when you press Approve and send, or when you copy one into Outlook and tick it as sent. A reply, a \"spoke to\", a meeting or \"not interested\" stops a run; so does a bounce or a complaint. \"Everything\" adds the steps already done, sent or skipped, on the day they happened.";
 
 type View = "coming" | "everything";
 
