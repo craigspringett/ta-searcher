@@ -24,6 +24,26 @@ writer skips a marked line and never writes the marker.
 - We place the person who then hires everyone else. We do not fill the
   engineering, sales or operations roles ourselves. [Craig to confirm.]
 
+## The introduction (the first email of a follow-up run, and the opener of a cold email)
+
+- Lead with the search just completed: Big Fish Recruitment has just placed
+  the first Head of Recruitment at Searchable, the Series A AI company in
+  London, a search Craig ran end to end.
+- Follow it with Chris Donnelly's line about that search when the
+  testimonial section below carries one; until then, name the placement and
+  never invent a quote.
+- Then one sentence on why Craig is the person to find a start-up's early or
+  founding talent lead: he has placed first Heads of Talent and Heads of
+  Recruitment at Searchable, Lottie and Attio, he knows what the role should
+  own at seed and Series A, and he runs each search himself.
+- Only after that, the one thing seen at this company (the roles open, the
+  raise, the hiring plan in their own words) and the fifteen-minute call.
+
+## Testimonial (quote verbatim when present; skip the section when it only carries a marker)
+
+- [Craig to confirm: Chris Donnelly's one-line review of the Searchable
+  search, once it arrives.]
+
 ## Proof points (use one or two, never all of them)
 
 - Searchable: a Series A AI company in London, five days a week in the
