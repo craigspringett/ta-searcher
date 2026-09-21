@@ -60,7 +60,7 @@ Deno.test('confirmBoard: a feed that answers with jobs confirms, a 404 does not'
     assertEquals(await confirmBoard({ provider: 'lever', slug: 'zopa', boardUrl: null }, 'Zopa'), { ok: true, count: 34, note: 'Lever site zopa answers' });
     assertEquals((await confirmBoard({ provider: 'lever', slug: 'nobody', boardUrl: null }, 'Nobody')).ok, false);
     assertEquals(await confirmBoard({ provider: 'workable', slug: 'acme', boardUrl: null }, 'Acme Robotics'), { ok: true, count: 1, note: 'Workable account acme answers as "Acme Robotics Ltd"', nameMatch: true });
-    assertEquals(await confirmBoard({ provider: 'workable', slug: 'other', boardUrl: null }, 'Acme Robotics'), { ok: true, count: 0, note: 'Workable account other answers as "Someone Else Inc"; the feed names "Someone Else Inc", not "Acme Robotics"' });
+    assertEquals(await confirmBoard({ provider: 'workable', slug: 'other', boardUrl: null }, 'Acme Robotics'), { ok: true, count: 0, note: 'Workable account other answers as "Someone Else Inc"; the feed names "Someone Else Inc", not "Acme Robotics"', nameMatch: false });
     const limited = await confirmBoard({ provider: 'workable', slug: 'limited', boardUrl: null }, 'Acme');
     assertEquals(limited.ok, false);
     assertEquals(limited.note, 'Workable rate-limited the read (HTTP 429, Cloudflare 1015); the board is not empty, it was not read');
