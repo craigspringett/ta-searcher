@@ -9,8 +9,9 @@
 // { limit?: number (default 60), promote?: boolean (default true),
 //   prospectIds?: string[], website?: string, dryRun?: boolean }.
 // With prospectIds the named prospects are qualified again whatever their
-// status except promoted, and with promote they are added even under the
-// threshold (the page's Add button). `website` sets one prospect's website
+// status except promoted, and with promote they are added (the page's Add
+// button). Without prospectIds nothing is ever added: since 22 September
+// 2026 the radar only fills the Prospects page. `website` sets one prospect's website
 // before it is qualified (the page's "website not found" input).
 // The reply: { ok, checked, qualified, promoted, unsuitable, results: [{prospectId, name, status, score, promotedCompanyId, note}], errors }.
 import { createClient } from 'npm:@supabase/supabase-js@2';

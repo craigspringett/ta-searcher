@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ExternalLink, Loader2, Plus, Radar, X } from "lucide-react";
@@ -21,7 +21,6 @@ import {
   discoverySummary,
   groupProspects,
   normaliseWebsite,
-  parseSettingInput,
   postingLine,
   PROMOTED_DAYS,
   qualifySummary,
@@ -41,17 +40,17 @@ import {
   type Stage,
   type Prospect,
 } from "@/lib/prospects";
-import { discoverProspects, dismissProspect, loadProspect, loadProspectsPage, qualifyProspects, replyError, saveProspectingSettings } from "@/lib/prospectsData";
+import { discoverProspects, dismissProspect, loadProspect, loadProspectsPage, qualifyProspects, replyError } from "@/lib/prospectsData";
 
-const PROSPECTS_SOURCE = `Every night at 05:30 UTC the radar reads the funding news (UKTN, Sifted and Google News searches for seed, pre-seed and Series A raises), walks the Companies House register for young technology companies in London and the Home Counties, and asks Adzuna and Reed for companies advertising a Head of Talent. At 05:40 it qualifies the newest sixty: the register, the website, the careers board, then a score. A prospect at or above the auto-promote score with a website is added to the patch and analysed on its own, up to the weekly cap; the rest wait here.`;
+const PROSPECTS_SOURCE = `Every night at 05:30 UTC the radar reads the funding news (UKTN, Sifted and Google News searches for seed, pre-seed and Series A raises), walks the Companies House register for young technology companies in London and the Home Counties, and asks Adzuna and Reed for companies advertising a Head of Talent. At 05:40 it qualifies the newest sixty: the register, the website, the careers board, then a score. Nothing is added to the patch on its own: every prospect waits here until you add it.`;
 
 /**
  * The Prospects page (Prospecting, slice 3): the companies the radar found
  * and qualified, ready to add or dismiss; the ones it added this month; what
- * it is still watching; and the two settings that bound what it adds.
+ * it is still watching.
  */
 export default function Prospects() {
-  const { user, isManager } = useAuth();
+  const { isManager } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -194,41 +193,12 @@ export default function Prospects() {
       const qFail = replyError(qualify.status, qualify.data);
       if (qFail) throw new Error(`Qualification failed: ${qFail}`);
       const found = discover.data.inserted ?? 0;
-      const added = qualify.data.promoted ?? 0;
-      toast({ title: "The radar has run", description: `${found} new ${found === 1 ? "prospect" : "prospects"} found, ${qualify.data.qualified ?? 0} ready, ${added} added to the patch.` });
+      toast({ title: "The radar has run", description: `${found} new ${found === 1 ? "prospect" : "prospects"} found, ${qualify.data.qualified ?? 0} ready to add.` });
     } catch (e) {
       toast({ title: "The radar did not finish", description: (e as Error).message, variant: "destructive" });
     } finally {
       setRunning(null);
       await reload();
-    }
-  };
-
-  // Settings: the two numbers, editable by a manager.
-  const [scoreText, setScoreText] = useState("");
-  const [capText, setCapText] = useState("");
-  const [savingSettings, setSavingSettings] = useState(false);
-  useEffect(() => {
-    if (!data) return;
-    setScoreText(String(data.settings.autoPromoteScore));
-    setCapText(String(data.settings.weeklyPromoteCap));
-  }, [data]);
-  const saveSettings = async () => {
-    const autoPromoteScore = parseSettingInput(scoreText, 100);
-    const weeklyPromoteCap = parseSettingInput(capText, 200);
-    if (autoPromoteScore === null || weeklyPromoteCap === null) {
-      toast({ title: "Check the numbers", description: "The score is a whole number from 0 to 100 and the weekly cap a whole number from 0 to 200.", variant: "destructive" });
-      return;
-    }
-    setSavingSettings(true);
-    try {
-      await saveProspectingSettings({ autoPromoteScore, weeklyPromoteCap }, user?.id ?? null);
-      toast({ title: "Saved", description: `The radar adds a prospect scoring ${autoPromoteScore} or more, up to ${weeklyPromoteCap} a week.` });
-      await reload();
-    } catch (e) {
-      toast({ title: "Could not save", description: (e as Error).message, variant: "destructive" });
-    } finally {
-      setSavingSettings(false);
     }
   };
 
@@ -400,8 +370,8 @@ export default function Prospects() {
             </Card>
 
             <Card className="p-5">
-              <h2 className="mb-2 text-base font-bold text-foreground">Added by the radar</h2>
-              {groups.promoted.length === 0 && <p className="text-sm text-muted-foreground">The radar has not added a company in the last {PROMOTED_DAYS} days. It adds one on its own when it scores {data.settings.autoPromoteScore} or more and has a website, up to {data.settings.weeklyPromoteCap} a week.</p>}
+              <h2 className="mb-2 text-base font-bold text-foreground">Added from the radar</h2>
+              {groups.promoted.length === 0 && <p className="text-sm text-muted-foreground">No prospect has been added to the patch in the last {PROMOTED_DAYS} days. The radar never adds one on its own; they wait above until you add them.</p>}
               {groups.promoted.length > 0 && (
                 <ul className="divide-y divide-border/60 text-sm" aria-label="Companies the radar added this month">
                   {groups.promoted.map((p) => (
@@ -453,23 +423,9 @@ export default function Prospects() {
             </Card>
 
             <Card className="p-5">
-              <h2 className="mb-2 text-base font-bold text-foreground">Settings</h2>
-              <form className="flex flex-wrap items-end gap-3" onSubmit={(e) => { e.preventDefault(); void saveSettings(); }}>
-                <div>
-                  <label htmlFor="auto-promote-score" className="block text-xs text-muted-foreground">Add on its own at a score of</label>
-                  <Input id="auto-promote-score" type="number" inputMode="numeric" min={0} max={100} step={1} className="w-28" value={scoreText} onChange={(e) => setScoreText(e.target.value)} disabled={!isManager || savingSettings} />
-                </div>
-                <div>
-                  <label htmlFor="weekly-promote-cap" className="block text-xs text-muted-foreground">At most, a week</label>
-                  <Input id="weekly-promote-cap" type="number" inputMode="numeric" min={0} max={200} step={1} className="w-28" value={capText} onChange={(e) => setCapText(e.target.value)} disabled={!isManager || savingSettings} />
-                </div>
-                <Button type="submit" size="sm" disabled={!isManager || savingSettings}>
-                  {savingSettings ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : null}Save
-                </Button>
-              </form>
-              {!isManager && <p className="mt-1 text-xs text-muted-foreground">Only a manager can change these two numbers.</p>}
-              <p className="mt-2 text-xs text-muted-foreground">Each company the radar adds costs about a penny on Gemini and a few pence on Claude for the scripts; the weekly cap bounds it.</p>
-              <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1 border-t border-border/50 pt-3 text-sm sm:grid-cols-4" aria-label="Sources">
+              <h2 className="mb-2 text-base font-bold text-foreground">Sources</h2>
+              <p className="text-xs text-muted-foreground">The radar only fills this page; nothing joins the patch until you add it. Each company you add costs about a penny on Gemini and a few pence on Claude for the scripts.</p>
+              <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-4" aria-label="Sources">
                 <div><dt className="text-xs text-muted-foreground">Funding news</dt><dd className="text-foreground">on</dd></div>
                 <div><dt className="text-xs text-muted-foreground">Companies House</dt><dd className="text-foreground">on</dd></div>
                 <div><dt className="text-xs text-muted-foreground">Adzuna</dt><dd className={keys.adzuna === "on" ? "text-foreground" : "text-warning"}>{keys.adzuna}</dd></div>

@@ -24,6 +24,7 @@ import { ContactEngagement } from "@/components/ContactEngagement";
 import { EmailContactDialog } from "@/components/EmailContactDialog";
 import { FollowUpsCard } from "@/components/FollowUpsCard";
 import { RepliesCard } from "@/components/RepliesCard";
+import { REMOVE_WARNING, removeCompany as deleteCompany } from "@/lib/removeCompany";
 import { StartFollowUpsDialog } from "@/components/StartFollowUpsDialog";
 import { useAuth } from "@/lib/auth";
 import { useCompanyEmailEvents } from "@/lib/emailEventsData";
@@ -111,10 +112,7 @@ const Index = () => {
     setRemoving(true);
     try {
       const name = result?.companyRecord?.name || activeCompany?.companyName || "the company";
-      await supabase.from("prospects").update({ status: "dismissed", dismissed_at: new Date().toISOString(), dismiss_reason: "removed from the patch" }).eq("promoted_company_id", activeCompanyId);
-      const { error, count } = await supabase.from("company_searches").delete({ count: "exact" }).eq("id", activeCompanyId);
-      if (error) throw new Error(error.message);
-      if (count === 0) throw new Error("Only a manager can remove a company.");
+      await deleteCompany(activeCompanyId);
       toast({ title: "No longer tracked", description: `${name} and everything the site held about it have been removed.` });
       setConfirmRemove(false);
       handleNewSearch();
@@ -795,7 +793,7 @@ const Index = () => {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Stop tracking {result?.companyRecord?.name || activeCompany?.companyName || "this company"}?</AlertDialogTitle>
-            <AlertDialogDescription>Everything the site holds about it goes: the open roles and their history, the facts, signals and score, the scripts, the contacts and your edits to them, the call history and any follow-ups. This cannot be undone. You can add the company again later from the Companies page.</AlertDialogDescription>
+            <AlertDialogDescription>{REMOVE_WARNING}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={removing}>Keep it</AlertDialogCancel>

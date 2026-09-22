@@ -90,10 +90,14 @@ built and verified on 21 September 2026 and what is not yet applied.
   `qualify-prospects` (05:40 UTC, or from the page for one id) matches the
   register, finds the website (known, the Adzuna landing, or guessed over
   seven TLDs and verified), the boards, scores the prospect
-  (`_shared/prospecting/score.ts`, every line in `score_reasons`) and
-  promotes what reaches `autoPromoteScore` (60) up to `weeklyPromoteCap`
-  (15) a week into `company_searches` with the single active consultant,
-  the confirmed boards and a queued `analyze-company`. Modules in
+  (`_shared/prospecting/score.ts`, every line in `score_reasons`). Since
+  22 September 2026 the nightly pass never adds a company: a prospect
+  joins `company_searches` (single active consultant, confirmed boards, a
+  queued `analyze-company`) only from the page's Add to my patch, one or
+  several ticked at once (`prospectIds`); `autoPromoteScore` and
+  `weeklyPromoteCap` in `app_settings.prospecting` are no longer read by
+  anything that adds. Removing a company: `src/lib/removeCompany.ts`,
+  from the company page and each My patch row (managers). Modules in
   `_shared/prospecting/` (sources, website, score, qualify, promote,
   discover, run) with fakes in `prospecting_test.ts`. A signed-in user
   may only dismiss or reopen a prospect (a trigger guards the other

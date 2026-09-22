@@ -25,7 +25,7 @@ const POOL_READ = 400;
 export interface QualifyOptions {
   today: Date;
   limit?: number | null;
-  /** Promote what reaches the threshold (default true). */
+  /** With prospectIds, add them (default true). The nightly pass never adds; everything waits on the Prospects page. */
   promote?: boolean;
   /** (Re)qualify these whatever their status except promoted; with promote, promote even under the threshold. */
   prospectIds?: string[] | null;
@@ -98,8 +98,10 @@ export async function qualifyProspects(supabase: Supabase, options: QualifyOptio
   const started = Date.now();
   const today = options.today;
   const dryRun = options.dryRun === true;
-  const wantPromote = options.promote !== false;
   const byId = !!(options.prospectIds && options.prospectIds.length);
+  // The radar never adds a company on its own (22 September 2026): a
+  // prospect joins the patch only when the page names it (Add to my patch).
+  const wantPromote = options.promote !== false && byId;
   const limit = options.limit && options.limit > 0 ? Math.floor(options.limit) : DEFAULT_QUALIFY_LIMIT;
   const budgetMs = options.budgetMs ?? (byId ? Number.MAX_SAFE_INTEGER : DEFAULT_BUDGET_MS);
   const errors: string[] = [];

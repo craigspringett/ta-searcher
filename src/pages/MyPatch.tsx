@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { ArrowUpDown, Loader2 } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowUpDown, Loader2, Trash2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { REMOVE_WARNING, removeCompany } from "@/lib/removeCompany";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/lib/auth";
 import { loadPatch, formatWhen, latestRaiseDetail, latestRaiseLine, OUTCOME_LABELS, stageLabel, type PatchCompany } from "@/lib/patch";
 import { companyIsClosed, companyStatusLabel, STAGE_LABELS, STAGE_ORDER } from "@/lib/analysis";
@@ -25,11 +28,34 @@ type SortKey = "name" | "stage" | "openRoles" | "talentRoles" | "raise" | "lastA
  * for a call list. A manager sees everyone's with a consultant filter.
  */
 export default function MyPatch() {
-  const { profile } = useAuth();
+  const { profile, isManager } = useAuth();
   // Follow-ups, behind profiles.features.follow_ups: the due steps and "Warm right now".
   const followUps = hasFeature(profile, "follow_ups");
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { data, error, isLoading, refetch } = useQuery({ queryKey: ["patch"], queryFn: loadPatch, staleTime: 60_000 });
+
+  // Remove a company from the list (22 September 2026): the same delete as
+  // "Stop tracking" on the company page, behind a confirmation.
+  const [removeTarget, setRemoveTarget] = useState<PatchCompany | null>(null);
+  const [removing, setRemoving] = useState(false);
+  const confirmRemove = async () => {
+    if (!removeTarget) return;
+    setRemoving(true);
+    try {
+      await removeCompany(removeTarget.id);
+      toast({ title: "No longer tracked", description: `${removeTarget.name} and everything the site held about it have been removed.` });
+      setRemoveTarget(null);
+      await refetch();
+      void queryClient.invalidateQueries({ queryKey: ["radar-counts"] });
+      void queryClient.invalidateQueries({ queryKey: ["prospects-page"] });
+    } catch (e) {
+      toast({ title: "Not removed", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setRemoving(false);
+    }
+  };
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "propensity", dir: "desc" });
   const [rescoring, setRescoring] = useState<string | null>(null);
   const rescore = async () => {
@@ -146,6 +172,7 @@ export default function MyPatch() {
                   {header("lastAnalysed", "Last analysed", "text-right")}
                   {header("nextCallback", "Next call", "text-right")}
                   {header("propensity", "Likely to buy", "text-right")}
+                  {isManager && <th className="py-2 pr-3 text-right font-medium"><span className="sr-only">Remove</span></th>}
                 </tr>
               </thead>
               <tbody>
@@ -173,6 +200,13 @@ export default function MyPatch() {
                         )}
                         {s.propensityReason && <span className="block max-w-72 truncate text-[11px] text-muted-foreground" title={s.propensityReason}>{s.propensityReason}</span>}
                       </td>
+                      {isManager && (
+                        <td className="py-2 pr-3 text-right">
+                          <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-muted-foreground hover:text-destructive" onClick={() => setRemoveTarget(s)} disabled={removing} aria-label={`Remove ${s.name} from the patch`} title="Remove from the patch">
+                            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                          </Button>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
@@ -183,6 +217,21 @@ export default function MyPatch() {
         <p className="text-xs text-muted-foreground">{rows.length} companies. "Stage" is the round the company describes itself as being at, from its own words, the funding news and the register (hover for the evidence). "Open roles" counts every live role on its careers feeds and careers page; "Talent roles" counts the ones in the people and talent family (a recruiter, a talent partner, a head of people), the roles this team places. "Latest raise" is the most recent round the evidence found; hover for the date and the investors. "Likely to buy" is the propensity score (0 to 100) from the company's signals and your call outcomes, recomputed after each analysis and every morning; open the company to see every line that made it.</p>
 
         <NewRaisesCard />
+
+        <AlertDialog open={!!removeTarget} onOpenChange={(open) => { if (!open && !removing) setRemoveTarget(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Remove {removeTarget?.name || "this company"} from the patch?</AlertDialogTitle>
+              <AlertDialogDescription>{REMOVE_WARNING}</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={removing}>Keep it</AlertDialogCancel>
+              <AlertDialogAction onClick={(e) => { e.preventDefault(); void confirmRemove(); }} disabled={removing} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                {removing ? <Loader2 className="mr-1 h-4 w-4 animate-spin" aria-hidden="true" /> : null}Remove
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </main>
     </div>
   );

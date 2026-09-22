@@ -155,11 +155,11 @@ describe("groupProspects", () => {
 
 describe("radarLine", () => {
   it("reads the counts as a sentence", () => {
-    expect(radarLine({ addedThisWeek: 3, ready: 7 })).toBe("The radar added 3 companies this week and has 7 more ready.");
-    expect(radarLine({ addedThisWeek: 1, ready: 1 })).toBe("The radar added 1 company this week and has 1 more ready.");
+    expect(radarLine({ addedThisWeek: 3, ready: 7 })).toBe("3 companies added from the radar this week; 7 more ready.");
+    expect(radarLine({ addedThisWeek: 1, ready: 1 })).toBe("1 company added from the radar this week; 1 more ready.");
     expect(radarLine({ addedThisWeek: 0, ready: 4 })).toBe("The radar has 4 ready to add.");
-    expect(radarLine({ addedThisWeek: 2, ready: 0 })).toBe("The radar added 2 companies this week and has nothing more ready.");
-    expect(radarLine({ addedThisWeek: 0, ready: 0 })).toBe("The radar has added nothing this week and has nothing ready yet.");
+    expect(radarLine({ addedThisWeek: 2, ready: 0 })).toBe("2 companies added from the radar this week; nothing more ready.");
+    expect(radarLine({ addedThisWeek: 0, ready: 0 })).toBe("Nothing added from the radar this week, and nothing ready yet.");
   });
 });
 

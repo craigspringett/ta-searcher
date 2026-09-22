@@ -570,7 +570,7 @@ Deno.test('run: the queue order and the website input', () => {
   assertEquals(normaliseWebsiteInput(''), null);
 });
 
-Deno.test('run: the nightly pass qualifies the new rows, promotes over the threshold under the cap, and a dry run writes nothing', async () => {
+Deno.test('run: the nightly pass qualifies the new rows and never adds one on its own, and a dry run writes nothing', async () => {
   const home = '<html><title>Metris Energy</title><body>hello</body></html>';
   const seed = () => fakeSupabase({
     app_settings: [{ key: 'prospecting', value: { autoPromoteScore: 60, weeklyPromoteCap: 15 } }],
@@ -586,32 +586,33 @@ Deno.test('run: the nightly pass qualifies the new rows, promotes over the thres
   const supabase = seed();
   const r = await qualifyProspects(supabase, { today: TODAY, supabaseUrl: 'https://proj.supabase.co', deps });
   assertEquals(r.checked, 2, 'the qualified row is not in the nightly queue');
-  assertEquals(r.promoted, 1);
-  assertEquals(r.qualified, 1);
-  assertEquals(r.consultant, 'Craig');
+  assertEquals(r.promoted, 0, 'the radar never adds on its own');
+  assertEquals(r.qualified, 2);
+  assertEquals(r.consultant, null);
   const metris = r.results.find((x) => x.prospectId === 'p1')!;
-  assertEquals(metris.status, 'promoted');
-  assert(metris.promotedCompanyId, 'has a company id');
-  assertEquals(supabase.rows('prospects').find((x) => x.id === 'p1')!.status, 'promoted');
+  assertEquals(metris.status, 'qualified');
+  assertEquals(metris.promotedCompanyId, null);
+  assertEquals(supabase.rows('prospects').find((x) => x.id === 'p1')!.status, 'qualified');
+  assertEquals(supabase.rows('company_searches').length, 0);
   const nul = r.results.find((x) => x.prospectId === 'p2')!;
   assertEquals(nul.status, 'qualified');
-  assert(nul.note!.includes('not added: no website known'), nul.note!);
   assertEquals(supabase.rows('prospects').find((x) => x.id === 'p2')!.status, 'qualified');
   assertEquals(supabase.rows('prospects').find((x) => x.id === 'p2')!.prospect_score, -50);
 
   const dry = seed();
   const d = await qualifyProspects(dry, { today: TODAY, supabaseUrl: 'https://x', deps, dryRun: true });
   assertEquals(d.promoted, 0);
-  assertEquals(d.candidatesPromotable, 1);
-  assert(d.results.find((x) => x.prospectId === 'p1')!.note!.includes('would be added'));
+  assertEquals(d.candidatesPromotable, 0);
   assertEquals(dry.rows('prospects').find((x) => x.id === 'p1')!.status, 'new');
   assertEquals(dry.rows('company_searches').length, 0);
 
-  const capped = seed();
-  capped.rows('app_settings')[0].value = { autoPromoteScore: 60, weeklyPromoteCap: 0 };
-  const c = await qualifyProspects(capped, { today: TODAY, supabaseUrl: 'https://x', deps });
-  assertEquals(c.promoted, 0);
-  assert(c.results.find((x) => x.prospectId === 'p1')!.note!.includes('weekly cap of 0'));
+  // A dry run of an Add by id says what it would do and writes nothing.
+  const dryAdd = seed();
+  const a = await qualifyProspects(dryAdd, { today: TODAY, supabaseUrl: 'https://x', deps, prospectIds: ['p1'], dryRun: true });
+  assertEquals(a.promoted, 0);
+  assertEquals(a.candidatesPromotable, 1);
+  assert(a.results.find((x) => x.prospectId === 'p1')!.note!.includes('would be added'));
+  assertEquals(dryAdd.rows('company_searches').length, 0);
 });
 
 Deno.test('run: the page adds one prospect by id under the threshold, sets a website, and refuses a promoted one', async () => {

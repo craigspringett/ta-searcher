@@ -349,10 +349,10 @@ function companies(n: number): string {
  */
 export function radarLine(counts: { addedThisWeek: number; ready: number }): string {
   const { addedThisWeek, ready } = counts;
-  if (addedThisWeek === 0 && ready === 0) return "The radar has added nothing this week and has nothing ready yet.";
+  if (addedThisWeek === 0 && ready === 0) return "Nothing added from the radar this week, and nothing ready yet.";
   if (addedThisWeek === 0) return `The radar has ${ready} ready to add.`;
-  if (ready === 0) return `The radar added ${companies(addedThisWeek)} this week and has nothing more ready.`;
-  return `The radar added ${companies(addedThisWeek)} this week and has ${ready} more ready.`;
+  if (ready === 0) return `${companies(addedThisWeek)} added from the radar this week; nothing more ready.`;
+  return `${companies(addedThisWeek)} added from the radar this week; ${ready} more ready.`;
 }
 
 /** The minimal pipeline_runs row the page reads. */
