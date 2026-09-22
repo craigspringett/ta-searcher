@@ -125,6 +125,22 @@ built and verified on 21 September 2026 and what is not yet applied.
   `StartFollowUpsDialog`, `FollowUpsCard` (company page), `FollowUpsDueCard`
   and `WarmNowCard` (My patch), page `FollowUps` (`/follow-ups`); rules in
   `src/lib/followUps.ts` and `emailEvents.ts`.
+- Addresses for name-only people (22 September 2026, Craig: "it's really
+  important I have the correct name and emails"): `_shared/contacts/enrich.ts`
+  runs on every analysis after the resolver and from the `find-contacts`
+  function (the Contacts card's Find addresses button; the backfill). For
+  the best three name-only people with a ranked role (no investors,
+  corporates, reported people or one-word names) it asks Hunter's Email
+  Finder (`hunter.ts`; kept at score `FINDER_MIN_SCORE` 50), else guesses
+  first@domain then first.last@domain and asks Hunter's Verifier
+  (deliverable wins, risky or unknown is kept as unverified, undeliverable
+  moves on). The result is always `pattern_guess` with `verification` and
+  `email_source` on the contact, never `found`; the card says "Hunter,
+  verified", "guessed, verified" or "guessed, unverified". Answers are
+  cached on `contactsRun.enrichment` for `ENRICH_CACHE_DAYS` (30);
+  `force: true` asks again. `find-contacts {action:'account'}` reads the
+  plan and credits (`hunterAccountLine`). Craig's plan is Hunter Starter,
+  24,000 credits a year (a Finder call is one credit).
 - Pipeline board (22 September 2026): `company_searches.pipeline_stage`
   (prospect, contacted, call_booked, search_agreed, lost) and
   `pipeline_moved_at`; an outcome advances the stage on its own (trigger

@@ -385,6 +385,29 @@ const Index = () => {
     await startBulkRefresh(isFiltered ? filteredHistory : searchHistory, isFiltered ? "filtered" : "all");
   };
 
+  // Find addresses (22 September 2026): find-contacts runs Hunter's Email
+  // Finder, else a verified guess, over the name-only people and writes
+  // the contacts back; the card shows the note and the credits left.
+  const [finding, setFinding] = useState(false);
+  const [findNote, setFindNote] = useState<string | null>(null);
+  const findAddresses = async () => {
+    if (!activeCompanyId) return;
+    setFinding(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("find-contacts", { body: { companySearchId: activeCompanyId } });
+      if (error) throw error;
+      if (data?.error) throw new Error(String(data.error));
+      const contacts = Array.isArray(data?.contacts) ? (data.contacts as DecisionMaker[]) : null;
+      if (contacts) setResult((prev) => (prev ? { ...prev, decisionMakers: contacts } : prev));
+      setFindNote([data?.summary ? `Last look: ${data.summary}.` : null, data?.line || null].filter(Boolean).join(" "));
+      toast({ title: data?.filled ? `${data.filled} ${data.filled === 1 ? "address" : "addresses"} added` : "No new address", description: data?.summary || "" });
+    } catch (e) {
+      toast({ title: "Could not find addresses", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+    } finally {
+      setFinding(false);
+    }
+  };
+
   // "Wrong or bounced" on a decision-maker contact: recorded by
   // handle-contact-feedback; the contact is suppressed on the next refresh
   // and its address is never guessed again.
@@ -702,6 +725,9 @@ const Index = () => {
                   editsError={contactEdits.isError ? (contactEdits.error instanceof Error ? contactEdits.error.message : "unknown error") : null}
                   onEdit={setContactEditMode}
                   onReport={reportContact}
+                  onFindAddresses={findAddresses}
+                  finding={finding}
+                  findNote={findNote ?? (result.contactsRun?.enrichmentNote ? `Last look: ${result.contactsRun.enrichmentNote}.` : null)}
                   extra={followUps && activeCompanyId ? (person) => (
                     <>
                       {person.email && <ContactEngagement email={person.email} events={emailEvents.data?.events || []} emailed={emailEvents.data?.emailed || []} />}

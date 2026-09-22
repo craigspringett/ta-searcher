@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Linkedin, Pencil, UserPlus } from "lucide-react";
+import { Linkedin, Loader2, Pencil, Search, UserPlus } from "lucide-react";
 import { contactLinkedIn } from "@/lib/linkedin";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -32,6 +32,11 @@ interface Props {
   onReport: (person: MergedContact<DecisionMaker>, kind: ContactFeedbackKind) => void;
   /** Extra lines under a contact: the opens-and-clicks line and the email and follow-up buttons (behind the follow_ups flag). */
   extra?: (person: MergedContact<DecisionMaker>) => ReactNode;
+  /** Find addresses (22 September 2026): Hunter's Email Finder, else a verified guess, for the name-only people. */
+  onFindAddresses?: () => void;
+  finding?: boolean;
+  /** The last enrichment note and the Hunter credit line, under the button. */
+  findNote?: string | null;
 }
 
 /**
@@ -40,7 +45,8 @@ interface Props {
  * over them, each with its confidence tag, source page, evidence and the
  * "wrong or bounced" report.
  */
-export function ContactsCard({ companyId, companyName, officers, contacts, removed, pagesRead, editsError, onEdit, onReport, extra }: Props) {
+export function ContactsCard({ companyId, companyName, officers, contacts, removed, pagesRead, editsError, onEdit, onReport, extra, onFindAddresses, finding, findNote }: Props) {
+  const nameOnly = contacts.filter((p) => !p.email && !p.feedback).length;
   return (
     <Card className="p-6 scroll-mt-14" id="people">
       <h3 className="text-lg font-bold text-foreground mb-3">People</h3>
@@ -48,16 +54,24 @@ export function ContactsCard({ companyId, companyName, officers, contacts, remov
       <h4 className="text-sm font-semibold text-foreground mb-1">From Companies House</h4>
       <OfficersList officers={officers} />
 
-      <div className="mt-5 mb-3 flex items-center justify-between">
+      <div className="mt-5 mb-3 flex flex-wrap items-center justify-between gap-2">
         <h4 className="text-sm font-semibold text-foreground">Decision makers</h4>
-        {typeof pagesRead === "number" && pagesRead > 0 && <span className="text-xs text-muted-foreground">{pagesRead} pages read</span>}
+        <div className="flex items-center gap-3">
+          {typeof pagesRead === "number" && pagesRead > 0 && <span className="text-xs text-muted-foreground">{pagesRead} pages read</span>}
+          {companyId && onFindAddresses && (
+            <Button type="button" variant="outline" size="sm" className="h-7 gap-1.5 text-xs" onClick={onFindAddresses} disabled={finding} title={nameOnly ? "Ask Hunter's Email Finder for each name-only person, else guess the address and have Hunter verify it" : "Everyone here has an address; press to ask Hunter again anyway"}>
+              {finding ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <Search className="h-3.5 w-3.5" aria-hidden="true" />}{finding ? "Asking Hunter…" : nameOnly ? `Find addresses (${nameOnly} name only)` : "Find addresses"}
+            </Button>
+          )}
+        </div>
       </div>
+      {findNote && <p className="mb-3 text-xs text-muted-foreground">{findNote}</p>}
       {contacts.length === 0 && (
         <p className="text-sm text-muted-foreground">No named decision makers were found on the company's website. The officers above are the names to ask for; phone the office, ask for the founders' EA, then add them here.</p>
       )}
       <div className="space-y-3">
         {contacts.map((person, idx) => {
-          const label = person.edited ? editTag(person.edited) : person.confidence === "consultant_provided" ? providedLabel(person) : person.confidence === "found" ? "found on site" : person.confidence === "pattern_guess" ? (person.provided_by ? `pattern guess (${providedLabel(person)})` : "pattern guess") : person.confidence === "role_only" ? "name only" : "unverified";
+          const label = person.edited ? editTag(person.edited) : person.confidence === "consultant_provided" ? providedLabel(person) : person.confidence === "found" ? "found on site" : person.confidence === "pattern_guess" ? (person.provided_by ? `pattern guess (${providedLabel(person)})` : person.verification === "deliverable" ? (person.email_source === "finder" ? "Hunter, verified" : "guessed, verified") : person.verification ? (person.email_source === "finder" ? "Hunter, unverified" : "guessed, unverified") : "pattern guess") : person.confidence === "role_only" ? "name only" : "unverified";
           const labelClass = person.edited ? "bg-primary/10 text-primary" : person.confidence === "found" || person.confidence === "consultant_provided" ? "bg-positive/15 text-positive" : person.confidence === "pattern_guess" || !person.confidence ? "bg-warning/15 text-warning" : "bg-muted text-muted-foreground";
           const isPage = !!person.source_url && /^https?:/.test(person.source_url);
           const editNote = person.edited ? [person.edited.note, person.edited.from?.email && person.edited.from.email !== person.email ? `The website says ${person.edited.from.email}.` : null, person.edited.kind === "kept" ? "The website no longer lists this person; the edit is kept." : null].filter(Boolean).join(" ") : "";
@@ -78,7 +92,7 @@ export function ContactsCard({ companyId, companyName, officers, contacts, remov
                   {person.email ? (
                     <a href={`mailto:${person.email}`} className="text-sm text-primary hover:underline break-all">{person.email}</a>
                   ) : (
-                    <span className="text-sm text-muted-foreground">No email on the site. Phone the office and ask by name.</span>
+                    <span className="text-sm text-muted-foreground">No address found yet. Press Find addresses, or phone the office and ask by name.</span>
                   )}
                   {person.phone && <p className="text-sm text-muted-foreground">{person.phone}</p>}
                   {(() => {

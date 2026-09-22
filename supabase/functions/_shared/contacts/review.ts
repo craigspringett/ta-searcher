@@ -24,6 +24,11 @@ export interface DecisionMaker {
   notes?: string;
   /** Set by the app when a consultant reports the contact. Kept across refreshes. */
   feedback?: string;
+  /** The person's LinkedIn profile when Hunter gave one. */
+  linkedin?: string | null;
+  /** Addresses for name-only people (22 September 2026): Hunter's verdict on a Finder answer or a guess. */
+  verification?: 'deliverable' | 'risky' | 'undeliverable' | 'unknown' | null;
+  email_source?: 'finder' | 'guess';
 }
 
 /** A name-only entry the Companies House register supplied, not the website. */

@@ -33,6 +33,7 @@ import { fetchContactPages } from '../_shared/contacts/pages.ts';
 import { extractEmails, extractPeople, extractPhones, type EmailHit, type PersonHit, type PhoneHit } from '../_shared/contacts/extract.ts';
 import { resolveContacts, stripTitle, type Contact } from '../_shared/contacts/resolve.ts';
 import { cachedHunterResult, hunterConfigured, hunterDomainSearch, hunterHits, type HunterResult } from '../_shared/contacts/hunter.ts';
+import { enrichContacts, enrichSummary, mailDomain, type EnrichmentEntry } from '../_shared/contacts/enrich.ts';
 import { findCompanyLinkedIn } from '../_shared/contacts/linkedin.ts';
 import { applyModelContactReview, mergeProvidedContacts, toDecisionMaker, type DecisionMaker } from '../_shared/contacts/review.ts';
 import { mergedContactsFor } from '../_shared/contacts/edits.ts';
@@ -536,6 +537,17 @@ Deno.serve(async (req) => {
       }
     }
     const resolved = resolveContacts({ emails: allEmails, people: allPeople, phones: allPhones, siteHost: new URL(siteUrl).hostname, careersPageUrls, suppressedEmails, suppressedNames, recordOfficers, companyName: officialName });
+    // Addresses for the name-only people (22 September 2026): Hunter's
+    // Email Finder, else a verified guess; cached on the run for thirty days.
+    let enrichment: Record<string, EnrichmentEntry> | null = null;
+    let enrichmentNote: string | null = null;
+    if (hunterConfigured()) {
+      const en = await enrichContacts(resolved.contacts, { domain: mailDomain(siteUrl), now: today, cache: existingRow?.analysis_result?.contactsRun?.enrichment ?? null });
+      resolved.contacts.splice(0, resolved.contacts.length, ...en.contacts);
+      enrichment = en.entries;
+      enrichmentNote = `${enrichSummary(en.entries)}${en.finderCalls + en.verifyCalls ? ` (${en.finderCalls} Finder and ${en.verifyCalls} Verifier calls)` : ' (from the last run)'}${en.notes.length ? `; ${en.notes.join('; ')}` : ''}`;
+      console.log(`Addresses: ${enrichmentNote}`);
+    }
     resolvedContacts = resolved.contacts;
     const uniqueEmails = Array.from(new Set(allEmails.map((e) => e.email)));
     contactsRun = {
@@ -551,6 +563,8 @@ Deno.serve(async (req) => {
       officePhone: resolved.officePhone,
       officers: officers.filter((o) => !o.resignedOn).length,
       hunter: hunter ? { host: hunter.host, ok: hunter.ok, status: hunter.status, listed: hunter.listed, people: hunter.people, generic: hunter.generic, dropped: hunter.dropped, companyLinkedin: hunter.companyLinkedin, error: hunter.error, fetchedAt: hunter.fetchedAt, fromCache: hunter.fromCache === true } : null,
+      enrichment,
+      enrichmentNote,
       ms: site.notes.ms + (Date.now() - contactsStarted),
     };
     console.log(`Contacts: ${uniqueEmails.length} addresses, ${allPeople.length} people, ${resolved.contacts.length} contacts (${resolved.contacts.filter((c) => c.confidence === 'found').length} found, ${resolved.contacts.filter((c) => c.confidence === 'pattern_guess').length} pattern guesses, ${resolved.contacts.filter((c) => c.confidence === 'role_only').length} name only)`);

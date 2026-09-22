@@ -93,6 +93,9 @@ export interface DecisionMaker {
   notes?: string;
   /** The person's LinkedIn profile when Hunter gave one. */
   linkedin?: string | null;
+  /** Addresses for name-only people (22 September 2026): Hunter's verdict on a Finder answer or a guess. */
+  verification?: "deliverable" | "risky" | "undeliverable" | "unknown" | null;
+  email_source?: "finder" | "guess";
 }
 
 export interface Fact {
@@ -117,7 +120,7 @@ export interface AnalysisResult {
   officers?: Officer[];
   boards?: AtsBoard[];
   vacancyRun?: { at?: string; degraded?: boolean; degradedReason?: string | null; sourcesOk?: string[]; sourcesTried?: string[] } | null;
-  contactsRun?: { pagesFetched?: unknown[] } | null;
+  contactsRun?: { pagesFetched?: unknown[]; enrichmentNote?: string | null } | null;
   propensity?: { score: number; topReason: string | null; topCode: string | null } | null;
   facts?: Fact[];
   signals?: Signal[];

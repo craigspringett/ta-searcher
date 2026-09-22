@@ -106,3 +106,6 @@ verify_jwt = false
 
 [functions.read-inbox]
 verify_jwt = true
+
+[functions.find-contacts]
+verify_jwt = true

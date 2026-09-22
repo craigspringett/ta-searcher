@@ -188,3 +188,168 @@ export function cachedHunterResult(stored: unknown, host: string, now: Date): Hu
   if (!Number.isFinite(age) || age > HUNTER_CACHE_DAYS * 86_400_000) return null;
   return { host, configured: true, ok: true, status: r.status ?? 200, listed: r.listed ?? 0, people: Array.isArray(r.people) ? r.people : [], generic: Array.isArray(r.generic) ? r.generic : [], dropped: Array.isArray(r.dropped) ? r.dropped : [], companyLinkedin: r.companyLinkedin ?? null, error: null, fetchedAt: r.fetchedAt, fromCache: true };
 }
+
+// ---------------------------------------------------------------------------
+// Email Finder, Email Verifier and the account (22 September 2026; Craig:
+// "it's really important I have the correct name and emails"). The Finder
+// takes a domain and a person's name and answers {data: {email, score
+// 0..100, verification: {status, date}, position, linkedin_url}}; email is
+// null (or the call 404s) when Hunter has nothing. The Verifier takes an
+// address and answers {data: {status: valid | invalid | accept_all | webmail
+// | disposable | unknown, result: deliverable | undeliverable | risky,
+// score}}; 202 means it is still checking. The account endpoint answers
+// {data: {plan_name, reset_date, requests: {searches: {used, available},
+// verifications: {used, available}}}}. A Finder call counts as a search,
+// a Verifier call as a verification.
+
+export const HUNTER_FINDER = 'https://api.hunter.io/v2/email-finder';
+export const HUNTER_VERIFIER = 'https://api.hunter.io/v2/email-verifier';
+export const HUNTER_ACCOUNT = 'https://api.hunter.io/v2/account';
+
+export type Verification = 'deliverable' | 'risky' | 'undeliverable' | 'unknown';
+
+export interface FinderReply {
+  ok: boolean;
+  status: number;
+  email: string | null;
+  score: number | null;
+  /** Hunter's own verification of the address: valid, accept_all, unknown, ... */
+  verificationStatus: string | null;
+  position: string | null;
+  linkedin: string | null;
+  error: string | null;
+}
+
+export interface VerifyReply {
+  ok: boolean;
+  status: number;
+  result: Verification;
+  /** valid, invalid, accept_all, webmail, disposable, unknown */
+  verifyStatus: string | null;
+  score: number | null;
+  error: string | null;
+}
+
+export interface HunterAccount {
+  ok: boolean;
+  plan: string | null;
+  resetDate: string | null;
+  searches: { used: number | null; available: number | null };
+  verifications: { used: number | null; available: number | null };
+  /** The newer plans count credits (a Finder call is one, a verification is less): data.calls. */
+  credits: { used: number | null; available: number | null };
+  error: string | null;
+}
+
+function num(v: unknown): number | null {
+  const n = Number(v);
+  return v === null || v === undefined || v === '' || !Number.isFinite(n) ? null : n;
+}
+
+function hunterFailure(status: number, body: any): string {
+  const detail = str(body?.errors?.[0]?.details) ?? '';
+  const why = status === 401 ? 'the key was refused' : status === 429 ? 'the monthly quota is spent' : `HTTP ${status}`;
+  return detail ? `${why}: ${detail}` : why;
+}
+
+export function parseHunterFinder(json: any): Pick<FinderReply, 'email' | 'score' | 'verificationStatus' | 'position' | 'linkedin'> {
+  const d = json?.data ?? {};
+  const email = str(d?.email)?.toLowerCase() ?? null;
+  return {
+    email: email && email.includes('@') ? email : null,
+    score: num(d?.score),
+    verificationStatus: str(d?.verification?.status),
+    position: str(d?.position),
+    linkedin: tidyProfileUrl(str(d?.linkedin_url)),
+  };
+}
+
+/** Hunter's "result" is the verdict; "status" the reason. Anything else is unknown. */
+export function parseHunterVerifier(json: any): Pick<VerifyReply, 'result' | 'verifyStatus' | 'score'> {
+  const d = json?.data ?? {};
+  const result = str(d?.result);
+  const verifyStatus = str(d?.status);
+  const verdict: Verification = result === 'deliverable' || result === 'undeliverable' || result === 'risky' ? result
+    : verifyStatus === 'valid' ? 'deliverable' : verifyStatus === 'invalid' ? 'undeliverable' : verifyStatus === 'accept_all' ? 'risky' : 'unknown';
+  return { result: verdict, verifyStatus, score: num(d?.score) };
+}
+
+export function parseHunterAccount(json: any): Omit<HunterAccount, 'ok' | 'error'> {
+  const d = json?.data ?? {};
+  const r = d?.requests ?? {};
+  return {
+    plan: str(d?.plan_name),
+    resetDate: str(d?.reset_date),
+    searches: { used: num(r?.searches?.used), available: num(r?.searches?.available) },
+    verifications: { used: num(r?.verifications?.used), available: num(r?.verifications?.available) },
+    credits: { used: num(d?.calls?.used), available: num(d?.calls?.available) },
+  };
+}
+
+/** Ask Hunter for one person's address at a domain. Never throws. */
+export async function hunterEmailFinder(domain: string, firstName: string, lastName: string, options: { key?: string | null; fetch?: FetchLike } = {}): Promise<FinderReply> {
+  const key = options.key === undefined ? hunterKey() : options.key;
+  const base: FinderReply = { ok: false, status: 0, email: null, score: null, verificationStatus: null, position: null, linkedin: null, error: null };
+  if (!key) return { ...base, error: 'HUNTER_API_KEY not set' };
+  const doFetch = options.fetch ?? ((u: string, i?: RequestInit) => fetchWithTimeout(u, FETCH_MS, i));
+  const q = new URLSearchParams({ domain, first_name: firstName, last_name: lastName, api_key: key });
+  try {
+    const res = await doFetch(`${HUNTER_FINDER}?${q.toString()}`, { headers: { Accept: 'application/json' } });
+    let body: any = null;
+    try { body = await res.json(); } catch { body = null; }
+    if (res.status === 404) return { ...base, ok: true, status: 404 }; // nothing known for the name
+    if (!res.ok) return { ...base, status: res.status, error: hunterFailure(res.status, body) };
+    return { ...base, ok: true, status: res.status, ...parseHunterFinder(body) };
+  } catch (e) {
+    return { ...base, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/** Ask Hunter whether an address is deliverable. Never throws; 202 (still checking) is unknown. */
+export async function hunterVerifyEmail(email: string, options: { key?: string | null; fetch?: FetchLike } = {}): Promise<VerifyReply> {
+  const key = options.key === undefined ? hunterKey() : options.key;
+  const base: VerifyReply = { ok: false, status: 0, result: 'unknown', verifyStatus: null, score: null, error: null };
+  if (!key) return { ...base, error: 'HUNTER_API_KEY not set' };
+  const doFetch = options.fetch ?? ((u: string, i?: RequestInit) => fetchWithTimeout(u, FETCH_MS, i));
+  const q = new URLSearchParams({ email, api_key: key });
+  try {
+    const res = await doFetch(`${HUNTER_VERIFIER}?${q.toString()}`, { headers: { Accept: 'application/json' } });
+    let body: any = null;
+    try { body = await res.json(); } catch { body = null; }
+    if (res.status === 202) return { ...base, ok: true, status: 202, error: 'Hunter is still checking' };
+    if (!res.ok) return { ...base, status: res.status, error: hunterFailure(res.status, body) };
+    return { ...base, ok: true, status: res.status, ...parseHunterVerifier(body) };
+  } catch (e) {
+    return { ...base, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/** The plan and what is left this month. Never throws. */
+export async function hunterAccount(options: { key?: string | null; fetch?: FetchLike } = {}): Promise<HunterAccount> {
+  const key = options.key === undefined ? hunterKey() : options.key;
+  const base: HunterAccount = { ok: false, plan: null, resetDate: null, searches: { used: null, available: null }, verifications: { used: null, available: null }, credits: { used: null, available: null }, error: null };
+  if (!key) return { ...base, error: 'HUNTER_API_KEY not set' };
+  const doFetch = options.fetch ?? ((u: string, i?: RequestInit) => fetchWithTimeout(u, FETCH_MS, i));
+  try {
+    const res = await doFetch(`${HUNTER_ACCOUNT}?${new URLSearchParams({ api_key: key }).toString()}`, { headers: { Accept: 'application/json' } });
+    let body: any = null;
+    try { body = await res.json(); } catch { body = null; }
+    if (!res.ok) return { ...base, error: hunterFailure(res.status, body) };
+    return { ...base, ok: true, ...parseHunterAccount(body) };
+  } catch (e) {
+    return { ...base, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/** "Hunter Starter: 412 of 500 searches and 980 of 1,000 verifications left until 1 October" for the card. */
+export function hunterAccountLine(a: HunterAccount): string {
+  if (!a.ok) return `Hunter: ${a.error || 'not reachable'}`;
+  const left = (x: { used: number | null; available: number | null }) => (x.available === null ? null : `${Math.max(0, x.available - (x.used ?? 0)).toLocaleString('en-GB')} of ${x.available.toLocaleString('en-GB')}`);
+  const s = left(a.searches);
+  const v = left(a.verifications);
+  const c = left(a.credits);
+  const reset = a.resetDate ? new Date(a.resetDate + (a.resetDate.length === 10 ? 'T00:00:00Z' : '')) : null;
+  const until = reset && !Number.isNaN(reset.getTime()) ? ` until ${reset.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })}` : '';
+  if (c && !s) return `Hunter${a.plan ? ` ${a.plan}` : ''}: ${c} credits left${until}.`;
+  return `Hunter${a.plan ? ` ${a.plan}` : ''}: ${s ? `${s} searches` : 'searches unknown'} and ${v ? `${v} verifications` : 'verifications unknown'} left${until}.`;
+}
