@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { NavLink } from "react-router-dom";
-import { Activity, Bell, Home, Radar, Search, Users, CalendarClock, KanbanSquare } from "lucide-react";
+import { Activity, Bell, Home, Radar, Search, Users, CalendarClock, KanbanSquare, Landmark } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { hasFeature } from "@/lib/features";
 import { BrandMark } from "@/components/BrandMark";
@@ -20,6 +20,7 @@ export function AppHeader({ title, subtitle, actions }: { title: string; subtitl
     { to: "/companies", label: "Companies", icon: Search },
     { to: "/prospects", label: "Prospects", icon: Radar },
     { to: "/pipeline", label: "Pipeline", icon: KanbanSquare },
+    { to: "/investors", label: "Investors", icon: Landmark },
     { to: "/follow-ups", label: "Follow-ups", icon: CalendarClock, hidden: !followUps },
     { to: "/alerts", label: "Alerts", icon: Bell, managers: true },
     { to: "/consultants", label: "Consultants", icon: Users, managers: true },

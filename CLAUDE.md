@@ -130,7 +130,10 @@ built and verified on 21 September 2026 and what is not yet applied.
   LinkedIn links (`_shared/contacts/linkedin.ts`, `src/lib/linkedin.ts`):
   `analysis_result.linkedin` is the company page from its site or Hunter,
   a contact's `linkedin` is Hunter's profile, else a people search.
-  Migration `20260922100000_pipeline.sql`.
+  Migration `20260922100000_pipeline.sql`. Investors page (`/investors`,
+  `src/lib/investors.ts`, `investorsData.ts`): the funds named in each
+  analysis (`latestRaise.investors` and the investor facts), grouped, no
+  table.
 - Weekly cadence (UTC): Friday 05:00 snapshot, 05:05 `refresh-all-companies`
   queues every company into `analyze_company_queue` (ten a minute), 06:55
   `send-friday-brief`, 07:30 `auto-refresh-vacancies` compare-and-alert.
