@@ -7,6 +7,8 @@ import { AppHeader } from "@/components/AppHeader";
 import { SourceNote } from "@/components/SourceNote";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ToastAction } from "@/components/ui/toast";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -73,26 +75,75 @@ export default function Prospects() {
   const [dismissReason, setDismissReason] = useState(DISMISS_REASONS[0].value);
   const [websiteDrafts, setWebsiteDrafts] = useState<Record<string, string>>({});
 
+  /** Qualify one prospect again and add it; the company id when it went in, else the reason it did not. */
+  const addOne = async (p: Prospect): Promise<{ companyId: string } | { reason: string }> => {
+    const { status, data: reply } = await qualifyProspects({ prospectIds: [p.id], promote: true });
+    const failure = replyError(status, reply);
+    if (failure) return { reason: failure };
+    const after = await loadProspect(p.id);
+    if (after?.status === "promoted" && after.promotedCompanyId) return { companyId: after.promotedCompanyId };
+    const note = reply.results?.find((r) => r.prospectId === p.id)?.note;
+    return { reason: note || (after ? `${p.name} is ${after.status} after the check, with no company created.` : "The prospect could not be read back.") };
+  };
+
+  // Adding stays on this list (22 September 2026): the toast offers Open.
   const add = async (p: Prospect) => {
     setBusy({ id: p.id, what: "add" });
     try {
-      const { status, data: reply } = await qualifyProspects({ prospectIds: [p.id], promote: true });
-      const failure = replyError(status, reply);
-      if (failure) throw new Error(failure);
-      const after = await loadProspect(p.id);
-      if (after?.status === "promoted" && after.promotedCompanyId) {
-        toast({ title: "Added to your patch", description: `${p.name} is being analysed now; the scripts follow in a minute or two.` });
-        navigate(`/companies/${after.promotedCompanyId}`);
-        return;
+      const r = await addOne(p);
+      if ("companyId" in r) {
+        const companyId = r.companyId;
+        toast({ title: "Added to your patch", description: `${p.name} is being analysed now; the scripts follow in a minute or two.`, action: <ToastAction altText={`Open ${p.name}`} onClick={() => navigate(`/companies/${companyId}`)}>Open</ToastAction> });
+        setSelected((sel) => { const next = new Set(sel); next.delete(p.id); return next; });
+      } else {
+        toast({ title: "Not added", description: r.reason, variant: "destructive" });
       }
-      const note = reply.results?.find((r) => r.prospectId === p.id)?.note;
-      toast({ title: "Not added", description: note || (after ? `${p.name} is ${after.status} after the check, with no company created.` : "The prospect could not be read back."), variant: "destructive" });
       await reload();
     } catch (e) {
       toast({ title: "Could not add", description: (e as Error).message, variant: "destructive" });
     } finally {
       setBusy(null);
     }
+  };
+
+  // Tick several and add them in one go, one after another so each gets
+  // its own qualification and its own analysis run.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulk, setBulk] = useState<{ done: number; total: number } | null>(null);
+  const toggleSelected = (id: string) => setSelected((sel) => { const next = new Set(sel); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+  const shownSelected = ready.filter((p) => selected.has(p.id));
+  const allShownSelected = ready.length > 0 && shownSelected.length === ready.length;
+  const toggleAllShown = () => setSelected((sel) => {
+    const next = new Set(sel);
+    if (allShownSelected) ready.forEach((p) => next.delete(p.id)); else ready.forEach((p) => next.add(p.id));
+    return next;
+  });
+
+  const addSelected = async () => {
+    const picked = shownSelected;
+    if (picked.length === 0) return;
+    setBulk({ done: 0, total: picked.length });
+    const added: string[] = [];
+    const failed: string[] = [];
+    try {
+      for (const p of picked) {
+        setBusy({ id: p.id, what: "add" });
+        try {
+          const r = await addOne(p);
+          if ("companyId" in r) added.push(p.name); else failed.push(`${p.name} (${r.reason})`);
+        } catch (e) {
+          failed.push(`${p.name} (${(e as Error).message})`);
+        }
+        setBulk((b) => (b ? { ...b, done: b.done + 1 } : b));
+      }
+    } finally {
+      setBusy(null);
+      setBulk(null);
+    }
+    setSelected(new Set());
+    if (added.length > 0) toast({ title: `Added ${added.length} of ${picked.length} to your patch`, description: `${added.join(", ")}. Each is being analysed now; the scripts follow in a minute or two.${failed.length ? ` Not added: ${failed.join("; ")}.` : ""}` });
+    else toast({ title: "Nothing added", description: failed.join("; "), variant: "destructive" });
+    await reload();
   };
 
   const saveWebsite = async (p: Prospect) => {
@@ -239,6 +290,21 @@ export default function Prospects() {
                 <p className="text-sm text-muted-foreground">No prospect matches those filters.</p>
               )}
               {ready.length > 0 && (
+                <div className="mb-2 flex flex-wrap items-center gap-3 rounded-md border border-border bg-muted/40 px-3 py-2">
+                  <label className="flex items-center gap-2 text-sm text-foreground">
+                    <Checkbox checked={allShownSelected} onCheckedChange={toggleAllShown} disabled={!!bulk || !!running} aria-label="Select every prospect shown" />
+                    {allShownSelected ? "Clear the selection" : `Select all ${ready.length} shown`}
+                  </label>
+                  <span className="text-xs text-muted-foreground">{shownSelected.length === 0 ? "Tick prospects to add several at once." : `${shownSelected.length} selected`}</span>
+                  {shownSelected.length > 0 && (
+                    <Button size="sm" onClick={() => void addSelected()} disabled={!!bulk || !!busy || !!running}>
+                      {bulk ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <Plus className="mr-1 h-3.5 w-3.5" aria-hidden="true" />}
+                      {bulk ? `Adding ${Math.min(bulk.done + 1, bulk.total)} of ${bulk.total}…` : `Add ${shownSelected.length} to my patch`}
+                    </Button>
+                  )}
+                </div>
+                )}
+              {ready.length > 0 && (
                 <ul className="divide-y divide-border/60" aria-label="Prospects ready to add">
                   {ready.map((p) => {
                     const band = scoreBand(p.score);
@@ -249,6 +315,7 @@ export default function Prospects() {
                     return (
                       <li key={p.id} className="py-3">
                         <div className="flex flex-wrap items-start justify-between gap-3">
+                          <Checkbox className="mt-1" checked={selected.has(p.id)} onCheckedChange={() => toggleSelected(p.id)} disabled={!!bulk || !!running} aria-label={`Select ${p.name}`} />
                           <div className="min-w-0 flex-1 space-y-1.5">
                             <div className="flex flex-wrap items-center gap-2">
                               <span className="font-semibold text-foreground">{p.name}</span>
@@ -314,10 +381,10 @@ export default function Prospects() {
                             )}
                           </div>
                           <div className="flex shrink-0 items-center gap-2">
-                            <Button size="sm" onClick={() => void add(p)} disabled={isBusy(p) || !!running} title={p.website ? undefined : "The radar adds a company from its website; save one first."}>
+                            <Button size="sm" onClick={() => void add(p)} disabled={isBusy(p) || !!bulk || !!running} title={p.website ? undefined : "The radar adds a company from its website; save one first."}>
                               {busy?.id === p.id && busy.what === "add" ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <Plus className="mr-1 h-3.5 w-3.5" aria-hidden="true" />}Add to my patch
                             </Button>
-                            <Button size="sm" variant="outline" onClick={() => { setDismissReason(DISMISS_REASONS[0].value); setDismissing(p); }} disabled={isBusy(p)}>
+                            <Button size="sm" variant="outline" onClick={() => { setDismissReason(DISMISS_REASONS[0].value); setDismissing(p); }} disabled={isBusy(p) || !!bulk}>
                               <X className="mr-1 h-3.5 w-3.5" aria-hidden="true" />Dismiss
                             </Button>
                           </div>
@@ -328,7 +395,7 @@ export default function Prospects() {
                 </ul>
               )}
               {groups.ready.length > 0 && (
-                <p className="mt-2 text-xs text-muted-foreground">"Add to my patch" qualifies the company again, adds it with its website and its board, and starts the full analysis; you land on its page while that runs. A dismissed company stays away for six months.</p>
+                <p className="mt-2 text-xs text-muted-foreground">"Add to my patch" qualifies the company again, adds it with its website and its board, and starts the full analysis; you stay here, and the message offers Open. Tick several and press "Add … to my patch" to add them one after another. A dismissed company stays away for six months.</p>
               )}
             </Card>
 
