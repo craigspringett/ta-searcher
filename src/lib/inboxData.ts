@@ -1,6 +1,9 @@
 import { supabase } from "@/integrations/supabase/client";
 import { parseReplyRow, type ConnectionView, type InboxReply } from "@/lib/inbox";
 
+export const companyRepliesKey = (companyId: string) => ["inbox-replies", companyId] as const;
+export const unhandledRepliesKey = ["inbox-replies", "unhandled"] as const;
+
 const COLUMNS = "id, company_search_id, contact_name, from_email, from_name, subject, received_at, preview, body_text, match_note, sequence_id, draft_subject, draft_body, draft_flags, draft_error, handled_at";
 
 export async function loadCompanyReplies(companyId: string): Promise<InboxReply[]> {

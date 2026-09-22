@@ -7,15 +7,12 @@ import { useToast } from "@/hooks/use-toast";
 import { FIRM_NAME } from "@/lib/brand";
 import { clipboardText, rememberedPhone } from "@/lib/outreach";
 import { replyRead, replyWho, type InboxReply } from "@/lib/inbox";
-import { loadCompanyReplies, loadUnhandledReplies, markReplyHandled } from "@/lib/inboxData";
+import { companyRepliesKey, loadCompanyReplies, loadUnhandledReplies, markReplyHandled, unhandledRepliesKey } from "@/lib/inboxData";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { SourceNote } from "@/components/SourceNote";
 
 const REPLIES_SOURCE = "Replies TA Searcher spotted in your connected Outlook inbox (Alerts page) from a contact you emailed, a stored contact or the company's own domain. Each stops the follow-up run, is logged as replied in the Calls history, and gets a drafted answer in your tone. Nothing is sent: copy the draft into Outlook, change what you like, and tick it as handled here.";
-
-export const companyRepliesKey = (companyId: string) => ["inbox-replies", companyId] as const;
-export const unhandledRepliesKey = ["inbox-replies", "unhandled"] as const;
 
 function whenLine(iso: string): string {
   return new Date(iso).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
