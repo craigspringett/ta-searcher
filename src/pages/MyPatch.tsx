@@ -14,6 +14,7 @@ import { BAND_CLASSES, scoreBand } from "@/lib/propensity";
 import { NewRaisesCard } from "@/components/NewRaisesCard";
 import { RadarLine } from "@/components/RadarLine";
 import { FollowUpsDueCard } from "@/components/FollowUpsDueCard";
+import { RepliesDueCard } from "@/components/RepliesCard";
 import { WarmNowCard } from "@/components/WarmNowCard";
 import { hasFeature } from "@/lib/features";
 
@@ -125,6 +126,7 @@ export default function MyPatch() {
 
         <RadarLine />
 
+        {followUps && data && <RepliesDueCard />}
         {followUps && data && rows.length > 0 && <FollowUpsDueCard companies={rows} />}
         {followUps && data && rows.length > 0 && <WarmNowCard companies={rows} />}
 

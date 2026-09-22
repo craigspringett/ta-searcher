@@ -1328,6 +1328,167 @@ export type Database = {
           },
         ]
       }
+      inbox_replies: {
+        Row: {
+          body_text: string | null
+          company_search_id: string | null
+          connection_id: string
+          contact_name: string | null
+          conversation_id: string | null
+          created_at: string
+          draft_body: string | null
+          draft_error: string | null
+          draft_flags: string[]
+          draft_subject: string | null
+          drafted_at: string | null
+          from_email: string
+          from_name: string | null
+          graph_id: string | null
+          handled_at: string | null
+          id: string
+          match_note: string | null
+          message_id: string
+          outcome_id: string | null
+          preview: string | null
+          received_at: string
+          sequence_id: string | null
+          subject: string | null
+        }
+        Insert: {
+          body_text?: string | null
+          company_search_id?: string | null
+          connection_id: string
+          contact_name?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          draft_body?: string | null
+          draft_error?: string | null
+          draft_flags?: string[]
+          draft_subject?: string | null
+          drafted_at?: string | null
+          from_email: string
+          from_name?: string | null
+          graph_id?: string | null
+          handled_at?: string | null
+          id?: string
+          match_note?: string | null
+          message_id: string
+          outcome_id?: string | null
+          preview?: string | null
+          received_at: string
+          sequence_id?: string | null
+          subject?: string | null
+        }
+        Update: {
+          body_text?: string | null
+          company_search_id?: string | null
+          connection_id?: string
+          contact_name?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          draft_body?: string | null
+          draft_error?: string | null
+          draft_flags?: string[]
+          draft_subject?: string | null
+          drafted_at?: string | null
+          from_email?: string
+          from_name?: string | null
+          graph_id?: string | null
+          handled_at?: string | null
+          id?: string
+          match_note?: string | null
+          message_id?: string
+          outcome_id?: string | null
+          preview?: string | null
+          received_at?: string
+          sequence_id?: string | null
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inbox_replies_company_search_id_fkey"
+            columns: ["company_search_id"]
+            isOneToOne: false
+            referencedRelation: "company_searches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inbox_replies_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "mail_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mail_connections: {
+        Row: {
+          access_token: string | null
+          connected_at: string
+          created_at: string
+          display_name: string | null
+          id: string
+          last_checked_at: string | null
+          last_error: string | null
+          mailbox: string
+          profile_id: string
+          provider: string
+          refresh_token: string | null
+          scope: string | null
+          status: string
+          tenant_id: string | null
+          token_expires_at: string | null
+          updated_at: string
+          watermark: string | null
+        }
+        Insert: {
+          access_token?: string | null
+          connected_at?: string
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          last_checked_at?: string | null
+          last_error?: string | null
+          mailbox: string
+          profile_id: string
+          provider?: string
+          refresh_token?: string | null
+          scope?: string | null
+          status?: string
+          tenant_id?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          watermark?: string | null
+        }
+        Update: {
+          access_token?: string | null
+          connected_at?: string
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          last_checked_at?: string | null
+          last_error?: string | null
+          mailbox?: string
+          profile_id?: string
+          provider?: string
+          refresh_token?: string | null
+          scope?: string | null
+          status?: string
+          tenant_id?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          watermark?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mail_connections_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       outcomes: {
         Row: {
           callback_at: string | null

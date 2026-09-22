@@ -26,6 +26,7 @@ begin
     'qualify-prospects',
     'tick-follow-ups',
     'send-raises-digest',
+    'read-inbox',
     'auto-refresh-vacancies-trigger',
     'refresh-all-companies',
     'refresh-scores',
@@ -72,6 +73,11 @@ select cron.schedule('qualify-prospects', '40 5 * * *',
 -- writes a due draft again when the company changed. It never sends.
 select cron.schedule('tick-follow-ups', '*/15 * * * *',
   $$select public.invoke_edge_function('tick-follow-ups', '{}'::jsonb)$$);
+
+-- Every fifteen minutes, offset from the follow-ups tick: read every
+-- connected Outlook inbox for replies (mail_connections).
+select cron.schedule('read-inbox', '7,22,37,52 * * * *',
+  $$select public.invoke_edge_function('read-inbox', '{}'::jsonb)$$);
 
 -- Monday 07:00: the weekly raises digest (every raise the radar saw last
 -- week in the chosen sectors and stages; app_settings.raises_digest).

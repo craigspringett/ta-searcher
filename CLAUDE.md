@@ -139,12 +139,35 @@ built and verified on 21 September 2026 and what is not yet applied.
   `RaisesDigestCard`; the sector and stage rules are
   `_shared/prospecting/sector.ts`, a copy of the ones in
   `src/lib/prospects.ts`).
+- Outlook inbox reading (22 September 2026, behind the same
+  `follow_ups` flag): a Microsoft Graph app registration (single tenant,
+  delegated `Mail.Read` and `offline_access`; project secrets
+  `MS_CLIENT_ID`, `MS_TENANT_ID`, `MS_CLIENT_SECRET`; redirect
+  `.../functions/v1/ms-oauth-callback`). Tables `mail_connections` (tokens
+  readable by the service role only, column grants), `oauth_states`,
+  `inbox_replies` (app users read and set `handled_at`); migration
+  `20260922120000_inbox.sql`. `_shared/inbox/`: `graph.ts` (the OAuth
+  and Graph calls, `GraphError.reconnect`), `match.ts` (a sender is
+  matched to the sequence contact, else a stored contact, else the
+  company's domain; never a no-reply or a free-mail host; the quoted
+  thread is stripped), `draft-reply.ts` (one Claude call, Craig's tone,
+  logged to `ai_usage` as `inbox_reply`), `run.ts` (refresh the token,
+  read since the watermark, insert a `replied` outcome, stop the run,
+  draft at most `MAX_DRAFTS_PER_RUN` a pass, `needs_reconnect` on a
+  refresh failure). Functions `ms-connect` (start, status, check,
+  disconnect), `ms-oauth-callback` (`verify_jwt` off, lands on
+  `/alerts?outlook=connected|error`), `read-inbox` (cron, 7, 22, 37 and
+  52 minutes past every hour). Nothing is ever sent from the mailbox.
+  App: `OutlookCard` (Alerts page), `RepliesCard` (company page),
+  `RepliesDueCard` (My patch); rules in `src/lib/inbox.ts`, reads in
+  `inboxData.ts`.
 - Weekly cadence (UTC): Friday 05:00 snapshot, 05:05 `refresh-all-companies`
   queues every company into `analyze_company_queue` (ten a minute), 06:55
   `send-friday-brief`, 07:30 `auto-refresh-vacancies` compare-and-alert.
   Daily: 04:40 register, 04:50 ATS feeds, 05:20 funding news, 05:30 prospect
   discovery, 05:40 prospect qualification, 06:40 scores. Every 15 minutes:
-  the follow-ups tick. Monday 07:00: the raises digest.
+  the follow-ups tick; 7, 22, 37 and 52 past the hour: the inbox read.
+  Monday 07:00: the raises digest.
 
 ## Working in a cloud session
 
@@ -187,6 +210,6 @@ npx tsc --noEmit -p tsconfig.app.json # frontend types
 npx eslint src                        # 0 errors expected
 npm test                              # Vitest for src/lib
 cd supabase/functions && DENO_NO_PACKAGE_JSON=1 deno test --allow-all --no-check --node-modules-dir=none _shared   # unit tests (Deno: curl -fsSL https://deno.land/install.sh | sh -s v2.4.5, then ~/.deno/bin)
-scripts/local-db-test.sh              # every plain-SQL migration and its row security on a throwaway local Postgres 16 (137 assertions)
+scripts/local-db-test.sh              # every plain-SQL migration and its row security on a throwaway local Postgres 16 (150 assertions)
 node scripts/embed-value-proposition.mjs   # after editing _shared/copy/value-proposition.md
 ```

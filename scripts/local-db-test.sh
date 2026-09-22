@@ -32,6 +32,7 @@ POSTCODE="$ROOT/supabase/migrations/20260921140000_company_records_postcode.sql"
 PROSPECTS="$ROOT/supabase/migrations/20260921150000_prospects.sql"
 FOLLOW_UPS="$ROOT/supabase/migrations/20260921160000_follow_ups.sql"
 PIPELINE="$ROOT/supabase/migrations/20260922100000_pipeline.sql"
+INBOX="$ROOT/supabase/migrations/20260922120000_inbox.sql"
 GEN_TYPES=0
 KEEP=0
 for arg in "$@"; do
@@ -49,6 +50,7 @@ done
 [[ -f "$PROSPECTS" ]] || { echo "local-db-test: $PROSPECTS not found" >&2; exit 2; }
 [[ -f "$FOLLOW_UPS" ]] || { echo "local-db-test: $FOLLOW_UPS not found" >&2; exit 2; }
 [[ -f "$PIPELINE" ]] || { echo "local-db-test: $PIPELINE not found" >&2; exit 2; }
+[[ -f "$INBOX" ]] || { echo "local-db-test: $INBOX not found" >&2; exit 2; }
 
 WORK="$(mktemp -d)"
 PGDATA="$WORK/data"
@@ -134,6 +136,8 @@ echo "== apply $(basename "$FOLLOW_UPS")"
 psqlq -f "$FOLLOW_UPS" >"$WORK/apply-follow-ups.log" 2>&1 || { cat "$WORK/apply-follow-ups.log"; exit 1; }
 echo "== apply $(basename "$PIPELINE")"
 psqlq -f "$PIPELINE" >"$WORK/apply-pipeline.log" 2>&1 || { cat "$WORK/apply-pipeline.log"; exit 1; }
+echo "== apply $(basename "$INBOX")"
+psqlq -f "$INBOX" >"$WORK/apply-inbox.log" 2>&1 || { cat "$WORK/apply-inbox.log"; exit 1; }
 grep -i "error" "$WORK/apply-funding-news.log" && exit 1
 echo "   applied"
 
@@ -206,11 +210,11 @@ echo "== assertions"
 check "every public table has row security on" \
   "select count(*) = 0 from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind in ('r','p') and not c.relrowsecurity"
 check "33 public tables" \
-  "select count(*) = 36 from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind in ('r','p')"
+  "select count(*) = 39 from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind in ('r','p')"
 check "no education table survived the port (school, gias, cfr, ofsted, tender, pupil, shortlist, follow_up, trust, board_fetch, probe)" \
   "select count(*) = 0 from pg_tables where schemaname = 'public' and (tablename ~ '^(school|gias|cfr|ofsted|tender|pupil|shortlist|bh_|trust|board_|probe|agency)')"
 check "the tables the code names exist" \
-  "select bool_and(to_regclass('public.' || t) is not null) from unnest(array['company_searches','company_consultants','company_refresh_runs','company_facts','company_signals','company_scores','company_copy','company_contact_edits','company_records','ch_officers','ch_filings','ats_boards','analyze_company_queue','analyze_company_requests','copy_queue','vacancies','outcomes','profiles','consultants','app_settings','email_send_log','email_send_state','email_events','email_signatures','suppressed_emails','email_unsubscribe_tokens','pipeline_runs','vacancy_alert_settings','alert_deliveries','vacancy_feedback','contact_feedback','ai_usage','funding_news','prospects','follow_up_sequences','follow_up_steps']) t"
+  "select bool_and(to_regclass('public.' || t) is not null) from unnest(array['company_searches','company_consultants','company_refresh_runs','company_facts','company_signals','company_scores','company_copy','company_contact_edits','company_records','ch_officers','ch_filings','ats_boards','analyze_company_queue','analyze_company_requests','copy_queue','vacancies','outcomes','profiles','consultants','app_settings','email_send_log','email_send_state','email_events','email_signatures','suppressed_emails','email_unsubscribe_tokens','pipeline_runs','vacancy_alert_settings','alert_deliveries','vacancy_feedback','contact_feedback','ai_usage','funding_news','prospects','follow_up_sequences','follow_up_steps','mail_connections','oauth_states','inbox_replies']) t"
 check "vacancy_source has the eight values in order" \
   "select array_agg(enumlabel order by enumsortorder)::text[] = array['ashby','greenhouse','lever','workable','careers_page','llm','consultant','other'] from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'vacancy_source'"
 check "company_searches has company_number and company_name, no urn" \
@@ -351,6 +355,21 @@ check "consultant moves a company to search agreed and the move is stamped" "$as
 check "a company put on not now stays there when an outcome is logged" "update public.company_searches set pipeline_stage = 'lost' where id = '$CO_ONE'; insert into public.outcomes (company_search_id, consultant_id, created_by, kind) values ('$CO_ONE', '$C_ANJA', '$U_CONSULTANT', 'spoke_to'); select pipeline_stage = 'lost' from public.company_searches where id = '$CO_ONE'"
 expect_fail "an unknown stage is refused" "update public.company_searches set pipeline_stage = 'won' where id = '$CO_ONE'"
 
+# mail_connections, oauth_states, inbox_replies (Outlook inbox reading)
+check "service role stores a mail connection with its tokens" "set local role service_role; select set_config('request.jwt.claims', '{\"role\":\"service_role\"}', true); insert into public.mail_connections (id, profile_id, mailbox, refresh_token, access_token) values ('bbbbbbbb-0000-0000-0000-00000000000b', '$U_CONSULTANT', 'anja@bigfishrecruitment.co.uk', 'rt-secret', 'at-secret'); select count(*) = 1 from public.mail_connections"
+check "consultant sees their own connection's mailbox and state" "$as_consultant select mailbox = 'anja@bigfishrecruitment.co.uk' and status = 'connected' from public.mail_connections where id = 'bbbbbbbb-0000-0000-0000-00000000000b'"
+expect_fail "consultant cannot read the refresh token column" "$as_consultant select refresh_token from public.mail_connections"
+check "manager does not see another person's connection" "$as_manager select count(*) = 0 from public.mail_connections"
+expect_fail "anon cannot read mail connections" "$as_anon select count(*) from public.mail_connections"
+expect_fail "authenticated cannot read oauth states" "$as_consultant select count(*) from public.oauth_states"
+check "service role stores a reply and logs it once" "set local role service_role; select set_config('request.jwt.claims', '{\"role\":\"service_role\"}', true); insert into public.inbox_replies (connection_id, message_id, from_email, received_at, company_search_id, contact_name, draft_body) values ('bbbbbbbb-0000-0000-0000-00000000000b', '<m1@x>', 'jane@one.example', now(), '$CO_ONE', 'Jane Founder', 'Hi Jane, ...'); select count(*) = 1 from public.inbox_replies"
+expect_fail "a message is one row per mailbox" "insert into public.inbox_replies (connection_id, message_id, from_email, received_at) values ('bbbbbbbb-0000-0000-0000-00000000000b', '<m1@x>', 'jane@one.example', now())"
+check "consultant reads the reply and marks it handled" "$as_consultant update public.inbox_replies set handled_at = now() where message_id = '<m1@x>'; select count(*) = 1 from public.inbox_replies where handled_at is not null"
+expect_fail "consultant cannot change a reply's draft" "$as_consultant update public.inbox_replies set draft_body = 'x' where message_id = '<m1@x>'"
+expect_fail "anon cannot read replies" "$as_anon select count(*) from public.inbox_replies"
+check "disconnecting keeps the row and clears the tokens" "update public.mail_connections set status = 'disconnected', refresh_token = null, access_token = null where id = 'bbbbbbbb-0000-0000-0000-00000000000b'; select refresh_token is null and status = 'disconnected' from public.mail_connections where id = 'bbbbbbbb-0000-0000-0000-00000000000b'"
+check "deleting the connection removes its replies" "delete from public.mail_connections where id = 'bbbbbbbb-0000-0000-0000-00000000000b'; select (select count(*) from public.mail_connections) + (select count(*) from public.inbox_replies) = 0"
+
 # follow_up_sequences and follow_up_steps (the Follow-ups port)
 check "service role starts a sequence with its steps" "insert into public.company_consultants (company_search_id, consultant_id) values ('$CO_ONE', '$C_ANJA') on conflict do nothing; set local role service_role; select set_config('request.jwt.claims', '{\"role\":\"service_role\"}', true); insert into public.follow_up_sequences (id, company_search_id, consultant_id, created_by, contact_name, contact_email, contact_role, plan) values ('aaaaaaaa-0000-0000-0000-00000000000a', '$CO_ONE', '$C_ANJA', '$U_CONSULTANT', 'Jane Founder', 'jane@one.example', 'CEO', '[]'); insert into public.follow_up_steps (sequence_id, step_no, kind, day, due_at) values ('aaaaaaaa-0000-0000-0000-00000000000a', 1, 'call', 0, now()), ('aaaaaaaa-0000-0000-0000-00000000000a', 2, 'email', 0, now()); select count(*) = 2 from public.follow_up_steps"
 expect_fail "one active sequence per company" "insert into public.follow_up_sequences (company_search_id, contact_name, contact_email) values ('$CO_ONE', 'Joe', 'joe@one.example')"
@@ -390,7 +409,7 @@ expect_fail "http_page_enqueue refuses a caller that is not the service role" "s
 if psqlq -f "$ROOT/supabase/migrations/20260921120100_cron_jobs.sql" >"$WORK/cron.log" 2>&1 && ! grep -qi error "$WORK/cron.log"; then PASS=$((PASS + 1)); echo "pass  20260921120100_cron_jobs.sql applies against the cron stand-in"
 else FAIL=$((FAIL + 1)); echo "FAIL  20260921120100_cron_jobs.sql"; cat "$WORK/cron.log"; fi
 check "twelve jobs scheduled with the brief's names" \
-  "select count(*) = 16 and bool_and(jobname in ('process-email-queue','dispatch-analyze-company-queue','dispatch-copy-queue','close-stale-refresh-runs','sync-companies-house','sync-ats-boards','sync-funding-news','discover-prospects','qualify-prospects','tick-follow-ups','send-raises-digest','auto-refresh-vacancies-trigger','refresh-all-companies','refresh-scores','send-friday-brief','auto-refresh-vacancies-compare')) from cron.job"
+  "select count(*) = 17 and bool_and(jobname in ('process-email-queue','dispatch-analyze-company-queue','dispatch-copy-queue','close-stale-refresh-runs','sync-companies-house','sync-ats-boards','sync-funding-news','discover-prospects','qualify-prospects','tick-follow-ups','send-raises-digest','read-inbox','auto-refresh-vacancies-trigger','refresh-all-companies','refresh-scores','send-friday-brief','auto-refresh-vacancies-compare')) from cron.job"
 check "sync-funding-news runs at 05:20 UTC daily" \
   "select schedule = '20 5 * * *' from cron.job where jobname = 'sync-funding-news'"
 check "the raises digest goes on Monday at 07:00 UTC" \
@@ -399,8 +418,8 @@ check "the follow-ups tick runs every fifteen minutes" \
   "select schedule = '*/15 * * * *' from cron.job where jobname = 'tick-follow-ups'"
 check "the prospect radar runs at 05:30 and qualifies at 05:40" \
   "select (select schedule from cron.job where jobname = 'discover-prospects') = '30 5 * * *' and (select schedule from cron.job where jobname = 'qualify-prospects') = '40 5 * * *'"
-check "the cron file is idempotent (a second apply keeps sixteen jobs)" \
-  "$(cat "$ROOT/supabase/migrations/20260921120100_cron_jobs.sql" | grep -v '^--' | tr '\n' ' ') select count(*) = 16 from cron.job"
+check "the cron file is idempotent (a second apply keeps seventeen jobs)" \
+  "$(cat "$ROOT/supabase/migrations/20260921120100_cron_jobs.sql" | grep -v '^--' | tr '\n' ' ') select count(*) = 17 from cron.job"
 check "the monitoring job list names only scheduled jobs" \
   "select bool_and(j ->> 'configured' = 'true') from jsonb_array_elements(public.get_cron_monitoring_jobs_only()) j"
 

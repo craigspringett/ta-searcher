@@ -96,3 +96,13 @@ verify_jwt = true
 
 [functions.send-raises-digest]
 verify_jwt = true
+
+[functions.ms-connect]
+verify_jwt = true
+
+# Microsoft's redirect arrives with no token; the state row is the check.
+[functions.ms-oauth-callback]
+verify_jwt = false
+
+[functions.read-inbox]
+verify_jwt = true

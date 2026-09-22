@@ -13,6 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { AppHeader } from "@/components/AppHeader";
 import { RaisesDigestCard } from "@/components/RaisesDigestCard";
+import { OutlookCard } from "@/components/OutlookCard";
+import { hasFeature } from "@/lib/features";
 
 type Setting = Tables<"vacancy_alert_settings">;
 type Consultant = Tables<"consultants">;
@@ -25,6 +27,7 @@ const ALERT_LABEL = "New roles at my companies";
  */
 export default function Alerts() {
   const { user, profile, isManager } = useAuth();
+  const followUps = hasFeature(profile, "follow_ups");
   const { toast } = useToast();
   const [settings, setSettings] = useState<Setting[]>([]);
   const [consultants, setConsultants] = useState<Consultant[]>([]);
@@ -239,6 +242,8 @@ export default function Alerts() {
         </Card>
 
         <RaisesDigestCard />
+
+        {followUps && <OutlookCard />}
 
         <Card className="p-5">
           <h2 className="text-base font-semibold text-foreground mb-3">Add an alert</h2>

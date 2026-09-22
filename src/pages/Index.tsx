@@ -23,6 +23,7 @@ import { PipelineStageControl } from "@/components/PipelineStageControl";
 import { ContactEngagement } from "@/components/ContactEngagement";
 import { EmailContactDialog } from "@/components/EmailContactDialog";
 import { FollowUpsCard } from "@/components/FollowUpsCard";
+import { RepliesCard } from "@/components/RepliesCard";
 import { StartFollowUpsDialog } from "@/components/StartFollowUpsDialog";
 import { useAuth } from "@/lib/auth";
 import { useCompanyEmailEvents } from "@/lib/emailEventsData";
@@ -731,6 +732,8 @@ const Index = () => {
                   onCopy={copyToClipboard}
                   copiedField={copiedField}
                 />
+
+                {followUps && activeCompanyId && <RepliesCard companyId={activeCompanyId} />}
 
                 {followUps && activeCompanyId && <FollowUpsCard companyId={activeCompanyId} companyName={result.companyRecord?.name || activeCompany?.companyName || "the company"} onChange={() => setOutcomesKey((k) => k + 1)} />}
 
