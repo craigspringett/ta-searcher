@@ -88,7 +88,7 @@ Deno.test('hunter: the Finder, the Verifier and the account parse and never thro
   assertEquals((await hunterEmailFinder('x.com', 'A', 'B', { key: null })).error, 'HUNTER_API_KEY not set');
   const a = await hunterAccount({ key: 'k', fetch: () => reply(200, { data: { plan_name: 'Starter', reset_date: '2026-10-01', requests: { searches: { used: 88, available: 500 }, verifications: { used: 20, available: 1000 } } } }) });
   assertEquals(hunterAccountLine(a), 'Hunter Starter: 412 of 500 searches and 980 of 1,000 verifications left until 1 October 2026.');
-  const credits = await hunterAccount({ key: 'k', fetch: () => reply(200, { data: { plan_name: 'Starter', reset_date: '2027-05-03', calls: { used: 178.5, available: 24000 } } }) });
+  const credits = await hunterAccount({ key: 'k', fetch: () => reply(200, { data: { plan_name: 'Starter', reset_date: '2027-05-03', calls: { used: 3095, available: 1997 }, requests: { credits: { used: 178.5, available: 24000, remaining: 23821.5 }, searches: { used: 0, available: 0 }, verifications: { used: 0, available: 0 } } } }) });
   assertEquals(hunterAccountLine(credits), 'Hunter Starter: 23,821.5 of 24,000 credits left until 3 May 2027.');
   assertEquals(hunterAccountLine(await hunterAccount({ key: 'k', fetch: () => reply(401, { errors: [{ details: 'No user found' }] }) })), 'Hunter: the key was refused: No user found');
 });

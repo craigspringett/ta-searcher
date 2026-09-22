@@ -3,7 +3,7 @@
 // the domain, and the app used to stop at the founder's name from the
 // register. Now, for each name-only person with a ranked role (the best
 // three), it asks Hunter's Email Finder for the address; failing that it
-// guesses first@domain then first.last@domain and asks Hunter's Verifier
+// guesses first@, first.last@, flast@ then firstlast@domain and asks Hunter's Verifier
 // whether each is deliverable. What is kept is shown as a guess with its
 // verification, never as found. Every answer is stored on the run
 // (contactsRun.enrichment, keyed by person and domain) and reused for
@@ -170,10 +170,11 @@ export async function enrichContacts<T extends EnrichableContact>(contacts: T[],
         entry.linkedin = f.linkedin;
       } else {
         if (f.error) result.notes.push(`${c.name}: Finder ${f.error}`);
-        // The plain guesses, verified one at a time; the first deliverable
-        // one wins, a risky (accept-all) one is kept as unverified and the
-        // search stops there, undeliverable moves on to the next pattern.
-        const patterns = [`${first}@${domain}`, `${first}.${last}@${domain}`];
+        // The plain guesses (the four commonest start-up patterns), verified
+        // one at a time; the first deliverable one wins, a risky (accept-all)
+        // one is kept as unverified and the search stops there, undeliverable
+        // moves on to the next pattern.
+        const patterns = [`${first}@${domain}`, `${first}.${last}@${domain}`, `${first[0]}${last}@${domain}`, `${first}${last}@${domain}`];
         for (const guess of patterns) {
           if (quotaSpent) break;
           const v = await deps.verify(guess);

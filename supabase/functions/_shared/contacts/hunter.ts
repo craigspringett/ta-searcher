@@ -198,9 +198,11 @@ export function cachedHunterResult(stored: unknown, host: string, now: Date): Hu
 // address and answers {data: {status: valid | invalid | accept_all | webmail
 // | disposable | unknown, result: deliverable | undeliverable | risky,
 // score}}; 202 means it is still checking. The account endpoint answers
-// {data: {plan_name, reset_date, requests: {searches: {used, available},
-// verifications: {used, available}}}}. A Finder call counts as a search,
-// a Verifier call as a verification.
+// {data: {plan_name, reset_date, requests: {credits: {used, available,
+// remaining}, searches: {used, available}, verifications: {used,
+// available}}}} (the credit plans answer 0 of 0 searches; data.calls is
+// deprecated). Seen on 22 September 2026: 36 Finder and 102 Verifier calls
+// cost 131 credits, so about one credit a call.
 
 export const HUNTER_FINDER = 'https://api.hunter.io/v2/email-finder';
 export const HUNTER_VERIFIER = 'https://api.hunter.io/v2/email-verifier';
@@ -236,8 +238,10 @@ export interface HunterAccount {
   resetDate: string | null;
   searches: { used: number | null; available: number | null };
   verifications: { used: number | null; available: number | null };
-  /** The newer plans count credits (a Finder call is one, a verification is less): data.calls. */
+  /** The credit plans (Craig's Starter, 24,000 a year): data.requests.credits; a Finder call and a verification cost about one each. */
   credits: { used: number | null; available: number | null };
+  /** Everything else Hunter said about the plan, minus the person's own details, for the log. */
+  raw?: Record<string, unknown>;
   error: string | null;
 }
 
@@ -282,7 +286,8 @@ export function parseHunterAccount(json: any): Omit<HunterAccount, 'ok' | 'error
     resetDate: str(d?.reset_date),
     searches: { used: num(r?.searches?.used), available: num(r?.searches?.available) },
     verifications: { used: num(r?.verifications?.used), available: num(r?.verifications?.available) },
-    credits: { used: num(d?.calls?.used), available: num(d?.calls?.available) },
+    credits: { used: num(r?.credits?.used), available: num(r?.credits?.available) },
+    raw: Object.fromEntries(Object.entries(d && typeof d === 'object' ? d : {}).filter(([k]) => !['email', 'first_name', 'last_name', 'team_id'].includes(k))),
   };
 }
 
@@ -350,6 +355,7 @@ export function hunterAccountLine(a: HunterAccount): string {
   const c = left(a.credits);
   const reset = a.resetDate ? new Date(a.resetDate + (a.resetDate.length === 10 ? 'T00:00:00Z' : '')) : null;
   const until = reset && !Number.isNaN(reset.getTime()) ? ` until ${reset.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })}` : '';
-  if (c && !s) return `Hunter${a.plan ? ` ${a.plan}` : ''}: ${c} credits left${until}.`;
+  // The credit plans answer searches and verifications as 0 of 0; the credits are the figure that matters there.
+  if (c && (!s || !a.searches.available)) return `Hunter${a.plan ? ` ${a.plan}` : ''}: ${c} credits left${until}.`;
   return `Hunter${a.plan ? ` ${a.plan}` : ''}: ${s ? `${s} searches` : 'searches unknown'} and ${v ? `${v} verifications` : 'verifications unknown'} left${until}.`;
 }

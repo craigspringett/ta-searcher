@@ -38,12 +38,12 @@ Deno.test('enrich: the Finder wins at a good score; a guess is verified one patt
   const calls: string[] = [];
   const deps = {
     finder: (domain: string, first: string, last: string) => { calls.push(`finder ${first} ${last}@${domain}`); return Promise.resolve(first === 'alice' ? finderOk('alice@x.com', 92, 'valid') : first === 'gina' ? finderOk('g.ops@x.com', 30, null) : finderNone); },
-    verify: (email: string) => { calls.push(`verify ${email}`); return Promise.resolve(email === 'gina@x.com' ? verify('undeliverable', 'invalid') : email === 'gina.ops@x.com' ? verify('deliverable', 'valid') : email === 'bob@x.com' ? verify('risky', 'accept_all') : verify('unknown')); },
+    verify: (email: string) => { calls.push(`verify ${email}`); return Promise.resolve(email === 'gina@x.com' || email === 'gina.ops@x.com' ? verify('undeliverable', 'invalid') : email === 'gops@x.com' ? verify('deliverable', 'valid') : email === 'bob@x.com' ? verify('risky', 'accept_all') : verify('unknown')); },
   };
   const r = await enrichContacts(contacts(), { domain: 'x.com', now: NOW, deps });
-  assertEquals(calls, ['finder alice founder@x.com', 'finder gina ops@x.com', 'verify gina@x.com', 'verify gina.ops@x.com', 'finder bob builder@x.com', 'verify bob@x.com']);
+  assertEquals(calls, ['finder alice founder@x.com', 'finder gina ops@x.com', 'verify gina@x.com', 'verify gina.ops@x.com', 'verify gops@x.com', 'finder bob builder@x.com', 'verify bob@x.com']);
   assertEquals(r.finderCalls, 3);
-  assertEquals(r.verifyCalls, 3);
+  assertEquals(r.verifyCalls, 4);
   assertEquals(r.filled, 3);
   const alice = r.contacts[0];
   assertEquals(alice.email, 'alice@x.com');
@@ -53,7 +53,7 @@ Deno.test('enrich: the Finder wins at a good score; a guess is verified one patt
   assertEquals(alice.linkedin, 'https://www.linkedin.com/in/alice/');
   assert(alice.evidence!.startsWith('Hunter Email Finder gave alice@x.com (score 92%, valid). Named on the team page.'), alice.evidence);
   const gina = r.contacts.find((c) => c.name === 'Gina Ops')!;
-  assertEquals(gina.email, 'gina.ops@x.com', 'the 30% Finder answer is ignored; first@ was undeliverable, first.last@ deliverable');
+  assertEquals(gina.email, 'gops@x.com', 'the 30% Finder answer is ignored; first@ and first.last@ were undeliverable, flast@ deliverable');
   assertEquals(gina.verification, 'deliverable');
   assertEquals(gina.email_source, 'guess');
   const bob = r.contacts.find((c) => c.name === 'Bob Builder')!;
