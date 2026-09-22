@@ -19,6 +19,7 @@ import { AnalysisProgress } from "@/components/AnalysisProgress";
 import { CompanyRegisterCard } from "@/components/CompanyRegisterCard";
 import { ContactEditDialog, type ContactEditMode } from "@/components/ContactEditDialog";
 import { ContactsCard, type ContactFeedbackKind } from "@/components/ContactsCard";
+import { PipelineStageControl } from "@/components/PipelineStageControl";
 import { ContactEngagement } from "@/components/ContactEngagement";
 import { EmailContactDialog } from "@/components/EmailContactDialog";
 import { FollowUpsCard } from "@/components/FollowUpsCard";
@@ -660,6 +661,8 @@ const Index = () => {
                     <a key={id} href={`#${id}`} className="rounded px-2 py-1 text-muted-foreground hover:bg-muted hover:text-foreground">{label}</a>
                   ))}
                 </nav>
+
+                {activeCompanyId && <Card className="p-3"><PipelineStageControl companyId={activeCompanyId} /></Card>}
 
                 <CompanyRegisterCard summary={result.summary} url={currentSearchUrl} record={result.companyRecord} stage={result.stage} raise={result.latestRaise} websiteAccess={result.websiteAccess} linkedin={result.linkedin} />
 

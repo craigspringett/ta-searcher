@@ -703,6 +703,8 @@ export type Database = {
           evidence_fingerprint: string | null
           external_refs: Json
           id: string
+          pipeline_moved_at: string
+          pipeline_stage: string
           updated_at: string
           url: string
         }
@@ -715,6 +717,8 @@ export type Database = {
           evidence_fingerprint?: string | null
           external_refs?: Json
           id?: string
+          pipeline_moved_at?: string
+          pipeline_stage?: string
           updated_at?: string
           url: string
         }
@@ -727,6 +731,8 @@ export type Database = {
           evidence_fingerprint?: string | null
           external_refs?: Json
           id?: string
+          pipeline_moved_at?: string
+          pipeline_stage?: string
           updated_at?: string
           url?: string
         }

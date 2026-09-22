@@ -121,6 +121,16 @@ built and verified on 21 September 2026 and what is not yet applied.
   `StartFollowUpsDialog`, `FollowUpsCard` (company page), `FollowUpsDueCard`
   and `WarmNowCard` (My patch), page `FollowUps` (`/follow-ups`); rules in
   `src/lib/followUps.ts` and `emailEvents.ts`.
+- Pipeline board (22 September 2026): `company_searches.pipeline_stage`
+  (prospect, contacted, call_booked, search_agreed, lost) and
+  `pipeline_moved_at`; an outcome advances the stage on its own (trigger
+  `advance_pipeline_on_outcome`, never backwards, never off lost); page
+  `Pipeline` (`/pipeline`, rules in `src/lib/pipeline.ts`, reads in
+  `pipelineData.ts`), `PipelineStageControl` on the company page.
+  LinkedIn links (`_shared/contacts/linkedin.ts`, `src/lib/linkedin.ts`):
+  `analysis_result.linkedin` is the company page from its site or Hunter,
+  a contact's `linkedin` is Hunter's profile, else a people search.
+  Migration `20260922100000_pipeline.sql`.
 - Weekly cadence (UTC): Friday 05:00 snapshot, 05:05 `refresh-all-companies`
   queues every company into `analyze_company_queue` (ten a minute), 06:55
   `send-friday-brief`, 07:30 `auto-refresh-vacancies` compare-and-alert.
@@ -169,6 +179,6 @@ npx tsc --noEmit -p tsconfig.app.json # frontend types
 npx eslint src                        # 0 errors expected
 npm test                              # Vitest for src/lib
 cd supabase/functions && DENO_NO_PACKAGE_JSON=1 deno test --allow-all --no-check --node-modules-dir=none _shared   # unit tests (Deno: curl -fsSL https://deno.land/install.sh | sh -s v2.4.5, then ~/.deno/bin)
-scripts/local-db-test.sh              # every plain-SQL migration and its row security on a throwaway local Postgres 16 (130 assertions)
+scripts/local-db-test.sh              # every plain-SQL migration and its row security on a throwaway local Postgres 16 (136 assertions)
 node scripts/embed-value-proposition.mjs   # after editing _shared/copy/value-proposition.md
 ```

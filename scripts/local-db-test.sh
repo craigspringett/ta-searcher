@@ -31,6 +31,7 @@ FUNDING_NEWS="$ROOT/supabase/migrations/20260921130000_funding_news.sql"
 POSTCODE="$ROOT/supabase/migrations/20260921140000_company_records_postcode.sql"
 PROSPECTS="$ROOT/supabase/migrations/20260921150000_prospects.sql"
 FOLLOW_UPS="$ROOT/supabase/migrations/20260921160000_follow_ups.sql"
+PIPELINE="$ROOT/supabase/migrations/20260922100000_pipeline.sql"
 GEN_TYPES=0
 KEEP=0
 for arg in "$@"; do
@@ -47,6 +48,7 @@ done
 [[ -f "$POSTCODE" ]] || { echo "local-db-test: $POSTCODE not found" >&2; exit 2; }
 [[ -f "$PROSPECTS" ]] || { echo "local-db-test: $PROSPECTS not found" >&2; exit 2; }
 [[ -f "$FOLLOW_UPS" ]] || { echo "local-db-test: $FOLLOW_UPS not found" >&2; exit 2; }
+[[ -f "$PIPELINE" ]] || { echo "local-db-test: $PIPELINE not found" >&2; exit 2; }
 
 WORK="$(mktemp -d)"
 PGDATA="$WORK/data"
@@ -130,6 +132,8 @@ echo "== apply $(basename "$PROSPECTS")"
 psqlq -f "$PROSPECTS" >"$WORK/apply-prospects.log" 2>&1 || { cat "$WORK/apply-prospects.log"; exit 1; }
 echo "== apply $(basename "$FOLLOW_UPS")"
 psqlq -f "$FOLLOW_UPS" >"$WORK/apply-follow-ups.log" 2>&1 || { cat "$WORK/apply-follow-ups.log"; exit 1; }
+echo "== apply $(basename "$PIPELINE")"
+psqlq -f "$PIPELINE" >"$WORK/apply-pipeline.log" 2>&1 || { cat "$WORK/apply-pipeline.log"; exit 1; }
 grep -i "error" "$WORK/apply-funding-news.log" && exit 1
 echo "   applied"
 
@@ -338,6 +342,14 @@ check "authenticated may update only the three dismissal columns" "select has_co
 check "service role qualifies and promotes a prospect" "set local role service_role; select set_config('request.jwt.claims', '{\"role\":\"service_role\"}', true); update public.prospects set status = 'qualified', prospect_score = 75, score_reasons = '[{\"points\":45,\"text\":\"Head of Talent advertised\"}]', website = 'https://metrisenergy.com/', qualified_at = now() where name_key = 'metris energy'; update public.prospects set status = 'promoted', promoted_at = now(), promoted_company_id = '$CO_TWO' where name_key = 'metris energy'; select count(*) = 1 from public.prospects where status = 'promoted' and promoted_company_id = '$CO_TWO' and prospect_score = 75"
 check "a manager deleting the company leaves the promoted prospect with no company (the guard lets the foreign key through)" "$as_manager delete from public.company_searches where id = '$CO_TWO'; select count(*) = 1 from public.prospects where name_key = 'metris energy' and status = 'promoted' and promoted_company_id is null"
 check "prospects has its three indexes" "select count(*) = 3 from pg_indexes where schemaname = 'public' and tablename = 'prospects' and indexname in ('idx_prospects_status_score', 'idx_prospects_status_last_seen', 'idx_prospects_promoted_at')"
+
+# pipeline_stage (the board)
+check "the spoke_to logged earlier moved the company to contacted; a voicemail keeps it there" "insert into public.outcomes (company_search_id, consultant_id, created_by, kind) values ('$CO_ONE', '$C_ANJA', '$U_CONSULTANT', 'voicemail'); select pipeline_stage = 'contacted' from public.company_searches where id = '$CO_ONE'"
+check "a meeting moves it to call booked" "insert into public.outcomes (company_search_id, consultant_id, created_by, kind) values ('$CO_ONE', '$C_ANJA', '$U_CONSULTANT', 'meeting_booked'); select pipeline_stage = 'call_booked' from public.company_searches where id = '$CO_ONE'"
+check "an outcome never moves a company backwards" "insert into public.outcomes (company_search_id, consultant_id, created_by, kind) values ('$CO_ONE', '$C_ANJA', '$U_CONSULTANT', 'emailed'); select pipeline_stage = 'call_booked' from public.company_searches where id = '$CO_ONE'"
+check "consultant moves a company to search agreed and the move is stamped" "$as_consultant update public.company_searches set pipeline_stage = 'search_agreed', pipeline_moved_at = '2020-01-01' where id = '$CO_ONE'; select pipeline_stage = 'search_agreed' and pipeline_moved_at > now() - interval '1 minute' from public.company_searches where id = '$CO_ONE'"
+check "a company put on not now stays there when an outcome is logged" "update public.company_searches set pipeline_stage = 'lost' where id = '$CO_ONE'; insert into public.outcomes (company_search_id, consultant_id, created_by, kind) values ('$CO_ONE', '$C_ANJA', '$U_CONSULTANT', 'spoke_to'); select pipeline_stage = 'lost' from public.company_searches where id = '$CO_ONE'"
+expect_fail "an unknown stage is refused" "update public.company_searches set pipeline_stage = 'won' where id = '$CO_ONE'"
 
 # follow_up_sequences and follow_up_steps (the Follow-ups port)
 check "service role starts a sequence with its steps" "insert into public.company_consultants (company_search_id, consultant_id) values ('$CO_ONE', '$C_ANJA') on conflict do nothing; set local role service_role; select set_config('request.jwt.claims', '{\"role\":\"service_role\"}', true); insert into public.follow_up_sequences (id, company_search_id, consultant_id, created_by, contact_name, contact_email, contact_role, plan) values ('aaaaaaaa-0000-0000-0000-00000000000a', '$CO_ONE', '$C_ANJA', '$U_CONSULTANT', 'Jane Founder', 'jane@one.example', 'CEO', '[]'); insert into public.follow_up_steps (sequence_id, step_no, kind, day, due_at) values ('aaaaaaaa-0000-0000-0000-00000000000a', 1, 'call', 0, now()), ('aaaaaaaa-0000-0000-0000-00000000000a', 2, 'email', 0, now()); select count(*) = 2 from public.follow_up_steps"
