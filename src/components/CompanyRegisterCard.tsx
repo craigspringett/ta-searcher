@@ -1,3 +1,4 @@
+import { companyLinkedIn } from "@/lib/linkedin";
 import { ExternalLink } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { companiesHouseUrl, companyIsClosed, companyStatusLabel, registeredOfficeLine, type CompanyRecord, type LatestRaise, type StageGuess } from "@/lib/analysis";
@@ -5,6 +6,8 @@ import { formatLongDate, latestRaiseDetail, latestRaiseLine, stageLabel } from "
 import { sectorFromSic } from "@/lib/sector";
 
 interface Props {
+  /** The company's LinkedIn page from the analysis, else a search is offered. */
+  linkedin?: string | null;
   summary: string;
   url: string;
   record: CompanyRecord | null | undefined;
@@ -18,7 +21,7 @@ interface Props {
  * Companies House (number, status, incorporated, registered office, sector),
  * the stage with its evidence and the latest raise.
  */
-export function CompanyRegisterCard({ summary, url, record, stage, raise, websiteAccess }: Props) {
+export function CompanyRegisterCard({ summary, url, record, stage, raise, websiteAccess, linkedin }: Props) {
   const sector = sectorFromSic(record?.sicCodes);
   const office = registeredOfficeLine(record);
   const closed = companyIsClosed(record?.status);
@@ -52,6 +55,16 @@ export function CompanyRegisterCard({ summary, url, record, stage, raise, websit
           </Row>
           <Row label="Status"><span className={closed ? "font-medium text-critical" : ""}>{companyStatusLabel(record.status) || "Unknown"}</span>{closed && <span className="text-xs text-muted-foreground"> (not refreshed, alerted or scored again)</span>}</Row>
           <Row label="Incorporated">{record.incorporationDate ? formatLongDate(record.incorporationDate) : "Unknown"}</Row>
+          {(() => {
+            const li = companyLinkedIn(linkedin, record.name);
+            return li ? (
+              <Row label="LinkedIn">
+                <a href={li.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+                  {li.kind === "page" ? "Company page" : "Search LinkedIn"}<ExternalLink className="h-3 w-3" aria-hidden="true" />
+                </a>
+              </Row>
+            ) : null;
+          })()}
           <Row label="Registered office">{office || "Not given"}</Row>
           <Row label="Sector">{sector || <span className="text-muted-foreground">Not one we label{record.sicCodes?.length ? ` (SIC ${record.sicCodes.join(", ")})` : ""}</span>}{sector && record.sicCodes?.length ? <span className="text-xs text-muted-foreground"> (SIC {record.sicCodes.join(", ")})</span> : null}</Row>
           {record.accountsType && <Row label="Accounts">{record.accountsType}{record.lastAccountsMadeUpTo ? ` to ${formatLongDate(record.lastAccountsMadeUpTo)}` : ""}</Row>}

@@ -22,6 +22,14 @@
 import { fetchWithTimeout } from '../fetch.ts';
 import type { EmailHit, PersonHit } from './extract.ts';
 import { classifyRole, INVESTOR_RANK, samePerson, type RecordOfficer } from './resolve.ts';
+import { tidyProfileUrl } from './linkedin.ts';
+
+/** Hunter writes the company page as "linkedin.com/company/x" without a scheme. */
+function tidyCompanyUrl(v: string | null): string | null {
+  if (!v) return null;
+  const m = v.match(/linkedin\.com\/company\/([A-Za-z0-9._%-]+)/i);
+  return m ? `https://www.linkedin.com/company/${m[1]}/` : null;
+}
 
 export const HUNTER_BASE = 'https://api.hunter.io/v2/domain-search';
 export const HUNTER_MIN_CONFIDENCE = 50;
@@ -76,6 +84,8 @@ export interface HunterResult {
   /** Generic mailboxes (hello@, careers@) kept as addresses only. */
   generic: string[];
   dropped: HunterDropped[];
+  /** The company's LinkedIn page, when Hunter knows it. */
+  companyLinkedin: string | null;
   error: string | null;
   fetchedAt: string;
   fromCache?: boolean;
@@ -93,7 +103,7 @@ export interface HunterParseOptions {
 }
 
 /** The people worth a contact row from a Domain Search answer. */
-export function parseHunterDomainSearch(json: any, options: HunterParseOptions = {}): { listed: number; people: HunterPerson[]; generic: string[]; dropped: HunterDropped[] } {
+export function parseHunterDomainSearch(json: any, options: HunterParseOptions = {}): { listed: number; people: HunterPerson[]; generic: string[]; dropped: HunterDropped[]; companyLinkedin: string | null } {
   const items = Array.isArray(json?.data?.emails) ? json.data.emails : [];
   const people: HunterPerson[] = [];
   const generic: string[] = [];
@@ -124,9 +134,10 @@ export function parseHunterDomainSearch(json: any, options: HunterParseOptions =
     if (!kept) { drop('no position'); continue; }
     if (!role) { drop('the position is not a role the app contacts'); continue; }
     if (role.rank === INVESTOR_RANK) { drop('an investor'); continue; }
-    people.push({ name: fullName, email, position: kept, confidence: Math.round(confidence), phone: str(it?.phone_number), linkedin: str(it?.linkedin) });
+    people.push({ name: fullName, email, position: kept, confidence: Math.round(confidence), phone: str(it?.phone_number), linkedin: tidyProfileUrl(str(it?.linkedin)) });
   }
-  return { listed: items.length, people, generic, dropped };
+  const companyLinkedin = tidyCompanyUrl(str(json?.data?.linkedin));
+  return { listed: items.length, people, generic, dropped, companyLinkedin };
 }
 
 /** The hits the resolver takes: a PersonHit per person with the address in the same row, an EmailHit per address. */
@@ -149,7 +160,7 @@ type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
 export async function hunterDomainSearch(host: string, options: { key?: string | null; fetch?: FetchLike; now?: Date } & HunterParseOptions = {}): Promise<HunterResult> {
   const key = options.key === undefined ? hunterKey() : options.key;
   const fetchedAt = (options.now ?? new Date()).toISOString();
-  const base: HunterResult = { host, configured: !!key, ok: false, status: 0, listed: 0, people: [], generic: [], dropped: [], error: null, fetchedAt };
+  const base: HunterResult = { host, configured: !!key, ok: false, status: 0, listed: 0, people: [], generic: [], dropped: [], companyLinkedin: null, error: null, fetchedAt };
   if (!key) return { ...base, error: 'HUNTER_API_KEY not set' };
   const doFetch = options.fetch ?? ((u: string, i?: RequestInit) => fetchWithTimeout(u, FETCH_MS, i));
   const q = new URLSearchParams({ domain: host, api_key: key, limit: String(HUNTER_LIMIT) });
@@ -175,5 +186,5 @@ export function cachedHunterResult(stored: unknown, host: string, now: Date): Hu
   if (r.host !== host || !r.ok || !r.fetchedAt) return null;
   const age = now.getTime() - Date.parse(r.fetchedAt);
   if (!Number.isFinite(age) || age > HUNTER_CACHE_DAYS * 86_400_000) return null;
-  return { host, configured: true, ok: true, status: r.status ?? 200, listed: r.listed ?? 0, people: Array.isArray(r.people) ? r.people : [], generic: Array.isArray(r.generic) ? r.generic : [], dropped: Array.isArray(r.dropped) ? r.dropped : [], error: null, fetchedAt: r.fetchedAt, fromCache: true };
+  return { host, configured: true, ok: true, status: r.status ?? 200, listed: r.listed ?? 0, people: Array.isArray(r.people) ? r.people : [], generic: Array.isArray(r.generic) ? r.generic : [], dropped: Array.isArray(r.dropped) ? r.dropped : [], companyLinkedin: r.companyLinkedin ?? null, error: null, fetchedAt: r.fetchedAt, fromCache: true };
 }

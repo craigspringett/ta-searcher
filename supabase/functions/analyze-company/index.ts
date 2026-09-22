@@ -33,6 +33,7 @@ import { fetchContactPages } from '../_shared/contacts/pages.ts';
 import { extractEmails, extractPeople, extractPhones, type EmailHit, type PersonHit, type PhoneHit } from '../_shared/contacts/extract.ts';
 import { resolveContacts, stripTitle, type Contact } from '../_shared/contacts/resolve.ts';
 import { cachedHunterResult, hunterConfigured, hunterDomainSearch, hunterHits, type HunterResult } from '../_shared/contacts/hunter.ts';
+import { findCompanyLinkedIn } from '../_shared/contacts/linkedin.ts';
 import { applyModelContactReview, mergeProvidedContacts, toDecisionMaker, type DecisionMaker } from '../_shared/contacts/review.ts';
 import { mergedContactsFor } from '../_shared/contacts/edits.ts';
 import { isDefunctStatus, normaliseCompanyNumber, resolveCompanyRecord, sectorFromSic, syncRegisterDetails, type CompanyRecord, type Officer } from '../_shared/companies-house.ts';
@@ -147,6 +148,16 @@ function officersAsContacts(officers: Officer[], companyNumber: string, existing
   return out;
 }
 
+/** The LinkedIn profile Hunter gave for a contact, matched by address, laid onto the stored contact rows. */
+function withLinkedIn(contacts: DecisionMaker[], hunter: HunterResult | null): DecisionMaker[] {
+  if (!hunter || !hunter.people.length) return contacts;
+  const byEmail = new Map(hunter.people.filter((p) => p.linkedin).map((p) => [p.email.toLowerCase(), p.linkedin as string]));
+  return contacts.map((c) => {
+    const url = c.email ? byEmail.get(String(c.email).toLowerCase()) : undefined;
+    return url && !(c as { linkedin?: string }).linkedin ? { ...c, linkedin: url } as DecisionMaker : c;
+  });
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -177,6 +188,8 @@ Deno.serve(async (req) => {
   // refresh path they are still stored.
   let resolvedContacts: Contact[] | null = null;
   let contactsRun: Record<string, unknown> | null = null;
+  // Hunter's answer for this run, kept in the outer scope so the degraded path can lay the profiles on too.
+  let hunter: HunterResult | null = null;
   // deno-lint-ignore no-explicit-any
   let refreshTarget: { id: string; analysis_result: any } | null = null;
 
@@ -505,7 +518,6 @@ Deno.serve(async (req) => {
     // Hunter's Domain Search: named people with a work address for a site
     // that names nobody itself. One search per company, kept on the run
     // and reused for thirty days (the plan's quota is small).
-    let hunter: HunterResult | null = null;
     if (hunterConfigured()) {
       const hunterHost = new URL(siteUrl).hostname.toLowerCase().replace(/^www\./, '');
       hunter = cachedHunterResult(existingRow?.analysis_result?.contactsRun?.hunter, hunterHost, today) ?? await hunterDomainSearch(hunterHost, { now: today, officers: recordOfficers });
@@ -538,7 +550,7 @@ Deno.serve(async (req) => {
       patternNote: resolved.patternNote,
       officePhone: resolved.officePhone,
       officers: officers.filter((o) => !o.resignedOn).length,
-      hunter: hunter ? { host: hunter.host, ok: hunter.ok, status: hunter.status, listed: hunter.listed, people: hunter.people, generic: hunter.generic, dropped: hunter.dropped, error: hunter.error, fetchedAt: hunter.fetchedAt, fromCache: hunter.fromCache === true } : null,
+      hunter: hunter ? { host: hunter.host, ok: hunter.ok, status: hunter.status, listed: hunter.listed, people: hunter.people, generic: hunter.generic, dropped: hunter.dropped, companyLinkedin: hunter.companyLinkedin, error: hunter.error, fetchedAt: hunter.fetchedAt, fromCache: hunter.fromCache === true } : null,
       ms: site.notes.ms + (Date.now() - contactsStarted),
     };
     console.log(`Contacts: ${uniqueEmails.length} addresses, ${allPeople.length} people, ${resolved.contacts.length} contacts (${resolved.contacts.filter((c) => c.confidence === 'found').length} found, ${resolved.contacts.filter((c) => c.confidence === 'pattern_guess').length} pattern guesses, ${resolved.contacts.filter((c) => c.confidence === 'role_only').length} name only)`);
@@ -789,6 +801,8 @@ Deno.serve(async (req) => {
     // deno-lint-ignore no-explicit-any
     const out = result as any;
     out.companyRecord = recordForResult(trusted ?? record ?? null);
+    // LinkedIn (22 September 2026): the company's page from its site or Hunter, kept from the last run when neither has it.
+    out.linkedin = findCompanyLinkedIn(mainPageHtml) ?? hunter?.companyLinkedin ?? existingRow?.analysis_result?.linkedin ?? null;
     out.officers = officers;
     out.boards = boards;
     out.vacancyRun = {
@@ -803,7 +817,7 @@ Deno.serve(async (req) => {
     // them), with the model's review applied and the consultants' own
     // contacts merged in.
     // deno-lint-ignore no-explicit-any
-    result.decisionMakers = mergeProvidedContacts(applyModelContactReview(resolved.contacts, allEmails, extraction.contactReview as any[]), existingRow?.analysis_result?.decisionMakers);
+    result.decisionMakers = withLinkedIn(mergeProvidedContacts(applyModelContactReview(resolved.contacts, allEmails, extraction.contactReview as any[]), existingRow?.analysis_result?.decisionMakers), hunter);
     out.contactsRun = { ...contactsRun, modelReviewed: true };
     console.log('Decision makers after model review:', result.decisionMakers.length);
 
@@ -1000,7 +1014,7 @@ Deno.serve(async (req) => {
     const errorMsg = error instanceof Error ? error.message : 'Internal server error';
     if (resolvedContacts && refreshTarget) {
       try {
-        const merged = { ...(refreshTarget.analysis_result || {}), decisionMakers: mergeProvidedContacts(resolvedContacts.map(toDecisionMaker), refreshTarget.analysis_result?.decisionMakers), contactsRun: { ...contactsRun, modelReviewed: false, aiError: errorMsg.slice(0, 200) } };
+        const merged = { ...(refreshTarget.analysis_result || {}), decisionMakers: withLinkedIn(mergeProvidedContacts(resolvedContacts.map(toDecisionMaker), refreshTarget.analysis_result?.decisionMakers), hunter), contactsRun: { ...contactsRun, modelReviewed: false, aiError: errorMsg.slice(0, 200) } };
         const { error: updErr } = await supabaseClient.from('company_searches').update({ analysis_result: merged, updated_at: new Date().toISOString() }).eq('id', refreshTarget.id);
         if (updErr) console.error('could not store contacts after AI failure:', updErr.message);
         else console.log(`Stored ${resolvedContacts.length} contacts for row ${refreshTarget.id} although the AI step failed`);
@@ -1068,6 +1082,7 @@ async function analyseWithoutWebsite(supabaseClient: any, input: {
   const previous = existingRow.analysis_result || {};
   const patch: Record<string, unknown> = {
     companyRecord: record ? recordForResult(trusted ?? record) : (previous.companyRecord ?? null),
+    linkedin: previous.linkedin ?? null,
     officers: officers.length ? officers : (previous.officers ?? []),
     boards,
     vacancyRun: { at: runStartedAt, degraded: true, degradedReason: 'homepage fetch failed', sourcesOk: okSources, sourcesTried: results.map((r) => r.source) },

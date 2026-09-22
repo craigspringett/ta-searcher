@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { Pencil, UserPlus } from "lucide-react";
+import { Linkedin, Pencil, UserPlus } from "lucide-react";
+import { contactLinkedIn } from "@/lib/linkedin";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -20,6 +21,8 @@ function providedLabel(p: { provided_by?: string; provided_at?: string }): strin
 interface Props {
   /** null until the company is in the list (a brand-new analysis not yet saved): editing and reporting need the row. */
   companyId: string | null;
+  /** For the LinkedIn people search when a contact has no stored profile. */
+  companyName?: string | null;
   officers: Officer[] | null | undefined;
   contacts: Array<MergedContact<DecisionMaker>>;
   removed: Array<RemovedContact<DecisionMaker>>;
@@ -37,7 +40,7 @@ interface Props {
  * over them, each with its confidence tag, source page, evidence and the
  * "wrong or bounced" report.
  */
-export function ContactsCard({ companyId, officers, contacts, removed, pagesRead, editsError, onEdit, onReport, extra }: Props) {
+export function ContactsCard({ companyId, companyName, officers, contacts, removed, pagesRead, editsError, onEdit, onReport, extra }: Props) {
   return (
     <Card className="p-6 scroll-mt-14" id="people">
       <h3 className="text-lg font-bold text-foreground mb-3">People</h3>
@@ -78,6 +81,14 @@ export function ContactsCard({ companyId, officers, contacts, removed, pagesRead
                     <span className="text-sm text-muted-foreground">No email on the site. Phone the office and ask by name.</span>
                   )}
                   {person.phone && <p className="text-sm text-muted-foreground">{person.phone}</p>}
+                  {(() => {
+                    const li = contactLinkedIn(person, companyName);
+                    return li ? (
+                      <a href={li.url} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 text-xs text-primary hover:underline" title={li.kind === "profile" ? "Their LinkedIn profile" : "Search LinkedIn for this person at this company"}>
+                        <Linkedin className="h-3.5 w-3.5" aria-hidden="true" />{li.kind === "profile" ? "LinkedIn profile" : "Find on LinkedIn"}
+                      </a>
+                    ) : null;
+                  })()}
                   {extra ? extra(person) : null}
                 </div>
                 <div className="flex flex-col items-end gap-1 shrink-0">

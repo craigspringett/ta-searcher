@@ -661,7 +661,7 @@ const Index = () => {
                   ))}
                 </nav>
 
-                <CompanyRegisterCard summary={result.summary} url={currentSearchUrl} record={result.companyRecord} stage={result.stage} raise={result.latestRaise} websiteAccess={result.websiteAccess} />
+                <CompanyRegisterCard summary={result.summary} url={currentSearchUrl} record={result.companyRecord} stage={result.stage} raise={result.latestRaise} websiteAccess={result.websiteAccess} linkedin={result.linkedin} />
 
                 <div id="signals" className="scroll-mt-14" />
                 {activeCompanyId && <PropensityCard companyId={activeCompanyId} refreshKey={result.evidence?.computedAt} />}
@@ -692,6 +692,7 @@ const Index = () => {
 
                 <ContactsCard
                   companyId={activeCompanyId}
+                  companyName={result.companyRecord?.name || activeCompany?.companyName || null}
                   officers={result.officers}
                   contacts={mergedContacts}
                   removed={removedList}

@@ -91,6 +91,8 @@ export interface DecisionMaker {
   provided_by?: string;
   provided_at?: string;
   notes?: string;
+  /** The person's LinkedIn profile when Hunter gave one. */
+  linkedin?: string | null;
 }
 
 export interface Fact {
@@ -106,6 +108,8 @@ export interface AnalysisResult {
   summary: string;
   buyerIntentSignals?: string[];
   decisionMakers: DecisionMaker[];
+  /** The company's LinkedIn page, from its website or Hunter. */
+  linkedin?: string | null;
   recruitmentInsights?: { currentVacancies?: OpenRole[] } | null;
   companyRecord?: CompanyRecord | null;
   stage?: StageGuess | null;
