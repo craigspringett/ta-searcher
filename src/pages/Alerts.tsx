@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { AppHeader } from "@/components/AppHeader";
+import { RaisesDigestCard } from "@/components/RaisesDigestCard";
 
 type Setting = Tables<"vacancy_alert_settings">;
 type Consultant = Tables<"consultants">;
@@ -236,6 +237,8 @@ export default function Alerts() {
             </ul>
           )}
         </Card>
+
+        <RaisesDigestCard />
 
         <Card className="p-5">
           <h2 className="text-base font-semibold text-foreground mb-3">Add an alert</h2>

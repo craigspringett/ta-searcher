@@ -93,3 +93,6 @@ verify_jwt = true
 
 [functions.resend-domains]
 verify_jwt = true
+
+[functions.send-raises-digest]
+verify_jwt = true

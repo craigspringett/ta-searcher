@@ -25,6 +25,7 @@ begin
     'discover-prospects',
     'qualify-prospects',
     'tick-follow-ups',
+    'send-raises-digest',
     'auto-refresh-vacancies-trigger',
     'refresh-all-companies',
     'refresh-scores',
@@ -71,6 +72,11 @@ select cron.schedule('qualify-prospects', '40 5 * * *',
 -- writes a due draft again when the company changed. It never sends.
 select cron.schedule('tick-follow-ups', '*/15 * * * *',
   $$select public.invoke_edge_function('tick-follow-ups', '{}'::jsonb)$$);
+
+-- Monday 07:00: the weekly raises digest (every raise the radar saw last
+-- week in the chosen sectors and stages; app_settings.raises_digest).
+select cron.schedule('send-raises-digest', '0 7 * * 1',
+  $$select public.invoke_edge_function('send-raises-digest', '{}'::jsonb)$$);
 
 -- Friday 05:00: snapshot the open roles per consultant, then queue every
 -- company for analyze-company (the Friday-only cadence follows Craig's 14

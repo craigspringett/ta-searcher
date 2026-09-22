@@ -11,12 +11,15 @@
 --                          question 1 to Craig)
 --   prospecting            the radar's auto-promote score, weekly cap and the
 --                          register walk's watermarks (slice 3)
+--   raises_digest          the Monday digest: on or off, sectors, stages,
+--                          recipients (empty means every active consultant)
 
 insert into public.app_settings (key, value) values
   ('brief_copy_recipients', '[]'::jsonb),
   ('engagement_alerts', '{"enabled": true, "opens": true, "clicks": true, "off_for": []}'::jsonb),
   ('sending_domains', '["notify.bigfishrecruitment.co.uk"]'::jsonb),
-  ('prospecting', '{"autoPromoteScore": 60, "weeklyPromoteCap": 15, "watermarks": {}, "registerCursor": 0}'::jsonb)
+  ('prospecting', '{"autoPromoteScore": 60, "weeklyPromoteCap": 15, "watermarks": {}, "registerCursor": 0}'::jsonb),
+  ('raises_digest', '{"enabled": true, "sectors": [], "stages": [], "recipients": []}'::jsonb)
 on conflict (key) do nothing;
 
 -- The email queue's one state row (the baseline inserts it too; harmless here).

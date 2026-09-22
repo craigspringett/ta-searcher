@@ -390,15 +390,17 @@ expect_fail "http_page_enqueue refuses a caller that is not the service role" "s
 if psqlq -f "$ROOT/supabase/migrations/20260921120100_cron_jobs.sql" >"$WORK/cron.log" 2>&1 && ! grep -qi error "$WORK/cron.log"; then PASS=$((PASS + 1)); echo "pass  20260921120100_cron_jobs.sql applies against the cron stand-in"
 else FAIL=$((FAIL + 1)); echo "FAIL  20260921120100_cron_jobs.sql"; cat "$WORK/cron.log"; fi
 check "twelve jobs scheduled with the brief's names" \
-  "select count(*) = 15 and bool_and(jobname in ('process-email-queue','dispatch-analyze-company-queue','dispatch-copy-queue','close-stale-refresh-runs','sync-companies-house','sync-ats-boards','sync-funding-news','discover-prospects','qualify-prospects','tick-follow-ups','auto-refresh-vacancies-trigger','refresh-all-companies','refresh-scores','send-friday-brief','auto-refresh-vacancies-compare')) from cron.job"
+  "select count(*) = 16 and bool_and(jobname in ('process-email-queue','dispatch-analyze-company-queue','dispatch-copy-queue','close-stale-refresh-runs','sync-companies-house','sync-ats-boards','sync-funding-news','discover-prospects','qualify-prospects','tick-follow-ups','send-raises-digest','auto-refresh-vacancies-trigger','refresh-all-companies','refresh-scores','send-friday-brief','auto-refresh-vacancies-compare')) from cron.job"
 check "sync-funding-news runs at 05:20 UTC daily" \
   "select schedule = '20 5 * * *' from cron.job where jobname = 'sync-funding-news'"
+check "the raises digest goes on Monday at 07:00 UTC" \
+  "select schedule = '0 7 * * 1' from cron.job where jobname = 'send-raises-digest'"
 check "the follow-ups tick runs every fifteen minutes" \
   "select schedule = '*/15 * * * *' from cron.job where jobname = 'tick-follow-ups'"
 check "the prospect radar runs at 05:30 and qualifies at 05:40" \
   "select (select schedule from cron.job where jobname = 'discover-prospects') = '30 5 * * *' and (select schedule from cron.job where jobname = 'qualify-prospects') = '40 5 * * *'"
-check "the cron file is idempotent (a second apply keeps fifteen jobs)" \
-  "$(cat "$ROOT/supabase/migrations/20260921120100_cron_jobs.sql" | grep -v '^--' | tr '\n' ' ') select count(*) = 15 from cron.job"
+check "the cron file is idempotent (a second apply keeps sixteen jobs)" \
+  "$(cat "$ROOT/supabase/migrations/20260921120100_cron_jobs.sql" | grep -v '^--' | tr '\n' ' ') select count(*) = 16 from cron.job"
 check "the monitoring job list names only scheduled jobs" \
   "select bool_and(j ->> 'configured' = 'true') from jsonb_array_elements(public.get_cron_monitoring_jobs_only()) j"
 

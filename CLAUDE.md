@@ -133,13 +133,18 @@ built and verified on 21 September 2026 and what is not yet applied.
   Migration `20260922100000_pipeline.sql`. Investors page (`/investors`,
   `src/lib/investors.ts`, `investorsData.ts`): the funds named in each
   analysis (`latestRaise.investors` and the investor facts), grouped, no
-  table.
+  table. Weekly raises digest: `send-raises-digest` (Mondays 07:00 UTC,
+  `_shared/digest/build.ts`, template `raises-digest`, settings
+  `app_settings.raises_digest` edited on the Alerts page by
+  `RaisesDigestCard`; the sector and stage rules are
+  `_shared/prospecting/sector.ts`, a copy of the ones in
+  `src/lib/prospects.ts`).
 - Weekly cadence (UTC): Friday 05:00 snapshot, 05:05 `refresh-all-companies`
   queues every company into `analyze_company_queue` (ten a minute), 06:55
   `send-friday-brief`, 07:30 `auto-refresh-vacancies` compare-and-alert.
   Daily: 04:40 register, 04:50 ATS feeds, 05:20 funding news, 05:30 prospect
   discovery, 05:40 prospect qualification, 06:40 scores. Every 15 minutes:
-  the follow-ups tick.
+  the follow-ups tick. Monday 07:00: the raises digest.
 
 ## Working in a cloud session
 
@@ -182,6 +187,6 @@ npx tsc --noEmit -p tsconfig.app.json # frontend types
 npx eslint src                        # 0 errors expected
 npm test                              # Vitest for src/lib
 cd supabase/functions && DENO_NO_PACKAGE_JSON=1 deno test --allow-all --no-check --node-modules-dir=none _shared   # unit tests (Deno: curl -fsSL https://deno.land/install.sh | sh -s v2.4.5, then ~/.deno/bin)
-scripts/local-db-test.sh              # every plain-SQL migration and its row security on a throwaway local Postgres 16 (136 assertions)
+scripts/local-db-test.sh              # every plain-SQL migration and its row security on a throwaway local Postgres 16 (137 assertions)
 node scripts/embed-value-proposition.mjs   # after editing _shared/copy/value-proposition.md
 ```
