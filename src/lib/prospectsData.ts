@@ -6,7 +6,7 @@ const PROSPECT_COLUMNS =
   "id, name, name_key, website, company_number, status, sources, raise, register, boards, talent_postings, prospect_score, score_reasons, first_seen_at, last_seen_at, qualified_at, promoted_at, dismissed_at, promoted_company_id, dismiss_reason, parked_at, wake_note";
 
 export interface ProspectsPageData {
-  /** Qualified, promoted this month, and the new ones (slim rows: id, status, sources only). */
+  /** Qualified, promoted this month, parked, and the new ones (slim rows: id, status, sources, raise, talent_postings). */
   prospects: Prospect[];
   /** Status new, the exact count, in case more exist than the slim read returned. */
   newCount: number;
@@ -27,7 +27,7 @@ export async function loadProspectsPage(today = new Date()): Promise<ProspectsPa
   const [ready, promoted, fresh, freshCount, runs, settingsRow, parked] = await Promise.all([
     supabase.from("prospects").select(PROSPECT_COLUMNS).eq("status", "qualified").order("prospect_score", { ascending: false, nullsFirst: false }).order("name").limit(200),
     supabase.from("prospects").select(PROSPECT_COLUMNS).eq("status", "promoted").gte("promoted_at", since).order("promoted_at", { ascending: false }).limit(200),
-    supabase.from("prospects").select("id, status, sources").eq("status", "new").order("first_seen_at", { ascending: false }).limit(1000),
+    supabase.from("prospects").select("id, status, sources, raise, talent_postings").eq("status", "new").order("first_seen_at", { ascending: false }).limit(1000),
     supabase.from("prospects").select("id", { count: "exact", head: true }).eq("status", "new"),
     supabase.from("pipeline_runs").select("phase, status, started_at, finished_at, new_count, error, details").in("phase", ["prospecting", "prospect_qualify"]).order("started_at", { ascending: false }).limit(20),
     supabase.from("app_settings").select("value").eq("key", "prospecting").maybeSingle(),

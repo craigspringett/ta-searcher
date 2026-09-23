@@ -593,9 +593,21 @@ Deno.test('run: the nightly pass qualifies the new rows and never adds one on it
     ],
   });
   const deps = () => fakeDeps({ searchCompanies: (q) => Promise.resolve(q === 'Metris Energy' ? [{ companyNumber: '14567890', name: 'METRIS ENERGY LTD', status: 'active', incorporationDate: '2024-03-01', addressSnippet: null, postcode: null }] : []) }, { 'https://metrisenergy.com/': home });
+  // Signal only (the nightly default): the register-only row waits.
+  const signalOnly = seed();
+  const s = await qualifyProspects(signalOnly, { today: TODAY, supabaseUrl: 'https://proj.supabase.co', deps });
+  assertEquals(s.checked, 1, 'only the row with a raise is in the nightly pool');
+  assertEquals(s.results.map((x) => x.prospectId), ['p1']);
+  assertEquals(signalOnly.rows('prospects').find((x) => x.id === 'p2')!.status, 'new', 'the register-only row is untouched');
+  assertEquals(signalOnly.rows('prospects').find((x) => x.id === 'p2')!.prospect_score, null);
+  const withPosting = seed();
+  withPosting.rows('prospects').find((x) => x.id === 'p2')!.talent_postings = [{ title: 'Head of Talent', employer: 'Nul Health', source: 'adzuna', url: 'https://a/1', date: '2026-09-18' }];
+  const wp = await qualifyProspects(withPosting, { today: TODAY, supabaseUrl: 'https://proj.supabase.co', deps });
+  assertEquals(wp.results.map((x) => x.prospectId), ['p2', 'p1'], 'a talent posting puts a row in the pool, and first');
+
   const supabase = seed();
-  const r = await qualifyProspects(supabase, { today: TODAY, supabaseUrl: 'https://proj.supabase.co', deps });
-  assertEquals(r.checked, 2, 'the qualified row is not in the nightly queue');
+  const r = await qualifyProspects(supabase, { today: TODAY, supabaseUrl: 'https://proj.supabase.co', deps, includeRegisterOnly: true });
+  assertEquals(r.checked, 2, 'the qualified row is not in the nightly queue; all: true takes the register-only row too');
   assertEquals(r.promoted, 0, 'the radar never adds on its own');
   assertEquals(r.qualified, 2);
   assertEquals(r.consultant, null);
@@ -610,7 +622,7 @@ Deno.test('run: the nightly pass qualifies the new rows and never adds one on it
   assertEquals(supabase.rows('prospects').find((x) => x.id === 'p2')!.prospect_score, -50);
 
   const dry = seed();
-  const d = await qualifyProspects(dry, { today: TODAY, supabaseUrl: 'https://x', deps, dryRun: true });
+  const d = await qualifyProspects(dry, { today: TODAY, supabaseUrl: 'https://x', deps, dryRun: true, includeRegisterOnly: true });
   assertEquals(d.promoted, 0);
   assertEquals(d.candidatesPromotable, 0);
   assertEquals(dry.rows('prospects').find((x) => x.id === 'p1')!.status, 'new');
@@ -676,6 +688,8 @@ function fakeSupabase(seed: Record<string, Row[]>) {
         eq(col: string, v: any) { filters.push((r) => r[col] === v); return b; },
         in(col: string, vs: any[]) { filters.push((r) => vs.includes(r[col])); return b; },
         is(col: string, v: any) { filters.push((r) => (r[col] ?? null) === v); return b; },
+        not(col: string, op: string, v: any) { if (op !== 'is') throw new Error('fake: not() supports is only'); filters.push((r) => (r[col] ?? null) !== v); return b; },
+        neq(col: string, v: any) { filters.push((r) => JSON.stringify(r[col] ?? null) !== JSON.stringify(typeof v === 'string' && /^[\[{]/.test(v) ? JSON.parse(v) : v)); return b; },
         gte(col: string, v: any) { filters.push((r) => r[col] !== null && r[col] !== undefined && String(r[col]) >= String(v)); return b; },
         order(col: string, o?: { ascending?: boolean }) { orderBy = { col, asc: o?.ascending !== false }; return b; },
         limit(n: number) { limitN = n; return b; },

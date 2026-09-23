@@ -325,6 +325,9 @@ export interface GroupedProspects {
   watchingBySource: WatchingCount[];
   /** Status new, each prospect once. */
   watching: number;
+  /** Of the new ones: queued for the nightly qualification (a raise or a talent role seen) and waiting for such a signal (register only). */
+  queued: number;
+  waitingForSignal: number;
   /** Parked, newest first. */
   parked: Prospect[];
 }
@@ -343,7 +346,8 @@ export function groupProspects(rows: Prospect[], today: Date = new Date()): Grou
     for (const key of new Set(p.sources.map((s) => s.source))) counts.set(key, (counts.get(key) || 0) + 1);
   }
   const watchingBySource = SOURCE_ORDER.map((source) => ({ source, label: SOURCE_LABELS[source], count: counts.get(source) || 0 }));
-  return { ready, promoted, watchingBySource, watching: fresh.length, parked };
+  const queued = fresh.filter((p) => p.raise || p.talentPostings.length > 0).length;
+  return { ready, promoted, watchingBySource, watching: fresh.length, queued, waitingForSignal: fresh.length - queued, parked };
 }
 
 /** "3 companies", "1 company", "no companies". */

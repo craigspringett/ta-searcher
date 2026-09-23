@@ -7,7 +7,11 @@
 //
 // Service role or a signed-in app user. Body:
 // { limit?: number (default 60), promote?: boolean (default true),
-//   prospectIds?: string[], website?: string, dryRun?: boolean }.
+//   prospectIds?: string[], website?: string, dryRun?: boolean,
+//   all?: boolean }.
+// The nightly pool is the new rows with a raise or a talent posting;
+// register-only rows wait for a signal (23 September 2026). all: true
+// takes them too, for a deliberate full pass.
 // With prospectIds the named prospects are qualified again whatever their
 // status except promoted, and with promote they are added (the page's Add
 // button). Without prospectIds nothing is ever added: since 22 September
@@ -44,6 +48,7 @@ Deno.serve(async (req) => {
   const prospectIds = Array.isArray(body?.prospectIds) ? body.prospectIds.map(String).filter((s: string) => /^[0-9a-f-]{36}$/i.test(s)) : null;
   const website = typeof body?.website === 'string' && body.website.trim() ? body.website.trim() : null;
   const limit = Number.isFinite(Number(body?.limit)) && Number(body?.limit) > 0 ? Math.floor(Number(body.limit)) : DEFAULT_QUALIFY_LIMIT;
+  const includeRegisterOnly = body?.all === true;
   if (website && !(prospectIds && prospectIds.length === 1)) return json({ ok: false, error: 'A website is set on one prospect at a time: send prospectIds with one id.' }, 400);
 
   const startedAt = new Date();
@@ -57,7 +62,7 @@ Deno.serve(async (req) => {
   };
 
   try {
-    const counts = await qualifyProspects(supabase, { today: startedAt, limit, promote, prospectIds, website, dryRun, supabaseUrl });
+    const counts = await qualifyProspects(supabase, { today: startedAt, limit, promote, prospectIds, website, dryRun, supabaseUrl, includeRegisterOnly });
     const details = { ...counts, by: ident.caller.kind, results: counts.results.slice(0, 80), errors: counts.errors.slice(0, 20) };
     console.log('[qualify-prospects]', JSON.stringify({ ...details, results: undefined }));
     const allFailed = counts.results.length > 0 && counts.results.every((r) => (r.note || '').startsWith('failed:'));

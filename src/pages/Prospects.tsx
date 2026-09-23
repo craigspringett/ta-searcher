@@ -42,7 +42,7 @@ import {
 } from "@/lib/prospects";
 import { discoverProspects, dismissProspect, loadProspect, loadProspectsPage, parkProspect, qualifyProspects, replyError, unparkProspect } from "@/lib/prospectsData";
 
-const PROSPECTS_SOURCE = `Every night at 05:30 UTC the radar reads the funding news (UKTN, Sifted and Google News searches for seed, pre-seed and Series A raises), walks the Companies House register for young technology companies in London and the Home Counties, and asks Adzuna and Reed for companies advertising a Head of Talent. At 05:40 it qualifies the newest sixty: the register, the website, the careers board, then a score. Nothing is added to the patch on its own: every prospect waits here until you add it.`;
+const PROSPECTS_SOURCE = `Every night at 05:30 UTC the radar reads the funding news (UKTN, Sifted and Google News searches for seed, pre-seed and Series A raises), walks the Companies House register for young technology companies in London and the Home Counties, and asks Adzuna and Reed for companies advertising a Head of Talent. At 05:40 it qualifies up to sixty of the ones with a signal (a raise or a talent role seen), best first: the register, the website, the careers board, then a score. A company the register walk alone turned up waits, unqualified, until the radar sees a raise or a talent role for it. Nothing is added to the patch on its own: every prospect waits here until you add it.`;
 
 /**
  * The Prospects page (Prospecting, slice 3): the companies the radar found
@@ -486,8 +486,9 @@ export default function Prospects() {
                 {running && <span className="text-xs text-muted-foreground" role="status">{running}</span>}
               </div>
               <p className="text-sm text-foreground">
-                {watchingTotal === 0 ? "Nothing is waiting to be qualified." : `${watchingTotal} ${watchingTotal === 1 ? "prospect is" : "prospects are"} waiting to be qualified.`}
+                {watchingTotal === 0 ? "Nothing is waiting." : `${groups.queued} ${groups.queued === 1 ? "prospect is" : "prospects are"} queued for qualification (a raise or a talent role seen), sixty a night, best first.`}
               </p>
+              {groups.waitingForSignal > 0 && <p className="text-xs text-muted-foreground">{groups.waitingForSignal} more from the register walk alone wait until the radar sees a raise or a talent role for them; they are not qualified before that.</p>}
               <dl className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-4" aria-label="New prospects by source">
                 {groups.watchingBySource.map((w) => (
                   <div key={w.source} className="flex items-baseline justify-between gap-2 sm:block">

@@ -29,6 +29,8 @@ export interface QualifyOptions {
   promote?: boolean;
   /** (Re)qualify these whatever their status except promoted; with promote, promote even under the threshold. */
   prospectIds?: string[] | null;
+  /** The nightly pool is the new rows with a signal (a raise or a talent posting); true takes the register-only rows too (23 September 2026). */
+  includeRegisterOnly?: boolean;
   /** With one prospectId: the website to store on it before qualifying (the page's "website not found" input). */
   website?: string | null;
   dryRun?: boolean;
@@ -125,9 +127,26 @@ export async function qualifyProspects(supabase: Supabase, options: QualifyOptio
       }
     }
   } else {
-    const { data, error } = await supabase.from('prospects').select(COLUMNS).eq('status', 'new').order('last_seen_at', { ascending: false }).limit(POOL_READ);
-    if (error) throw new Error(`prospects read failed: ${error.message}`);
-    rows = orderForQualification((data || []) as ProspectRow[]).slice(0, limit);
+    // The nightly pool (23 September 2026; Craig: the register walk adds
+    // 240 a night and the queue never clears): only new rows with a signal,
+    // a raise or a talent posting. A register-only row waits, unqualified,
+    // until discovery sees one for it (mergeIntoExisting flags it then).
+    if (options.includeRegisterOnly) {
+      const { data, error } = await supabase.from('prospects').select(COLUMNS).eq('status', 'new').order('last_seen_at', { ascending: false }).limit(POOL_READ);
+      if (error) throw new Error(`prospects read failed: ${error.message}`);
+      rows = orderForQualification((data || []) as ProspectRow[]).slice(0, limit);
+    } else {
+      const [withRaise, withPosting] = await Promise.all([
+        supabase.from('prospects').select(COLUMNS).eq('status', 'new').not('raise', 'is', null).order('last_seen_at', { ascending: false }).limit(POOL_READ),
+        supabase.from('prospects').select(COLUMNS).eq('status', 'new').neq('talent_postings', '[]').order('last_seen_at', { ascending: false }).limit(POOL_READ),
+      ]);
+      if (withRaise.error) throw new Error(`prospects read failed: ${withRaise.error.message}`);
+      if (withPosting.error) throw new Error(`prospects read failed: ${withPosting.error.message}`);
+      const seen = new Set<string>();
+      const pool: ProspectRow[] = [];
+      for (const r of [...(withPosting.data || []), ...(withRaise.data || [])] as ProspectRow[]) { if (!seen.has(r.id)) { seen.add(r.id); pool.push(r); } }
+      rows = orderForQualification(pool).slice(0, limit);
+    }
   }
 
   const tracked = await loadTracked(supabase);

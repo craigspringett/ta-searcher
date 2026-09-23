@@ -96,7 +96,11 @@ built and verified on 21 September 2026 and what is not yet applied.
   queued `analyze-company`) only from the page's Add to my patch, one or
   several ticked at once (`prospectIds`); `autoPromoteScore` and
   `weeklyPromoteCap` in `app_settings.prospecting` are no longer read by
-  anything that adds. Removing a company: `src/lib/removeCompany.ts`,
+  anything that adds.
+  Since 23 September the nightly pool is only the new rows with a raise
+  or a talent posting (two reads in `run.ts`; `includeRegisterOnly`, body
+  `all: true`, takes the register-only rows too); a register-only row
+  waits until discovery flags a signal for it. Removing a company: `src/lib/removeCompany.ts`,
   from the company page and each My patch row (managers). Modules in
   `_shared/prospecting/` (sources, website, score, qualify, promote,
   discover, run) with fakes in `prospecting_test.ts`. A signed-in user

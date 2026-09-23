@@ -145,6 +145,9 @@ describe("groupProspects", () => {
     expect(g.promoted.map((p) => p.id)).toEqual(["pr1", "pr2"]);
     expect(g.watching).toBe(2);
     expect(g.parked.map((p) => p.id)).toEqual(["pk2", "pk1"]);
+    expect([g.queued, g.waitingForSignal]).toEqual([2, 0]);
+    const quiet = groupProspects([{ ...base, id: "n3", status: "new", raise: null, talentPostings: [] }], today);
+    expect([quiet.queued, quiet.waitingForSignal]).toEqual([0, 1]);
     expect(g.watchingBySource.map((w) => `${w.label} ${w.count}`)).toEqual(["Funding news 0", "Adzuna 1", "Reed 0", "Companies House 2"]);
   });
   it("is empty with no rows", () => {
