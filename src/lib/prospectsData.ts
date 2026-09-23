@@ -3,7 +3,7 @@ import type { Json } from "@/integrations/supabase/types";
 import { parseProspectRow, PROMOTED_DAYS, settingsFromValue, type Prospect, type ProspectingSettings, type RunRow } from "@/lib/prospects";
 
 const PROSPECT_COLUMNS =
-  "id, name, name_key, website, company_number, status, sources, raise, register, boards, talent_postings, prospect_score, score_reasons, first_seen_at, last_seen_at, qualified_at, promoted_at, dismissed_at, promoted_company_id, dismiss_reason";
+  "id, name, name_key, website, company_number, status, sources, raise, register, boards, talent_postings, prospect_score, score_reasons, first_seen_at, last_seen_at, qualified_at, promoted_at, dismissed_at, promoted_company_id, dismiss_reason, parked_at, wake_note";
 
 export interface ProspectsPageData {
   /** Qualified, promoted this month, and the new ones (slim rows: id, status, sources only). */
@@ -24,16 +24,17 @@ export interface ProspectsPageData {
  */
 export async function loadProspectsPage(today = new Date()): Promise<ProspectsPageData> {
   const since = new Date(today.getTime() - PROMOTED_DAYS * 86_400_000).toISOString();
-  const [ready, promoted, fresh, freshCount, runs, settingsRow] = await Promise.all([
+  const [ready, promoted, fresh, freshCount, runs, settingsRow, parked] = await Promise.all([
     supabase.from("prospects").select(PROSPECT_COLUMNS).eq("status", "qualified").order("prospect_score", { ascending: false, nullsFirst: false }).order("name").limit(200),
     supabase.from("prospects").select(PROSPECT_COLUMNS).eq("status", "promoted").gte("promoted_at", since).order("promoted_at", { ascending: false }).limit(200),
     supabase.from("prospects").select("id, status, sources").eq("status", "new").order("first_seen_at", { ascending: false }).limit(1000),
     supabase.from("prospects").select("id", { count: "exact", head: true }).eq("status", "new"),
     supabase.from("pipeline_runs").select("phase, status, started_at, finished_at, new_count, error, details").in("phase", ["prospecting", "prospect_qualify"]).order("started_at", { ascending: false }).limit(20),
     supabase.from("app_settings").select("value").eq("key", "prospecting").maybeSingle(),
+    supabase.from("prospects").select(PROSPECT_COLUMNS).eq("status", "parked").order("parked_at", { ascending: false }).limit(300),
   ]);
-  for (const r of [ready, promoted, fresh, freshCount, runs, settingsRow]) if (r.error) throw new Error(r.error.message);
-  const rows = [...(ready.data || []), ...(promoted.data || []), ...(fresh.data || [])].map(parseProspectRow);
+  for (const r of [ready, promoted, fresh, freshCount, runs, settingsRow, parked]) if (r.error) throw new Error(r.error.message);
+  const rows = [...(ready.data || []), ...(promoted.data || []), ...(fresh.data || []), ...(parked.data || [])].map(parseProspectRow);
   const runRows = (runs.data || []) as RunRow[];
   return {
     prospects: rows,
@@ -75,6 +76,23 @@ export async function dismissProspect(id: string, reason: string): Promise<void>
     .eq("id", id);
   if (error) throw new Error(error.message);
   if (count === 0) throw new Error("Not saved. Only a signed-in app user can dismiss a prospect.");
+}
+
+/**
+ * Park (23 September 2026): set a prospect aside; the nightly discovery
+ * brings it back when it sees a newer raise or a Head of Talent posting.
+ * Bring back sets it to new, so it is qualified again on the next pass.
+ */
+export async function parkProspect(id: string): Promise<void> {
+  const { error, count } = await supabase.from("prospects").update({ status: "parked", parked_at: new Date().toISOString() }, { count: "exact" }).eq("id", id);
+  if (error) throw new Error(error.message);
+  if (count === 0) throw new Error("Not saved. Only a signed-in app user can park a prospect.");
+}
+
+export async function unparkProspect(id: string): Promise<void> {
+  const { error, count } = await supabase.from("prospects").update({ status: "new", parked_at: null }, { count: "exact" }).eq("id", id);
+  if (error) throw new Error(error.message);
+  if (count === 0) throw new Error("Not saved. Only a signed-in app user can bring a prospect back.");
 }
 
 /** One result per prospect the function looked at; the page re-reads the row and uses `note` for the message. */

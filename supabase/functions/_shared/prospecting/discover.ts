@@ -145,6 +145,18 @@ export function mergeIntoExisting(row: ExistingProspect, c: MergedCandidate, tod
   } else if ((row.status === 'qualified' || row.status === 'unsuitable') && signal) {
     patch.status = 'new';
     requalify = true;
+  } else if (row.status === 'parked') {
+    // Parked (23 September 2026): only a newer raise or a new Head of
+    // Talent posting brings it back, with a note saying which.
+    const why = raiseChanged && c.raise
+      ? `a new ${[c.raise.amountText, c.raise.round ? `${c.raise.round} round` : 'round'].filter(Boolean).join(' ')}${c.raise.date ? ` on ${c.raise.date}` : ''}`
+      : newPostings.length ? `advertising ${newPostings[0].title}` : null;
+    if (why) {
+      patch.status = 'new';
+      patch.parked_at = null;
+      patch.wake_note = `Back from parked: ${why}.`;
+      requalify = true;
+    }
   }
   return { kind: 'update', patch, requalify };
 }

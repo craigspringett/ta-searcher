@@ -136,12 +136,15 @@ describe("groupProspects", () => {
     { ...base, id: "n2", status: "new", sources: [{ source: "companies_house", url: null, title: null, at: null, note: null }, { source: "adzuna", url: null, title: null, at: null, note: null }, { source: "adzuna", url: null, title: null, at: null, note: null }] },
     { ...base, id: "d1", status: "dismissed" },
     { ...base, id: "u1", status: "unsuitable" },
+    { ...base, id: "pk1", status: "parked", parkedAt: "2026-09-10T10:00:00Z", name: "Older park" },
+    { ...base, id: "pk2", status: "parked", parkedAt: "2026-09-22T10:00:00Z", name: "Newer park" },
   ];
   it("orders ready by score then name, promoted by date within the month, and counts new by source", () => {
     const g = groupProspects(rows, today);
     expect(g.ready.map((p) => p.id)).toEqual(["q3", "q2", "q1", "q4"]);
     expect(g.promoted.map((p) => p.id)).toEqual(["pr1", "pr2"]);
     expect(g.watching).toBe(2);
+    expect(g.parked.map((p) => p.id)).toEqual(["pk2", "pk1"]);
     expect(g.watchingBySource.map((w) => `${w.label} ${w.count}`)).toEqual(["Funding news 0", "Adzuna 1", "Reed 0", "Companies House 2"]);
   });
   it("is empty with no rows", () => {

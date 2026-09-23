@@ -1637,6 +1637,8 @@ export type Database = {
           company_number: string | null
           dismiss_reason: string | null
           dismissed_at: string | null
+          parked_at: string | null
+          wake_note: string | null
           first_seen_at: string
           id: string
           last_seen_at: string
@@ -1659,6 +1661,8 @@ export type Database = {
           company_number?: string | null
           dismiss_reason?: string | null
           dismissed_at?: string | null
+          parked_at?: string | null
+          wake_note?: string | null
           first_seen_at?: string
           id?: string
           last_seen_at?: string
@@ -1681,6 +1685,8 @@ export type Database = {
           company_number?: string | null
           dismiss_reason?: string | null
           dismissed_at?: string | null
+          parked_at?: string | null
+          wake_note?: string | null
           first_seen_at?: string
           id?: string
           last_seen_at?: string

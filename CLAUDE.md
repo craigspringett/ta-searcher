@@ -125,6 +125,16 @@ built and verified on 21 September 2026 and what is not yet applied.
   `StartFollowUpsDialog`, `FollowUpsCard` (company page), `FollowUpsDueCard`
   and `WarmNowCard` (My patch), page `FollowUps` (`/follow-ups`); rules in
   `src/lib/followUps.ts` and `emailEvents.ts`.
+- Parked prospects (23 September 2026, Craig: "park so if they then go
+  through a Series A you bring them back up again"): status `parked`
+  (`parked_at`, `wake_note`; migration `20260923100000_parked_prospects.sql`,
+  the guard trigger lets a signed-in user set parked, new or dismissed).
+  `mergeIntoExisting` (discover.ts) brings a parked row back to `new` with
+  `wake_note` ("Back from parked: a new £8m series a round on …" or
+  "advertising Head of Talent") on a newer raise or a new talent posting;
+  anything else leaves it parked. Page: Park per row and for the ticked,
+  a Parked card with Bring back (status new, qualified again on the next
+  pass) and Dismiss; the note shows on the ready list.
 - Addresses for name-only people (22 September 2026, Craig: "it's really
   important I have the correct name and emails"): `_shared/contacts/enrich.ts`
   runs on every analysis after the resolver and from the `find-contacts`
@@ -233,6 +243,6 @@ npx tsc --noEmit -p tsconfig.app.json # frontend types
 npx eslint src                        # 0 errors expected
 npm test                              # Vitest for src/lib
 cd supabase/functions && DENO_NO_PACKAGE_JSON=1 deno test --allow-all --no-check --node-modules-dir=none _shared   # unit tests (Deno: curl -fsSL https://deno.land/install.sh | sh -s v2.4.5, then ~/.deno/bin)
-scripts/local-db-test.sh              # every plain-SQL migration and its row security on a throwaway local Postgres 16 (150 assertions)
+scripts/local-db-test.sh              # every plain-SQL migration and its row security on a throwaway local Postgres 16 (154 assertions)
 node scripts/embed-value-proposition.mjs   # after editing _shared/copy/value-proposition.md
 ```

@@ -2,7 +2,7 @@
 // reads and the function calls are in prospectsData.ts; everything here is
 // pure so the page's wording and grouping are testable.
 
-export type ProspectStatus = "new" | "qualified" | "promoted" | "dismissed" | "unsuitable";
+export type ProspectStatus = "new" | "qualified" | "promoted" | "dismissed" | "unsuitable" | "parked";
 
 export type ProspectSourceKey = "funding_news" | "companies_house" | "adzuna" | "reed";
 
@@ -85,6 +85,9 @@ export interface Prospect {
   dismissedAt: string | null;
   promotedCompanyId: string | null;
   dismissReason: string | null;
+  /** Parked (23 September 2026): set aside until a newer raise or a talent posting brings it back; the note says which. */
+  parkedAt: string | null;
+  wakeNote: string | null;
 }
 
 /** The raw row shape the page reads from `prospects`; every column optional so a slim read parses too. */
@@ -109,9 +112,11 @@ export interface ProspectRowLike {
   dismissed_at?: string | null;
   promoted_company_id?: string | null;
   dismiss_reason?: string | null;
+  parked_at?: string | null;
+  wake_note?: string | null;
 }
 
-const STATUSES: ProspectStatus[] = ["new", "qualified", "promoted", "dismissed", "unsuitable"];
+const STATUSES: ProspectStatus[] = ["new", "qualified", "promoted", "dismissed", "unsuitable", "parked"];
 
 const isRecord = (x: unknown): x is Record<string, unknown> => !!x && typeof x === "object" && !Array.isArray(x);
 const str = (x: unknown): string | null => (typeof x === "string" && x.trim() ? x.trim() : x === null || x === undefined ? null : typeof x === "number" ? String(x) : null);
@@ -172,6 +177,8 @@ export function parseProspectRow(row: ProspectRowLike): Prospect {
     dismissedAt: str(row.dismissed_at),
     promotedCompanyId: str(row.promoted_company_id),
     dismissReason: str(row.dismiss_reason),
+    parkedAt: str(row.parked_at),
+    wakeNote: str(row.wake_note),
   };
 }
 
@@ -318,6 +325,8 @@ export interface GroupedProspects {
   watchingBySource: WatchingCount[];
   /** Status new, each prospect once. */
   watching: number;
+  /** Parked, newest first. */
+  parked: Prospect[];
 }
 
 /** The page's three groups from the rows the loader read. */
@@ -327,13 +336,14 @@ export function groupProspects(rows: Prospect[], today: Date = new Date()): Grou
   const promoted = rows
     .filter((p) => p.status === "promoted" && p.promotedAt && new Date(p.promotedAt).getTime() >= since)
     .sort((a, b) => (b.promotedAt || "").localeCompare(a.promotedAt || "") || a.name.localeCompare(b.name));
+  const parked = rows.filter((p) => p.status === "parked").sort((a, b) => (b.parkedAt || "").localeCompare(a.parkedAt || "") || a.name.localeCompare(b.name));
   const fresh = rows.filter((p) => p.status === "new");
   const counts = new Map<string, number>();
   for (const p of fresh) {
     for (const key of new Set(p.sources.map((s) => s.source))) counts.set(key, (counts.get(key) || 0) + 1);
   }
   const watchingBySource = SOURCE_ORDER.map((source) => ({ source, label: SOURCE_LABELS[source], count: counts.get(source) || 0 }));
-  return { ready, promoted, watchingBySource, watching: fresh.length };
+  return { ready, promoted, watchingBySource, watching: fresh.length, parked };
 }
 
 /** "3 companies", "1 company", "no companies". */

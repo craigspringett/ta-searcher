@@ -7,7 +7,7 @@
 
 export type ProspectSourceKind = 'funding_news' | 'companies_house' | 'adzuna' | 'reed';
 
-export type ProspectStatus = 'new' | 'qualified' | 'promoted' | 'dismissed' | 'unsuitable';
+export type ProspectStatus = 'new' | 'qualified' | 'promoted' | 'dismissed' | 'unsuitable' | 'parked';
 
 export interface ProspectSourceEntry {
   source: ProspectSourceKind;
@@ -95,6 +95,9 @@ export interface ProspectRow {
   dismissed_at: string | null;
   promoted_company_id: string | null;
   dismiss_reason: string | null;
+  /** Parked (23 September 2026): set aside until a newer raise or a talent posting brings it back. */
+  parked_at?: string | null;
+  wake_note?: string | null;
 }
 
 /** What a discovery source hands the pass: enough to make or extend a row. */

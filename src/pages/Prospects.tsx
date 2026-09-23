@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ExternalLink, Loader2, Plus, Radar, X } from "lucide-react";
+import { ExternalLink, Loader2, ParkingSquare, Plus, Radar, Undo2, X } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { AppHeader } from "@/components/AppHeader";
 import { SourceNote } from "@/components/SourceNote";
@@ -40,7 +40,7 @@ import {
   type Stage,
   type Prospect,
 } from "@/lib/prospects";
-import { discoverProspects, dismissProspect, loadProspect, loadProspectsPage, qualifyProspects, replyError } from "@/lib/prospectsData";
+import { discoverProspects, dismissProspect, loadProspect, loadProspectsPage, parkProspect, qualifyProspects, replyError, unparkProspect } from "@/lib/prospectsData";
 
 const PROSPECTS_SOURCE = `Every night at 05:30 UTC the radar reads the funding news (UKTN, Sifted and Google News searches for seed, pre-seed and Series A raises), walks the Companies House register for young technology companies in London and the Home Counties, and asks Adzuna and Reed for companies advertising a Head of Talent. At 05:40 it qualifies the newest sixty: the register, the website, the careers board, then a score. Nothing is added to the patch on its own: every prospect waits here until you add it.`;
 
@@ -69,7 +69,7 @@ export default function Prospects() {
   };
 
   // One prospect at a time is being added, dismissed or given a website.
-  const [busy, setBusy] = useState<{ id: string; what: "add" | "dismiss" | "website" } | null>(null);
+  const [busy, setBusy] = useState<{ id: string; what: "add" | "dismiss" | "website" | "park" } | null>(null);
   const [dismissing, setDismissing] = useState<Prospect | null>(null);
   const [dismissReason, setDismissReason] = useState(DISMISS_REASONS[0].value);
   const [websiteDrafts, setWebsiteDrafts] = useState<Record<string, string>>({});
@@ -142,6 +142,54 @@ export default function Prospects() {
     setSelected(new Set());
     if (added.length > 0) toast({ title: `Added ${added.length} of ${picked.length} to your patch`, description: `${added.join(", ")}. Each is being analysed now; the scripts follow in a minute or two.${failed.length ? ` Not added: ${failed.join("; ")}.` : ""}` });
     else toast({ title: "Nothing added", description: failed.join("; "), variant: "destructive" });
+    await reload();
+  };
+
+  // Park (23 September 2026): set aside; the radar brings it back on a
+  // newer raise or a Head of Talent posting, or Bring back does by hand.
+  const park = async (p: Prospect) => {
+    setBusy({ id: p.id, what: "park" });
+    try {
+      await parkProspect(p.id);
+      setSelected((sel) => { const next = new Set(sel); next.delete(p.id); return next; });
+      toast({ title: "Parked", description: `${p.name} is set aside. It comes back on its own when the radar sees a new round or a talent role.` });
+      await reload();
+    } catch (e) {
+      toast({ title: "Could not park", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setBusy(null);
+    }
+  };
+  const unpark = async (p: Prospect) => {
+    setBusy({ id: p.id, what: "park" });
+    try {
+      await unparkProspect(p.id);
+      toast({ title: "Brought back", description: `${p.name} is back in the queue and will be qualified again on the next pass (05:40 UTC, or Run the radar now).` });
+      await reload();
+    } catch (e) {
+      toast({ title: "Could not bring back", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setBusy(null);
+    }
+  };
+  const parkSelected = async () => {
+    const picked = shownSelected;
+    if (picked.length === 0) return;
+    setBulk({ done: 0, total: picked.length });
+    let parked = 0;
+    const failed: string[] = [];
+    try {
+      for (const p of picked) {
+        setBusy({ id: p.id, what: "park" });
+        try { await parkProspect(p.id); parked++; } catch (e) { failed.push(`${p.name} (${(e as Error).message})`); }
+        setBulk((b) => (b ? { ...b, done: b.done + 1 } : b));
+      }
+    } finally {
+      setBusy(null);
+      setBulk(null);
+    }
+    setSelected(new Set());
+    toast({ title: `Parked ${parked} of ${picked.length}`, description: failed.length ? `Not parked: ${failed.join("; ")}.` : "They come back on their own when the radar sees a new round or a talent role.", variant: failed.length && !parked ? "destructive" : undefined });
     await reload();
   };
 
@@ -272,6 +320,11 @@ export default function Prospects() {
                       {bulk ? `Adding ${Math.min(bulk.done + 1, bulk.total)} of ${bulk.total}…` : `Add ${shownSelected.length} to my patch`}
                     </Button>
                   )}
+                  {shownSelected.length > 0 && (
+                    <Button size="sm" variant="outline" onClick={() => void parkSelected()} disabled={!!bulk || !!busy || !!running} title="Set these aside; the radar brings each back when it sees a new round or a talent role">
+                      <ParkingSquare className="mr-1 h-3.5 w-3.5" aria-hidden="true" />Park {shownSelected.length}
+                    </Button>
+                  )}
                 </div>
                 )}
               {ready.length > 0 && (
@@ -303,6 +356,7 @@ export default function Prospects() {
                               )}
                               {p.companyNumber && p.register?.status && <span className="text-xs text-muted-foreground">{p.register.status} on the register{p.register.incorporationDate ? `, incorporated ${p.register.incorporationDate.slice(0, 4)}` : ""}</span>}
                             </div>
+                            {p.wakeNote && <p className="text-xs font-medium text-primary">{p.wakeNote}</p>}
                             <div className="flex flex-wrap items-center gap-1.5 text-xs">
                               <span className="rounded-md border border-border bg-muted px-1.5 py-0.5 font-medium text-foreground">{prospectSector(p)}</span>
                               <span className="rounded-md border border-border bg-muted px-1.5 py-0.5 font-medium text-foreground">{prospectStage(p)}</span>
@@ -354,6 +408,9 @@ export default function Prospects() {
                             <Button size="sm" onClick={() => void add(p)} disabled={isBusy(p) || !!bulk || !!running} title={p.website ? undefined : "The radar adds a company from its website; save one first."}>
                               {busy?.id === p.id && busy.what === "add" ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <Plus className="mr-1 h-3.5 w-3.5" aria-hidden="true" />}Add to my patch
                             </Button>
+                            <Button size="sm" variant="outline" onClick={() => void park(p)} disabled={isBusy(p) || !!bulk} title="Set aside; the radar brings it back when it sees a new round or a talent role">
+                              {busy?.id === p.id && busy.what === "park" ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <ParkingSquare className="mr-1 h-3.5 w-3.5" aria-hidden="true" />}Park
+                            </Button>
                             <Button size="sm" variant="outline" onClick={() => { setDismissReason(DISMISS_REASONS[0].value); setDismissing(p); }} disabled={isBusy(p) || !!bulk}>
                               <X className="mr-1 h-3.5 w-3.5" aria-hidden="true" />Dismiss
                             </Button>
@@ -365,7 +422,38 @@ export default function Prospects() {
                 </ul>
               )}
               {groups.ready.length > 0 && (
-                <p className="mt-2 text-xs text-muted-foreground">"Add to my patch" qualifies the company again, adds it with its website and its board, and starts the full analysis; you stay here, and the message offers Open. Tick several and press "Add … to my patch" to add them one after another. A dismissed company stays away for six months.</p>
+                <p className="mt-2 text-xs text-muted-foreground">"Add to my patch" qualifies the company again, adds it with its website and its board, and starts the full analysis; you stay here, and the message offers Open. Tick several and press "Add … to my patch" or "Park …" to do them in one go. "Park" sets a company aside (too early, say) and the radar brings it back here on its own when it sees a newer round or a Head of Talent role. A dismissed company stays away for six months.</p>
+              )}
+            </Card>
+
+            <Card className="p-5">
+              <div className="mb-2 flex items-center gap-2">
+                <h2 className="text-base font-bold text-foreground">Parked</h2>
+                <span className="text-xs text-muted-foreground">{groups.parked.length} set aside, newest first</span>
+              </div>
+              {groups.parked.length === 0 && <p className="text-sm text-muted-foreground">Nothing parked. Park a company that is too early, and the radar brings it back when it sees a newer round or a Head of Talent role.</p>}
+              {groups.parked.length > 0 && (
+                <ul className="divide-y divide-border/60 text-sm" aria-label="Parked prospects">
+                  {groups.parked.map((p) => (
+                    <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                      <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                        <span className="font-medium text-foreground">{p.name}</span>
+                        <span className="rounded-md border border-border bg-muted px-1.5 py-0.5 text-xs font-medium text-foreground">{prospectStage(p)}</span>
+                        <span className="text-xs text-muted-foreground">{stageLine(p)}</span>
+                        {p.website && <a href={p.website} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline">{websiteHost(p.website)}</a>}
+                        <span className="text-xs text-muted-foreground">parked {shortDate(p.parkedAt)}</span>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <Button size="sm" variant="outline" onClick={() => void unpark(p)} disabled={isBusy(p) || !!bulk}>
+                          {busy?.id === p.id && busy.what === "park" ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <Undo2 className="mr-1 h-3.5 w-3.5" aria-hidden="true" />}Bring back
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => { setDismissReason(DISMISS_REASONS[0].value); setDismissing(p); }} disabled={isBusy(p) || !!bulk}>
+                          <X className="mr-1 h-3.5 w-3.5" aria-hidden="true" />Dismiss
+                        </Button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
               )}
             </Card>
 

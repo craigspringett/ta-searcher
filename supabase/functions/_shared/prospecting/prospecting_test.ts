@@ -362,6 +362,16 @@ Deno.test('discover: tracked companies, recent dismissals and the merge into an 
   assertEquals(mergeIntoExisting({ ...base, status: 'dismissed', dismissed_at: '2026-09-01T00:00:00Z' }, m, TODAY), { kind: 'skip', reason: 'dismissed' });
   const reopened = mergeIntoExisting({ ...base, status: 'dismissed', dismissed_at: '2026-01-01T00:00:00Z' }, m, TODAY);
   assert(reopened.kind === 'update' && reopened.patch.status === 'new' && reopened.patch.dismissed_at === null, 'an old dismissal is reopened');
+  // Parked: the same story again leaves it parked; a newer raise or a talent posting brings it back with a note.
+  const parked: ExistingProspect = { ...base, status: 'parked' };
+  const stillParked = mergeIntoExisting(parked, mergeCandidates([candidate('Metris Energy', 'funding_news', 'https://n/1')])[0], TODAY);
+  assert(stillParked.kind === 'update' && stillParked.patch.status === undefined && stillParked.requalify === false, 'nothing new: stays parked');
+  const woken = mergeIntoExisting(parked, mergeCandidates([candidate('Metris Energy', 'funding_news', 'https://n/2', { raise: { amountText: '£8m', amountGbp: 8000000, round: 'series a', date: '2026-09-20', url: 'https://n/2' } })])[0], TODAY);
+  assert(woken.kind === 'update' && woken.patch.status === 'new' && woken.patch.parked_at === null && woken.requalify === true, 'a newer raise wakes it');
+  if (woken.kind === 'update') assertEquals(woken.patch.wake_note, 'Back from parked: a new £8m series a round on 2026-09-20.');
+  const posting = mergeIntoExisting(parked, m, TODAY);
+  assert(posting.kind === 'update' && posting.patch.status === 'new', 'a talent posting wakes it');
+  if (posting.kind === 'update') assertEquals(posting.patch.wake_note, 'Back from parked: advertising Head of Talent.');
 });
 
 Deno.test('discover: the pass writes new rows, updates known ones, skips tracked and dismissed, and saves the walk state', async () => {

@@ -33,6 +33,7 @@ PROSPECTS="$ROOT/supabase/migrations/20260921150000_prospects.sql"
 FOLLOW_UPS="$ROOT/supabase/migrations/20260921160000_follow_ups.sql"
 PIPELINE="$ROOT/supabase/migrations/20260922100000_pipeline.sql"
 INBOX="$ROOT/supabase/migrations/20260922120000_inbox.sql"
+PARKED="$ROOT/supabase/migrations/20260923100000_parked_prospects.sql"
 GEN_TYPES=0
 KEEP=0
 for arg in "$@"; do
@@ -138,6 +139,8 @@ echo "== apply $(basename "$PIPELINE")"
 psqlq -f "$PIPELINE" >"$WORK/apply-pipeline.log" 2>&1 || { cat "$WORK/apply-pipeline.log"; exit 1; }
 echo "== apply $(basename "$INBOX")"
 psqlq -f "$INBOX" >"$WORK/apply-inbox.log" 2>&1 || { cat "$WORK/apply-inbox.log"; exit 1; }
+echo "== apply $(basename "$PARKED")"
+psqlq -f "$PARKED" >"$WORK/apply-parked.log" 2>&1 || { cat "$WORK/apply-parked.log"; exit 1; }
 grep -i "error" "$WORK/apply-funding-news.log" && exit 1
 echo "   applied"
 
@@ -337,6 +340,10 @@ check "a signed-in user without a profile sees no prospects" "$as_nobody select 
 expect_fail "anon cannot read prospects" "$as_anon select count(*) from public.prospects"
 check "consultant dismisses a prospect (status, dismissed_at, dismiss_reason)" "$as_consultant update public.prospects set status = 'dismissed', dismissed_at = now(), dismiss_reason = 'agency' where name_key = 'nul health'; select count(*) = 1 from public.prospects where name_key = 'nul health' and status = 'dismissed' and dismiss_reason = 'agency' and dismissed_at is not null"
 check "consultant reopens a dismissed prospect (the trigger clears the reason)" "$as_consultant update public.prospects set status = 'new' where name_key = 'nul health'; select count(*) = 1 from public.prospects where name_key = 'nul health' and status = 'new' and dismiss_reason is null and dismissed_at is null"
+check "consultant parks a prospect (the trigger stamps parked_at)" "$as_consultant update public.prospects set status = 'parked' where name_key = 'nul health'; select count(*) = 1 from public.prospects where name_key = 'nul health' and status = 'parked' and parked_at is not null and dismissed_at is null"
+expect_fail "consultant cannot write the wake note" "$as_consultant update public.prospects set wake_note = 'x' where name_key = 'nul health'"
+check "service role wakes a parked prospect with a note" "update public.prospects set status = 'new', parked_at = null, wake_note = 'Back from parked: a new round.' where name_key = 'nul health'; select count(*) = 1 from public.prospects where name_key = 'nul health' and status = 'new' and wake_note is not null"
+check "consultant parks it again (the trigger clears the note) and brings it back (clears parked_at)" "$as_consultant update public.prospects set status = 'parked' where name_key = 'nul health'; $as_consultant update public.prospects set status = 'new' where name_key = 'nul health'; select count(*) = 1 from public.prospects where name_key = 'nul health' and status = 'new' and parked_at is null and wake_note is null"
 expect_fail "consultant cannot promote a prospect" "$as_consultant update public.prospects set status = 'promoted' where name_key = 'nul health'"
 expect_fail "consultant cannot change a prospect's score" "$as_consultant update public.prospects set prospect_score = 99 where name_key = 'nul health'"
 expect_fail "consultant cannot change a prospect's website" "$as_consultant update public.prospects set website = 'https://x/' where name_key = 'nul health'"
