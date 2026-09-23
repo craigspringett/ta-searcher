@@ -66,6 +66,8 @@ export interface ConnectionView {
   lastError: string | null;
   lastCheckedAt: string | null;
   connectedAt: string;
+  /** Connected but nothing to match yet: the reader waits for a first email to a contact. */
+  idle?: boolean;
 }
 
 /** The one-line state of the connection for the Alerts card. */
@@ -74,5 +76,6 @@ export function connectionLine(c: ConnectionView | null, configured: boolean): s
   if (!c) return "Not connected. Connect Outlook to have replies spotted, follow-ups stopped and answers drafted.";
   if (c.status === "needs_reconnect") return `Outlook for ${c.mailbox} needs connecting again${c.lastError ? ` (${c.lastError})` : ""}.`;
   const when = c.lastCheckedAt ? new Date(c.lastCheckedAt).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }) : "not yet";
+  if (c.idle) return `Connected to ${c.mailbox}. Idle until a first email goes to a contact; from then it reads every fifteen minutes. Last read ${when}.`;
   return `Reading ${c.mailbox} every fifteen minutes; last read ${when}${c.lastError ? `; last problem: ${c.lastError}` : ""}.`;
 }

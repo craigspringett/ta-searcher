@@ -29,7 +29,7 @@ export function OutlookCard() {
       const r = await callMsConnect("status");
       if (r.error) throw new Error(r.error);
       setConfigured(!!r.configured);
-      setConnection(toConnectionView(r.connection));
+      setConnection(toConnectionView(r.connection, !!r.idle));
     } catch (e) {
       toast({ title: "Could not read the Outlook connection", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
     } finally {

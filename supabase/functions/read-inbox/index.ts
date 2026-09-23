@@ -1,12 +1,15 @@
 // Read every connected Outlook inbox (22 September 2026): the replies from
 // people the site knows are logged, follow-up runs stopped and answers
-// drafted (_shared/inbox/run.ts). Every fifteen minutes on the schedule;
+// drafted (_shared/inbox/run.ts). Every fifteen minutes on the schedule,
+// but idle (no Graph call, no run row) until an email has gone to a
+// contact in the last IDLE_AFTER_DAYS; Check now on the Alerts page reads
+// regardless.
 // a signed-in user reads their own mailbox through ms-connect {action:
 // 'check'}. One pipeline_runs row per run, phase 'inbox'.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { identifyCaller } from '../_shared/auth.ts';
 import { msConfig } from '../_shared/inbox/graph.ts';
-import { readInboxes } from '../_shared/inbox/run.ts';
+import { hasRecentOutreach, IDLE_AFTER_DAYS, readInboxes } from '../_shared/inbox/run.ts';
 
 const corsHeaders = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -21,6 +24,8 @@ Deno.serve(async (req) => {
   const cfg = msConfig(supabaseUrl);
   if (!cfg) return json({ ok: true, skipped: 'MS_CLIENT_ID and MS_TENANT_ID are not set', results: [] });
   const now = new Date();
+  // Idle until a first email has gone to a contact: nothing to match, so the mailbox is not read and no run row is written.
+  if (!(await hasRecentOutreach(supabase, now))) return json({ ok: true, skipped: `idle: no email has gone to a contact in the last ${IDLE_AFTER_DAYS} days`, results: [] });
   const { data: runRow } = await supabase.from('pipeline_runs').insert({ phase: 'inbox', started_at: now.toISOString(), status: 'running', details: {} }).select('id').maybeSingle();
   try {
     const results = await readInboxes(supabase, cfg, { now });

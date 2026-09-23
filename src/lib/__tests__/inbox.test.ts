@@ -15,5 +15,6 @@ describe("inbox", () => {
     expect(connectionLine(null, true)).toMatch(/^Not connected/);
     expect(connectionLine({ mailbox: "craig@bigfishrecruitment.co.uk", status: "needs_reconnect", lastError: "invalid_grant", lastCheckedAt: null, connectedAt: "" }, true)).toBe("Outlook for craig@bigfishrecruitment.co.uk needs connecting again (invalid_grant).");
     expect(connectionLine({ mailbox: "craig@bigfishrecruitment.co.uk", status: "connected", lastError: null, lastCheckedAt: null, connectedAt: "" }, true)).toBe("Reading craig@bigfishrecruitment.co.uk every fifteen minutes; last read not yet.");
+    expect(connectionLine({ mailbox: "craig@bigfishrecruitment.co.uk", status: "connected", lastError: null, lastCheckedAt: null, connectedAt: "", idle: true }, true)).toBe("Connected to craig@bigfishrecruitment.co.uk. Idle until a first email goes to a contact; from then it reads every fifteen minutes. Last read not yet.");
   });
 });

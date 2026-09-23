@@ -177,7 +177,10 @@ built and verified on 21 September 2026 and what is not yet applied.
   refresh failure). Functions `ms-connect` (start, status, check,
   disconnect), `ms-oauth-callback` (`verify_jwt` off, lands on
   `/alerts?outlook=connected|error`), `read-inbox` (cron, 7, 22, 37 and
-  52 minutes past every hour). Nothing is ever sent from the mailbox.
+  52 minutes past every hour; idle, no Graph call and no run row, until
+  an `emailed` outcome exists in the last `IDLE_AFTER_DAYS` (60), so it
+  wakes on its own after the first send; Check now reads regardless).
+  Nothing is ever sent from the mailbox.
   App: `OutlookCard` (Alerts page), `RepliesCard` (company page),
   `RepliesDueCard` (My patch); rules in `src/lib/inbox.ts`, reads in
   `inboxData.ts`.

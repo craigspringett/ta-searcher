@@ -11,7 +11,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { identifyCaller } from '../_shared/auth.ts';
 import { authorizeUrl, msConfig } from '../_shared/inbox/graph.ts';
-import { readInboxes } from '../_shared/inbox/run.ts';
+import { hasRecentOutreach, readInboxes } from '../_shared/inbox/run.ts';
 
 const corsHeaders = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -51,7 +51,8 @@ Deno.serve(async (req) => {
       return json({ ok: !r?.error, result: r, message: r ? (r.error ? `Could not read the inbox: ${r.error}` : `Read ${r.read} new ${r.read === 1 ? 'message' : 'messages'}, ${r.matched} from ${r.matched === 1 ? 'a company' : 'companies'} on the patch, ${r.drafted} ${r.drafted === 1 ? 'reply' : 'replies'} drafted.`) : 'Nothing to read.' });
     }
     const { data: conn } = await supabase.from('mail_connections').select('id, mailbox, display_name, status, last_error, watermark, connected_at, last_checked_at').eq('profile_id', userId).maybeSingle();
-    return json({ ok: true, configured: !!cfg && !!cfg.clientSecret, connection: conn && conn.status !== 'disconnected' ? conn : null });
+    const idle = conn && conn.status !== 'disconnected' ? !(await hasRecentOutreach(supabase, new Date())) : false;
+    return json({ ok: true, configured: !!cfg && !!cfg.clientSecret, idle, connection: conn && conn.status !== 'disconnected' ? conn : null });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error('[ms-connect] failed:', msg);

@@ -17,6 +17,16 @@ import { generateReplyDraft, type ReplyDraftResult } from './draft-reply.ts';
 type Supabase = any;
 
 export const DEFAULT_LOOKBACK_DAYS = 3;
+/** The reader is idle until an email has gone to a contact in this many days (23 September 2026; Craig: "no need for it to be checking that much at the moment"). */
+export const IDLE_AFTER_DAYS = 60;
+
+/** True when any contact has been emailed (an `emailed` outcome) in the last IDLE_AFTER_DAYS: something to match replies against. */
+export async function hasRecentOutreach(supabase: Supabase, now: Date): Promise<boolean> {
+  const since = new Date(now.getTime() - IDLE_AFTER_DAYS * 86_400_000).toISOString();
+  const { count, error } = await supabase.from('outcomes').select('id', { count: 'exact', head: true }).eq('kind', 'emailed').gte('created_at', since);
+  if (error) throw new Error(`outcomes read failed: ${error.message}`);
+  return (count ?? 0) > 0;
+}
 const MAX_MESSAGES = 50;
 const MAX_DRAFTS_PER_RUN = 8;
 

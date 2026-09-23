@@ -25,7 +25,7 @@ export async function markReplyHandled(id: string, handled: boolean): Promise<vo
   if (count === 0) throw new Error("Not saved. Only a signed-in app user can do this.");
 }
 
-export interface ConnectReply { ok?: boolean; url?: string; configured?: boolean; connection?: { mailbox: string; status: string; last_error: string | null; last_checked_at: string | null; connected_at: string } | null; message?: string; error?: string; result?: unknown }
+export interface ConnectReply { ok?: boolean; url?: string; configured?: boolean; idle?: boolean; connection?: { mailbox: string; status: string; last_error: string | null; last_checked_at: string | null; connected_at: string } | null; message?: string; error?: string; result?: unknown }
 
 export async function callMsConnect(action: "start" | "status" | "disconnect" | "check"): Promise<ConnectReply> {
   const { data, error } = await supabase.functions.invoke("ms-connect", { body: { action } });
@@ -33,6 +33,6 @@ export async function callMsConnect(action: "start" | "status" | "disconnect" | 
   return (data || {}) as ConnectReply;
 }
 
-export function toConnectionView(c: ConnectReply["connection"]): ConnectionView | null {
-  return c ? { mailbox: c.mailbox, status: c.status, lastError: c.last_error, lastCheckedAt: c.last_checked_at, connectedAt: c.connected_at } : null;
+export function toConnectionView(c: ConnectReply["connection"], idle = false): ConnectionView | null {
+  return c ? { mailbox: c.mailbox, status: c.status, lastError: c.last_error, lastCheckedAt: c.last_checked_at, connectedAt: c.connected_at, idle } : null;
 }
