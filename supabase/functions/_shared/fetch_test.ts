@@ -1,5 +1,5 @@
 import { assert, assertEquals } from './test-assert.ts';
-import { htmlToText, looksLikeSoft404, mapWithConcurrency } from './fetch.ts';
+import { configureDatabaseFetch, fetchPage, fetchViaDatabase, htmlToText, isPrefetched, looksLikeSoft404, mapWithConcurrency } from './fetch.ts';
 
 const home = '<html><head><title>Oak Primary Company - Home</title></head><body><nav>Menu</nav><h1>Welcome</h1></body></html>';
 
@@ -78,4 +78,37 @@ Deno.test('connection-level errors are recognised; HTTP answers and parse errors
   assert(isConnectionLevelError('dns error: failed to lookup address information'));
   assert(!isConnectionLevelError('Unexpected token < in JSON'));
   assert(!isConnectionLevelError(undefined));
+});
+
+Deno.test('fetchViaDatabase fails at once for a page outside the prefetch in prefetch-only mode, without touching the database', async () => {
+  const calls: string[] = [];
+  const client = { rpc: (name: string) => { calls.push(name); return Promise.resolve({ data: null, error: null }); } };
+  configureDatabaseFetch(client, { prefetched: { 'https://Company.example/': 1 }, prefetchOnly: true, defer: true });
+  try {
+    assertEquals(isPrefetched('https://company.example'), true, 'case and the trailing slash do not matter');
+    assertEquals(isPrefetched('https://company.example/team'), false);
+    const r = await fetchViaDatabase('https://company.example/team', 5000);
+    assertEquals(r.ok, false);
+    assertEquals(calls, [], 'no enqueue, no poll');
+    assertEquals(r.error, 'database fetch skipped: not among the prefetched pages');
+    assertEquals(r.via, 'database');
+  } finally {
+    configureDatabaseFetch(null);
+  }
+});
+
+Deno.test('fetchPage reads a prefetched page from the database before any edge fetch', async () => {
+  const calls: Array<[string, unknown]> = [];
+  const client = { rpc: (name: string, args: unknown) => { calls.push([name, args]); return Promise.resolve({ data: name === 'http_page_result' ? { status: 200, content: '<html><title>Prefetched</title></html>', error: null } : null, error: null }); } };
+  configureDatabaseFetch(client, { prefetched: { 'https://company.example/': 9000000000001 }, prefetchOnly: true });
+  try {
+    const page = await fetchPage('https://company.example', 5000);
+    assertEquals(page.ok, true);
+    assertEquals(page.via, 'database');
+    assert(page.html.includes('Prefetched'));
+    assertEquals(calls.map((c) => c[0]), ['http_page_result']);
+    assertEquals((calls[0][1] as { p_id: number }).p_id, 9000000000001);
+  } finally {
+    configureDatabaseFetch(null);
+  }
 });

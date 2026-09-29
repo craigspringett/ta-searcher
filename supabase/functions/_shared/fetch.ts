@@ -76,6 +76,8 @@ let databaseClient: DatabaseClient | null = null;
 let databaseBusy = false;
 /** Pages the dispatcher fetched through pg_net before this run started: URL to pg_net request id. */
 let prefetched = new Map<string, number>();
+/** Prefetch-only mode (29 September 2026): the caller already fetched what it could from its own machine, so a page outside the prefetch is unreachable at once (no pg_net request, no two-minute wait, no deferral). */
+let prefetchOnly = false;
 /** Deferred mode: this run was dispatched by pg_net itself, so a fresh pg_net request cannot be answered until the run ends; note the page and let the next pass fetch it. */
 let deferMode = false;
 const wanted = new Set<string>();
@@ -88,6 +90,8 @@ function pageKey(url: string): string {
 export interface DatabaseFetchOptions {
   prefetched?: Record<string, number> | null;
   defer?: boolean;
+  /** Only the prefetched pages are read through the database; any other page fails at once. */
+  prefetchOnly?: boolean;
 }
 
 /**
@@ -99,8 +103,14 @@ export function configureDatabaseFetch(client: DatabaseClient | null, options: D
   databaseClient = client;
   databaseBusy = false;
   deferMode = !!options.defer;
+  prefetchOnly = !!options.prefetchOnly;
   prefetched = new Map(Object.entries(options.prefetched || {}).map(([u, id]) => [pageKey(u), Number(id)]));
   wanted.clear();
+}
+
+/** Whether the caller handed this run a stored copy of the page (matched case-insensitively, trailing slash ignored). */
+export function isPrefetched(url: string): boolean {
+  return !!databaseClient && prefetched.has(pageKey(url));
 }
 
 /** The pages this run could not fetch and wants the next pass to prefetch (deferred mode). */
@@ -130,6 +140,7 @@ export async function fetchViaDatabase(url: string, ms: number): Promise<Fetched
   if (!databaseClient) return { url, finalUrl: url, status: 0, ok: false, html: '', error: 'no database fetcher configured', ms: 0, via: 'database' };
   const pre = prefetched.get(pageKey(url));
   if (pre === undefined) {
+    if (prefetchOnly) return { url, finalUrl: url, status: 0, ok: false, html: '', error: 'database fetch skipped: not among the prefetched pages', ms: 0, via: 'database' };
     if (deferMode) {
       if (wanted.size < WANTED_CAP) wanted.add(url);
       return { url, finalUrl: url, status: 0, ok: false, html: '', error: 'deferred: the next pass fetches it through the database', ms: 0, via: 'database' };
@@ -198,6 +209,14 @@ export interface FetchedPage {
  */
 export async function fetchPage(url: string, ms: number, init: RequestInit = {}): Promise<FetchedPage> {
   const started = Date.now();
+  // A page the dispatcher (or a one-off caller) already fetched for this run
+  // is read from the database first: it was prefetched because the edge
+  // could not get it, whether the site resets the connection or answers
+  // every server with a challenge page (29 September 2026).
+  if (isPrefetched(url)) {
+    const viaDb = await fetchViaDatabase(url, ms);
+    if (viaDb.ok || viaDb.status > 0) return { ...viaDb, ms: Date.now() - started };
+  }
   const customAgent = new Headers(init.headers ?? {}).has('User-Agent');
   try {
     let res = await fetchWithTimeout(url, ms, init);

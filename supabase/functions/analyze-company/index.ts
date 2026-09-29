@@ -10,7 +10,12 @@
 // DfE record, the spend lookups, Ofsted, tenders and the pupil premium are
 // gone, replaced by the register, the officers and the capital filings.
 //
-// POST { url, companyNumber?, companyName?, consultant?, isRefresh?, companyId?, pass?, prefetch? }
+// POST { url, companyNumber?, companyName?, consultant?, isRefresh?, companyId?, pass?, prefetch?, prefetchOnly? }
+// prefetch maps a page URL to a net._http_response id holding its HTML;
+// prefetchOnly (service role, 29 September 2026) makes any other page fail
+// at once instead of asking pg_net, for a one-off run of a site that
+// refuses Supabase's network (scripts/analyse-blocked-site.mjs seeds the
+// pages from the operator's machine and calls this through pg_net).
 
 import { aiConfigured } from '../_shared/ai.ts';
 import { claudeExtractionsTonight, extractionFallbackCap, extractWithClaude, extractWithGemini, ExtractionQuotaError, type ExtractionOutput } from '../_shared/facts/extract.ts';
@@ -28,7 +33,7 @@ import { logAiUsage, type UsageRecord } from '../_shared/copy/usage.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { identifyCaller } from '../_shared/auth.ts';
 
-import { configureDatabaseFetch, fetchHomepage, fetchPage, htmlToText, wantedPages } from '../_shared/fetch.ts';
+import { configureDatabaseFetch, fetchHomepage, fetchPage, htmlToText, isPrefetched, wantedPages } from '../_shared/fetch.ts';
 import { fetchContactPages } from '../_shared/contacts/pages.ts';
 import { extractEmails, extractPeople, extractPhones, type EmailHit, type PersonHit, type PhoneHit } from '../_shared/contacts/extract.ts';
 import { resolveContacts, stripTitle, type Contact } from '../_shared/contacts/resolve.ts';
@@ -218,8 +223,14 @@ Deno.serve(async (req) => {
     // reads them from the prefetch.
     const pass = Math.max(1, Math.min(9, Number(body.pass) || 1));
     const prefetchMap = body.prefetch && typeof body.prefetch === 'object' ? body.prefetch as Record<string, number> : null;
-    const deferPages = caller.kind === 'service' && isRefresh;
-    configureDatabaseFetch(supabaseClient, { prefetched: prefetchMap, defer: deferPages });
+    // A one-off run queued through pg_net with its pages prefetched (a site
+    // that refuses Supabase's network): pages outside the prefetch cannot be
+    // answered until the run ends, so they fail at once instead of polling,
+    // and nothing is deferred to a follow-up pass.
+    const prefetchOnly = caller.kind === 'service' && !!prefetchMap && body.prefetchOnly === true;
+    const deferPages = caller.kind === 'service' && isRefresh && !prefetchOnly;
+    configureDatabaseFetch(supabaseClient, { prefetched: prefetchMap, defer: deferPages, prefetchOnly });
+    if (prefetchOnly) console.log(`Prefetch-only run: ${Object.keys(prefetchMap || {}).length} page(s) seeded`);
     const MAX_PASSES = 3;
     const queueNextPass = async (): Promise<number> => {
       const want = wantedPages();
@@ -389,8 +400,9 @@ Deno.serve(async (req) => {
     // Homepage. The stored URL first, then scheme / www variants (see
     // _shared/fetch.ts); only when nothing answers is the run degraded.
     // A company recorded as blocking automated reading gets one quick try
-    // and then the register and the boards only.
-    const blocksReading = existingRow?.analysis_result?.websiteAccess === 'blocks automated reading';
+    // and then the register and the boards only, unless this run was handed
+    // its homepage in the prefetch, in which case it is a full analysis.
+    const blocksReading = existingRow?.analysis_result?.websiteAccess === 'blocks automated reading' && !isPrefetched(url);
     const homeFetch = blocksReading ? await fetchHomepage(url, 6000, 1, (u, ms) => ms <= 1 ? Promise.resolve({ url: u, finalUrl: u, status: 0, ok: false, html: '', error: 'skipped: blocks automated reading', ms: 0 }) : fetchPage(u, ms)) : await fetchHomepage(url, 15000, 8000);
     const home = homeFetch.page;
     const attemptsNote = homeFetch.attempts.map((a) => `${a.url} -> ${a.status}${a.via && a.via !== 'edge' ? ` via ${a.via}` : ''}${a.error ? ` (${a.error.slice(0, 70)})` : ''}`).join('; ');

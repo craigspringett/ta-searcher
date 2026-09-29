@@ -129,6 +129,20 @@ built and verified on 21 September 2026 and what is not yet applied.
   `StartFollowUpsDialog`, `FollowUpsCard` (company page), `FollowUpsDueCard`
   and `WarmNowCard` (My patch), page `FollowUps` (`/follow-ups`); rules in
   `src/lib/followUps.ts` and `emailEvents.ts`.
+- Blocked sites (29 September 2026, the same route He-Giveth took that
+  day): `analyze-company` takes `prefetch` (page URL to a
+  `net._http_response` id holding its HTML; keys matched case-insensitively
+  with trailing slashes stripped) and `prefetchOnly: true` (service role
+  only). `fetchPage` reads a prefetched page through `http_page_result`
+  before any edge fetch (`isPrefetched`); in prefetch-only mode any other
+  page fails at once ("not among the prefetched pages"), nothing is
+  enqueued, polled or deferred, and a row flagged `websiteAccess = "blocks
+  automated reading"` whose homepage is prefetched runs as a full analysis.
+  The operating routine is `scripts/analyse-blocked-site.mjs` (run from a
+  machine the site allows): browser-UA homepage, up to 16 internal pages,
+  seeded at ids 9000000000000 upwards, the analyser called through
+  `invoke_edge_function`, the row inserted or refreshed from the reply,
+  the seeded rows deleted. Sites run one at a time.
 - Parked prospects (23 September 2026, Craig: "park so if they then go
   through a Series A you bring them back up again"): status `parked`
   (`parked_at`, `wake_note`; migration `20260923100000_parked_prospects.sql`,
