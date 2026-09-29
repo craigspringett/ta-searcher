@@ -78,6 +78,8 @@ let databaseBusy = false;
 let prefetched = new Map<string, number>();
 /** Prefetch-only mode (29 September 2026): the caller already fetched what it could from its own machine, so a page outside the prefetch is unreachable at once (no pg_net request, no two-minute wait, no deferral). */
 let prefetchOnly = false;
+/** The hosts the prefetch covers: in prefetch-only mode a page on one of them that was not seeded is unreachable, so the edge is not asked either. */
+let prefetchedHosts = new Set<string>();
 /** Deferred mode: this run was dispatched by pg_net itself, so a fresh pg_net request cannot be answered until the run ends; note the page and let the next pass fetch it. */
 let deferMode = false;
 const wanted = new Set<string>();
@@ -105,12 +107,19 @@ export function configureDatabaseFetch(client: DatabaseClient | null, options: D
   deferMode = !!options.defer;
   prefetchOnly = !!options.prefetchOnly;
   prefetched = new Map(Object.entries(options.prefetched || {}).map(([u, id]) => [pageKey(u), Number(id)]));
+  prefetchedHosts = new Set(Object.keys(options.prefetched || {}).map((u) => { try { return new URL(u).hostname.toLowerCase().replace(/^www\./, ''); } catch { return ''; } }).filter(Boolean));
   wanted.clear();
 }
 
 /** Whether the caller handed this run a stored copy of the page (matched case-insensitively, trailing slash ignored). */
 export function isPrefetched(url: string): boolean {
   return !!databaseClient && prefetched.has(pageKey(url));
+}
+
+/** Prefetch-only mode and the page is on a seeded site but was not seeded: unreachable, fail at once. */
+export function refusedByPrefetchOnly(url: string): boolean {
+  if (!prefetchOnly || !databaseClient || prefetched.has(pageKey(url))) return false;
+  try { return prefetchedHosts.has(new URL(url).hostname.toLowerCase().replace(/^www\./, '')); } catch { return false; }
 }
 
 /** The pages this run could not fetch and wants the next pass to prefetch (deferred mode). */
@@ -217,6 +226,7 @@ export async function fetchPage(url: string, ms: number, init: RequestInit = {})
     const viaDb = await fetchViaDatabase(url, ms);
     if (viaDb.ok || viaDb.status > 0) return { ...viaDb, ms: Date.now() - started };
   }
+  if (refusedByPrefetchOnly(url)) return { url, finalUrl: url, status: 0, ok: false, html: '', error: 'not among the prefetched pages', ms: 0, via: 'database' };
   const customAgent = new Headers(init.headers ?? {}).has('User-Agent');
   try {
     let res = await fetchWithTimeout(url, ms, init);
@@ -292,9 +302,22 @@ export function looksLikeSoft404(html: string, homepageHtml: string): boolean {
   if (/\b(page not found|404|not found|no longer available)\b/.test(t)) return true;
   if (!homepageHtml) return false;
   if (bodyFingerprint(html) === bodyFingerprint(homepageHtml)) return true;
+  // The same title as the homepage is only a soft 404 when the page says
+  // the same thing: many sites (Webflow, say) give every page the company
+  // name as its title (Metris Energy, 29 September 2026).
   const ht = extractTitle(homepageHtml);
-  if (t && ht && t === ht) return true;
+  if (t && ht && t === ht) return sameText(html, homepageHtml);
   return false;
+}
+
+/** The two pages read the same: identical text, or the same length within 5% and the same opening 500 characters. */
+function sameText(a: string, b: string): boolean {
+  const ta = htmlToText(a.slice(0, 200000)).replace(/\s+/g, ' ').trim();
+  const tb = htmlToText(b.slice(0, 200000)).replace(/\s+/g, ' ').trim();
+  if (ta === tb) return true;
+  if (!ta || !tb) return true;
+  const close = Math.abs(ta.length - tb.length) <= Math.max(ta.length, tb.length) * 0.05;
+  return close && ta.slice(0, 500) === tb.slice(0, 500);
 }
 
 /** A parked domain, a hosting default page or a bot challenge is not a company website. */

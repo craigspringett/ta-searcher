@@ -34,6 +34,8 @@ const HEADERS = { 'User-Agent': UA, Accept: 'text/html,application/xhtml+xml,app
 const WANTED_PATH = /contact|staff|team|people|leadership|founders?|management|board|governors?|vacanc|jobs?|careers?|hiring|work-with-us|join|news|blog|press|about|who-we-are|our-story|company|welcome|head|key-information|mission|values/i;
 const SKIP_PATH = /\.(pdf|docx?|xlsx?|pptx?|zip|jpe?g|png|gif|svg|webp|ico|css|js|mp4|mp3|xml|rss|atom|json|txt)$|\/(feed|rss|wp-json|wp-content|wp-includes|cdn-cgi)\b|^mailto:|^tel:|^javascript:/i;
 const WAIT_MS = 6 * 60_000;
+// The paths the analyser's crawler guesses at on every site (_shared/contacts/pages.ts): probed too, and seeded when they answer.
+const GUESSED_PATHS = ['/contact', '/contact-us', '/get-in-touch', '/team', '/about', '/about-us', '/company', '/people', '/leadership', '/founders', '/careers', '/jobs', '/join', '/join-us', '/blog', '/news', '/press', '/customers'];
 
 function parseArgs(argv) {
   const sites = [];
@@ -122,10 +124,14 @@ async function runSite(site, maxPages) {
   console.log(`\n== ${site.name || site.url}`);
   const home = await getPage(site.url);
   if (!home.ok) throw new Error(`homepage ${site.url} -> HTTP ${home.status}${home.error ? ` (${home.error})` : ''}; nothing to seed`);
-  const links = pickLinks(home.finalUrl, home.html, maxPages);
-  console.log(`homepage ${home.finalUrl} (${home.html.length} chars); ${links.length} internal page(s) chosen`);
+  const linked = pickLinks(home.finalUrl, home.html, maxPages);
+  const origin = new URL(home.finalUrl).origin;
+  const have = new Set(linked.map((u) => u.replace(/\/+$/, '').toLowerCase()));
+  const guessed = GUESSED_PATHS.map((p) => origin + p).filter((u) => !have.has(u.toLowerCase()));
+  const links = [...linked, ...guessed];
+  console.log(`homepage ${home.finalUrl} (${home.html.length} chars); ${linked.length} linked page(s) chosen, ${guessed.length} guessed path(s) probed`);
   const pages = (await mapLimit(links, 3, (u) => getPage(u))).filter((p) => p.ok);
-  console.log(`${pages.length} of ${links.length} fetched as HTML`);
+  console.log(`${pages.length} of ${links.length} answered as HTML`);
 
   // The row, if the company is already tracked (by URL, either scheme, with or without www).
   const hostKey = new URL(home.finalUrl).hostname.replace(/^www\./, '').toLowerCase();
