@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CalendarClock, Loader2, Mail, PhoneCall, RefreshCw } from "lucide-react";
+import { CalendarClock, Loader2, Mail, Pencil, PhoneCall, RefreshCw, Save } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { CALL_OUTCOME_CHOICES, hasDraft, isDueNow, isOpen, sequenceLine, STEP_STATUS_LABELS, stepLabel, STOP_CHOICES, whenWord, wordCount, type FollowUpSequence, type FollowUpStep } from "@/lib/followUps";
@@ -40,6 +40,14 @@ export function FollowUpsCard({ companyId, companyName, onChange }: Props) {
   const [logNote, setLogNote] = useState("");
   const [logCallback, setLogCallback] = useState("");
   const [showHistory, setShowHistory] = useState(false);
+  // Editing a draft in place (6 October 2026): the subject and body as you
+  // want them, saved without sending; and notes pasted from the page (buyer
+  // intent signals, likely-to-buy reasons) for a rewrite.
+  const [editing, setEditing] = useState<string | null>(null);
+  const [editSubject, setEditSubject] = useState("");
+  const [editBody, setEditBody] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const startEditing = (step: FollowUpStep) => { setEditing(step.id); setEditSubject(step.subject || ""); setEditBody(step.body || ""); setEditNotes(step.notes || ""); };
 
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: companyFollowUpsKey(companyId) });
@@ -100,14 +108,42 @@ export function FollowUpsCard({ companyId, companyName, onChange }: Props) {
                     </span>
                   </div>
 
-                  {step.kind === "email" && step.body && (open || step.status === "sent") && (
+                  {step.kind === "email" && step.body && (open || step.status === "sent") && editing !== step.id && (
                     <details className="mt-2" open={dueNow}>
                       <summary className="cursor-pointer text-xs text-muted-foreground">{step.status === "sent" ? "What was sent" : "The draft"}{step.subject ? `: ${step.subject}` : ""} ({wordCount(step.body)} words{step.hook ? `, about ${step.hook}` : ""})</summary>
                       {(step.draft_flags || []).length > 0 && open && (
                         <p className="mt-1 rounded bg-warning/10 px-2 py-1 text-xs text-foreground/90">Check before sending: {step.draft_flags.join("; ")}.</p>
                       )}
                       <p className="mt-1 whitespace-pre-wrap rounded bg-muted/40 p-2 text-xs text-foreground/90">{step.body}</p>
+                      {step.edited_at && open && <p className="mt-1 text-[11px] text-muted-foreground">Edited by {step.edited_by_name || "you"} {whenWord(step.edited_at, now).replace(" (overdue)", "")}; kept as written until you ask for a rewrite.</p>}
                     </details>
+                  )}
+                  {step.kind === "email" && open && editing === step.id && (
+                    <form className="mt-2 grid gap-2" onSubmit={(e) => { e.preventDefault(); void act(`save-${step.id}`, { action: "save_draft", stepId: step.id, subject: editSubject, body: editBody }, "Draft saved").then((ok) => { if (ok) setEditing(null); }); }}>
+                      <div>
+                        <Label htmlFor={`edit-subject-${step.id}`}>Subject</Label>
+                        <Input id={`edit-subject-${step.id}`} value={editSubject} onChange={(e) => setEditSubject(e.target.value)} maxLength={150} required />
+                      </div>
+                      <div>
+                        <Label htmlFor={`edit-body-${step.id}`}>Email</Label>
+                        <Textarea id={`edit-body-${step.id}`} value={editBody} onChange={(e) => setEditBody(e.target.value)} rows={10} required className="text-xs" />
+                        <p className="mt-1 text-xs text-muted-foreground">{wordCount(editBody)} words. Plain text; your name, Big Fish Recruitment and your phone number are added underneath when it goes.</p>
+                      </div>
+                      <div>
+                        <Label htmlFor={`edit-notes-${step.id}`}>Notes for a rewrite</Label>
+                        <Textarea id={`edit-notes-${step.id}`} value={editNotes} onChange={(e) => setEditNotes(e.target.value)} rows={4} maxLength={4000} className="text-xs" placeholder="Paste anything from this page you want worked in: a buyer intent signal, a likely-to-buy reason, a line from the latest raise, or tell it the angle in your own words. Then press Rewrite with these notes." />
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button type="submit" size="sm" className="h-7 gap-1.5 text-xs" disabled={!!busy || !editSubject.trim() || !editBody.trim()}>
+                          {busy === `save-${step.id}` ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <Save className="h-3.5 w-3.5" aria-hidden="true" />}Save the draft
+                        </Button>
+                        <Button type="button" variant="outline" size="sm" className="h-7 gap-1.5 text-xs" disabled={!!busy || !editNotes.trim()} onClick={() => void act(`redraft-${step.id}`, { action: "redraft", stepId: step.id, instructions: editNotes }, "Written again").then((ok) => { if (ok) setEditing(null); })}>
+                          {busy === `redraft-${step.id}` ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />}Rewrite with these notes
+                        </Button>
+                        <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setEditing(null)} disabled={!!busy}>Cancel</Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Save keeps your words exactly; nothing goes until you press Approve and send on the day. Rewrite asks TA Searcher for a fresh email built around your notes, keeping the usual rules (no fee figure, one question at the end).</p>
+                    </form>
                   )}
                   {step.kind === "email" && open && !step.body && (
                     <p className="mt-1 text-xs text-muted-foreground">No draft yet. It is written when the step falls due, or press Write it now.</p>
@@ -119,11 +155,16 @@ export function FollowUpsCard({ companyId, companyName, onChange }: Props) {
                     <p className="mt-1 text-xs text-muted-foreground">Use the approved script on the Scripts tab, then log the outcome here.</p>
                   )}
 
-                  {open && (
+                  {open && editing !== step.id && (
                     <div className="mt-2 flex flex-wrap gap-2">
                       {step.kind === "email" && hasDraft(step) && (
                         <Button type="button" size="sm" className="h-7 gap-1.5 text-xs" onClick={() => setEmailStep({ seq: latest, step })} disabled={!!busy}>
-                          <Mail className="h-3.5 w-3.5" aria-hidden="true" />{dueNow ? "Approve and send" : "Edit, approve and send early"}
+                          <Mail className="h-3.5 w-3.5" aria-hidden="true" />{dueNow ? "Approve and send" : "Approve and send early"}
+                        </Button>
+                      )}
+                      {step.kind === "email" && (
+                        <Button type="button" variant="outline" size="sm" className="h-7 gap-1.5 text-xs" onClick={() => startEditing(step)} disabled={!!busy}>
+                          <Pencil className="h-3.5 w-3.5" aria-hidden="true" />{step.body ? "Edit" : "Write it yourself"}
                         </Button>
                       )}
                       {step.kind === "email" && (

@@ -34,6 +34,7 @@ FOLLOW_UPS="$ROOT/supabase/migrations/20260921160000_follow_ups.sql"
 PIPELINE="$ROOT/supabase/migrations/20260922100000_pipeline.sql"
 INBOX="$ROOT/supabase/migrations/20260922120000_inbox.sql"
 PARKED="$ROOT/supabase/migrations/20260923100000_parked_prospects.sql"
+STEP_EDITS="$ROOT/supabase/migrations/20261006120000_follow_up_step_edits.sql"
 GEN_TYPES=0
 KEEP=0
 for arg in "$@"; do
@@ -141,6 +142,8 @@ echo "== apply $(basename "$INBOX")"
 psqlq -f "$INBOX" >"$WORK/apply-inbox.log" 2>&1 || { cat "$WORK/apply-inbox.log"; exit 1; }
 echo "== apply $(basename "$PARKED")"
 psqlq -f "$PARKED" >"$WORK/apply-parked.log" 2>&1 || { cat "$WORK/apply-parked.log"; exit 1; }
+echo "== apply $(basename "$STEP_EDITS")"
+psqlq -f "$STEP_EDITS" >"$WORK/apply-step-edits.log" 2>&1 || { cat "$WORK/apply-step-edits.log"; exit 1; }
 grep -i "error" "$WORK/apply-funding-news.log" && exit 1
 echo "   applied"
 
@@ -431,6 +434,8 @@ check "the monitoring job list names only scheduled jobs" \
   "select bool_and(j ->> 'configured' = 'true') from jsonb_array_elements(public.get_cron_monitoring_jobs_only()) j"
 
 echo
+check "follow_up_steps carries the edit columns (6 October 2026)" "select count(*) = 3 from information_schema.columns where table_schema = 'public' and table_name = 'follow_up_steps' and column_name in ('edited_at', 'edited_by_name', 'notes')"
+
 echo "== $PASS passed, $FAIL failed"
 
 # --types: regenerate src/integrations/supabase/types.ts from this cluster

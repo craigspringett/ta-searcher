@@ -58,6 +58,8 @@ export interface FollowUpInput {
   earlierEmails: EarlierEmail[];
   step: { stepNo: number; day: number; purpose: StepPurpose; dueAt: string };
   today: Date;
+  /** What was pasted or typed for this rewrite (6 October 2026): buyer intent signals, likely-to-buy reasons, anything to work in. */
+  instructions?: string | null;
 }
 
 export interface FollowUpDraft { subject: string; body: string; hook: string }
@@ -203,6 +205,12 @@ export function buildStepMessage(input: FollowUpInput): string {
     lines.push('Earlier emails in this sequence: none.');
   }
   lines.push('');
+  const notes = (input.instructions || '').replace(/\r\n?/g, '\n').trim();
+  if (notes) {
+    lines.push('');
+    lines.push("The sender's notes for this email (pasted from the company's page: buyer intent signals, why they are likely to buy, or their own words). Build the email around what is here, in the sender's voice, keeping every rule above; use only what is stated, invent nothing beyond it:");
+    lines.push(notes.slice(0, 4000));
+  }
   lines.push(`Write the ${input.step.purpose} email now: subject, body and hook, following the schema.`);
   return lines.join('\n');
 }
@@ -286,6 +294,9 @@ export interface StepRow {
   sent_message_id: string | null;
   outcome_id: string | null;
   completed_at: string | null;
+  edited_at?: string | null;
+  edited_by_name?: string | null;
+  notes?: string | null;
 }
 
 export interface SequenceContext {
@@ -329,8 +340,9 @@ export function purposeForStep(step: Pick<StepRow, 'day' | 'kind'>, steps: Array
   return 'second';
 }
 
-export function buildFollowUpInput(sc: SequenceContext, seq: SequenceRow, step: StepRow, steps: StepRow[], today: Date): FollowUpInput {
+export function buildFollowUpInput(sc: SequenceContext, seq: SequenceRow, step: StepRow, steps: StepRow[], today: Date, instructions: string | null = null): FollowUpInput {
   return {
+    instructions,
     ctx: sc.ctx,
     contact: { name: seq.contact_name, role: seq.contact_role, email: seq.contact_email },
     persona: sc.persona,

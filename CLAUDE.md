@@ -169,6 +169,19 @@ built and verified on 21 September 2026 and what is not yet applied.
   `force: true` asks again. `find-contacts {action:'account'}` reads the
   plan and credits (`hunterAccountLine`). Craig's plan is Hunter Starter,
   24,000 credits a year (a Finder call is one credit).
+- Editable follow-up drafts (6 October 2026, the same change as He-Giveth
+  that day): `follow_up_steps.edited_at`, `edited_by_name`, `notes`
+  (migration `20261006120000_follow_up_step_edits.sql`). `follow-ups`
+  `save_draft { stepId, subject, body }` keeps an edit as written (logged
+  as a note in the Calls history); `redraft { stepId, instructions? }`
+  writes the email around the pasted notes, which stay on the step for
+  later rewrites (`draft.ts`, `prompt.ts` `instructions`). An edited draft
+  is never overwritten by the tick or a changed company; only a rewrite
+  asked for replaces it (`draft.ts` skips `edited_at` rows unless forced).
+  App: Edit / Write it yourself on `FollowUpsCard` (subject, email, notes,
+  Save the draft, Rewrite with these notes), Save without sending in
+  `EmailContactDialog`, Preview (`FollowUpDraftPreview`) on
+  `FollowUpsDueCard` and the Follow-ups page.
 - Pipeline board (22 September 2026): `company_searches.pipeline_stage`
   (prospect, contacted, call_booked, search_agreed, lost) and
   `pipeline_moved_at`; an outcome advances the stage on its own (trigger
@@ -261,6 +274,6 @@ npx tsc --noEmit -p tsconfig.app.json # frontend types
 npx eslint src                        # 0 errors expected
 npm test                              # Vitest for src/lib
 cd supabase/functions && DENO_NO_PACKAGE_JSON=1 deno test --allow-all --no-check --node-modules-dir=none _shared   # unit tests (Deno: curl -fsSL https://deno.land/install.sh | sh -s v2.4.5, then ~/.deno/bin)
-scripts/local-db-test.sh              # every plain-SQL migration and its row security on a throwaway local Postgres 16 (154 assertions)
+scripts/local-db-test.sh              # every plain-SQL migration and its row security on a throwaway local Postgres 16 (155 assertions)
 node scripts/embed-value-proposition.mjs   # after editing _shared/copy/value-proposition.md
 ```

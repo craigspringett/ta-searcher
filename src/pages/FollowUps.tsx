@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarClock, CheckCircle2, Loader2, Mail, PhoneCall } from "lucide-react";
+import { CalendarClock, CheckCircle2, Eye, Loader2, Mail, PhoneCall } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
@@ -9,6 +9,7 @@ import { CALL_OUTCOME_CHOICES, groupByDay, hasDraft, isDueNow, isOpen, londonClo
 import { activeFollowUpsKey, allFollowUpsKey, callFollowUps, useAllFollowUps } from "@/lib/followUpsData";
 import { AppHeader } from "@/components/AppHeader";
 import { EmailContactDialog } from "@/components/EmailContactDialog";
+import { FollowUpDraftPreview } from "@/components/FollowUpDraftPreview";
 import { SourceNote } from "@/components/SourceNote";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -32,6 +33,7 @@ export default function FollowUps() {
   const [busy, setBusy] = useState<string | null>(null);
   const [emailRow, setEmailRow] = useState<DueRow | null>(null);
   const [logKind, setLogKind] = useState<Record<string, string>>({});
+  const [previewing, setPreviewing] = useState<Record<string, boolean>>({});
   const { data, error, isLoading } = useAllFollowUps(true);
 
   const companyIds = useMemo(() => Array.from(new Set((data || []).map((s) => s.company_search_id))), [data]);
@@ -171,6 +173,9 @@ export default function FollowUps() {
                     {r.step.kind === "email" && open && !hasDraft(r.step) && <span className="text-xs text-warning">draft not written yet</span>}
                     {open && (
                       <span className="ml-auto flex flex-wrap items-center gap-1.5">
+                        {r.step.kind === "email" && hasDraft(r.step) && (
+                          <Button type="button" variant={previewing[key] ? "secondary" : "outline"} size="sm" className="h-7 gap-1 text-xs" onClick={() => setPreviewing((m) => ({ ...m, [key]: !m[key] }))} aria-expanded={!!previewing[key]} title="Read the email here"><Eye className="h-3.5 w-3.5" aria-hidden="true" />{previewing[key] ? "Hide" : "Preview"}</Button>
+                        )}
                         {dueNow && r.step.kind === "email" && hasDraft(r.step) && (
                           <Button type="button" size="sm" className="h-7 gap-1 text-xs" onClick={() => setEmailRow(r)} disabled={!!busy}><Mail className="h-3.5 w-3.5" aria-hidden="true" />Approve and send</Button>
                         )}
@@ -193,6 +198,7 @@ export default function FollowUps() {
                         <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={() => void act(`skip-${key}`, { action: "skip", stepId: r.step.id }, "Skipped")} disabled={!!busy}>Skip</Button>
                       </span>
                     )}
+                    {previewing[key] && r.step.kind === "email" && <FollowUpDraftPreview step={r.step} />}
                   </li>
                 );
               })}

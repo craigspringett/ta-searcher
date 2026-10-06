@@ -16,7 +16,11 @@
 //   stop    { sequenceId, reason?, outcomeKind? }   stop it, logging the outcome
 //                                                   (replied, not_interested,
 //                                                   spoke_to, meeting_booked) or a note
-//   redraft { stepId }                              write one email again now
+//   redraft { stepId, instructions? }               write one email again now, around the
+//                                                   pasted notes when given (kept on the step)
+//   save_draft { stepId, subject, body }            keep an edit of a draft as written
+//                                                   (6 October 2026); never overwritten
+//                                                   unless a rewrite is asked for
 // Every action writes a line to the Calls history (an outcome), so the
 // Calls tab stays the single record.
 
@@ -160,7 +164,7 @@ Deno.serve(async (req): Promise<Response> => {
       return json({ ok: true, sequence: full, drafting, message: `Follow-ups started for ${contactName}. The first call is due now; the emails are drafted for you to approve.` });
     }
 
-    if (action === 'skip' || action === 'done' || action === 'redraft' || action === 'mark_sent') {
+    if (action === 'skip' || action === 'done' || action === 'redraft' || action === 'mark_sent' || action === 'save_draft') {
       const stepId = typeof b.stepId === 'string' && UUID.test(b.stepId) ? b.stepId : null;
       if (!stepId) return json({ error: 'stepId (uuid) is required' }, 400);
       const found = await loadStep(supabase, stepId);
@@ -237,11 +241,28 @@ Deno.serve(async (req): Promise<Response> => {
         return json({ ok: true, sequence: await loadSequence(supabase, sequence.id), message });
       }
 
-      // redraft
-      if (step.kind !== 'email' || !['scheduled', 'due'].includes(step.status)) return json({ error: 'Only an email that has not gone yet can be written again.' }, 409);
-      const result = await draftSequenceSteps(supabase, sequence.id, { stepIds: [step.id], force: true, reason: 'redraft', now });
+      if (step.kind !== 'email' || !['scheduled', 'due'].includes(step.status)) return json({ error: action === 'save_draft' ? 'Only an email that has not gone yet can be edited.' : 'Only an email that has not gone yet can be written again.' }, 409);
+
+      // save_draft: the sender's own words, kept as they left them.
+      if (action === 'save_draft') {
+        const subject = typeof b.subject === 'string' ? b.subject.replace(/[\r\n]+/g, ' ').trim() : '';
+        const body = typeof b.body === 'string' ? b.body.replace(/\r\n?/g, '\n').trim() : '';
+        if (!subject || !body) return json({ error: 'A subject and an email are both needed.' }, 400);
+        if (subject.length > 150 || body.length > 8000) return json({ error: 'That is too long: up to 150 characters of subject and 8,000 of email.' }, 400);
+        const editor = (caller.profile.display_name || caller.email || 'a consultant').trim();
+        const { error: upErr } = await supabase.from('follow_up_steps').update({ subject, body, draft_flags: [], edited_at: now.toISOString(), edited_by_name: editor }).eq('id', step.id).in('status', ['scheduled', 'due']);
+        if (upErr) return json({ error: upErr.message }, 500);
+        if (subject !== (step.subject || '') || body !== (step.body || '')) {
+          await logNote(supabase, sequence, `Edited the draft of follow-up ${describeStep(step)} by hand.`, caller.userId, { action: 'save_draft', step_no: step.step_no, before_subject: step.subject, after_subject: subject });
+        }
+        return json({ ok: true, sequence: await loadSequence(supabase, sequence.id), message: 'Draft saved. It stays as you wrote it until you press Approve and send, or ask for a rewrite.' });
+      }
+
+      // redraft, around the notes when some were given
+      const instructions = typeof b.instructions === 'string' && b.instructions.trim() ? b.instructions.trim().slice(0, 4000) : (b.instructions === '' ? '' : undefined);
+      const result = await draftSequenceSteps(supabase, sequence.id, { stepIds: [step.id], force: true, reason: instructions ? 'redraft_with_notes' : 'redraft', now, ...(instructions !== undefined ? { instructions: instructions || null } : {}) });
       const failed = result.failed[0];
-      return json({ ok: !failed, sequence: await loadSequence(supabase, sequence.id), drafting: result, message: failed ? `Could not write it again: ${failed.error}` : 'Written again.' }, failed ? 502 : 200);
+      return json({ ok: !failed, sequence: await loadSequence(supabase, sequence.id), drafting: result, message: failed ? `Could not write it again: ${failed.error}` : instructions ? 'Written again around your notes.' : 'Written again.' }, failed ? 502 : 200);
     }
 
     if (action === 'stop') {

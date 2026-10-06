@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, Copy, Loader2, Mail, Send } from "lucide-react";
+import { Check, Copy, Loader2, Mail, Save, Send } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
@@ -50,22 +50,50 @@ export function EmailContactDialog({ companyId, companyName, contact, open, onOp
   const [phone, setPhone] = useState(rememberedPhone());
   const [preview, setPreview] = useState<OutreachReply | null>(null);
   const [problem, setProblem] = useState<OutreachReply | null>(null);
-  const [busy, setBusy] = useState<"preview" | "send" | "outlook" | null>(null);
+  const [busy, setBusy] = useState<"preview" | "send" | "outlook" | "save" | null>(null);
+  /** The draft as last saved to the step (6 October 2026), so the button knows when there is something to save. */
+  const [savedAs, setSavedAs] = useState<{ subject: string; body: string } | null>(null);
   const [done, setDone] = useState<OutreachReply | null>(null);
   const [copied, setCopied] = useState(false);
 
   // A fresh draft each time the dialog opens for a contact (or the
   // sequence's draft, when this send approves a follow-up step).
+  const initialSubject = initial?.subject;
+  const initialBody = initial?.body;
   useEffect(() => {
     if (!open) return;
-    setSubject(initial?.subject ?? "");
-    setBody(initial?.body ?? `${greeting(contact.name)}\n\n\n\nBest wishes,`);
+    setSubject(initialSubject ?? "");
+    setBody(initialBody ?? `${greeting(contact.name)}\n\n\n\nBest wishes,`);
     setPreview(null);
     setProblem(null);
     setDone(null);
     setBusy(null);
     setCopied(false);
-  }, [open, contact.email, contact.name, initial?.subject, initial?.body, sequenceStepId]);
+    setSavedAs(initialSubject !== undefined ? { subject: initialSubject, body: initialBody ?? "" } : null);
+  }, [open, contact.email, contact.name, initialSubject, initialBody, sequenceStepId]);
+
+  // Save the follow-up draft as edited, without sending (6 October 2026): it
+  // stays as written until Approve and send on the day, and TA Searcher
+  // does not overwrite it.
+  const saveDraft = async () => {
+    if (!sequenceStepId) return;
+    setBusy("save");
+    setProblem(null);
+    try {
+      const { status, data } = await callFollowUps({ action: "save_draft", stepId: sequenceStepId, subject, body });
+      if (status >= 400) { setProblem({ error: data.error || `HTTP ${status}` }); return; }
+      setSavedAs({ subject, body });
+      toast({ title: "Draft saved", description: data.message });
+      void queryClient.invalidateQueries({ queryKey: ["follow-ups"] });
+      void queryClient.invalidateQueries({ queryKey: ["follow-ups-active"] });
+      void queryClient.invalidateQueries({ queryKey: ["follow-ups-all"] });
+    } catch (e) {
+      setProblem({ error: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setBusy(null);
+    }
+  };
+  const unsaved = !!sequenceStepId && !!savedAs && (savedAs.subject !== subject || savedAs.body !== body);
 
   const request = (extra: { dryRun?: boolean; sendAnyway?: boolean }) => ({
     companySearchId: companyId,
@@ -249,7 +277,12 @@ export function EmailContactDialog({ companyId, companyName, contact, open, onOp
               <Button type="button" variant={copied ? "default" : "outline"} size="sm" onClick={() => void markSentFromOutlook()} disabled={!canSend} className="gap-2" title="Tick this once the email has gone from Outlook">
                 {busy === "outlook" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Check className="h-4 w-4" aria-hidden="true" />}I have sent this from Outlook
               </Button>
-              <Button type="button" variant="ghost" size="sm" onClick={() => onOpenChange(false)}>Cancel</Button>
+              {sequenceStepId && (
+                <Button type="button" variant="outline" size="sm" onClick={() => void saveDraft()} disabled={!unsaved || !subject.trim() || !body.trim() || !!busy} className="gap-2" title={unsaved ? "Keep these changes without sending" : "Nothing changed since it was saved"}>
+                  {busy === "save" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Save className="h-4 w-4" aria-hidden="true" />}Save without sending
+                </Button>
+              )}
+              <Button type="button" variant="ghost" size="sm" onClick={() => onOpenChange(false)}>{unsaved ? "Close without saving" : "Cancel"}</Button>
             </div>
           </div>
         )}

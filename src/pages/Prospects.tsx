@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ExternalLink, Loader2, ParkingSquare, Plus, Radar, Undo2, X } from "lucide-react";
-import { useAuth } from "@/lib/auth";
 import { AppHeader } from "@/components/AppHeader";
 import { SourceNote } from "@/components/SourceNote";
 import { Button } from "@/components/ui/button";
@@ -50,7 +49,6 @@ const PROSPECTS_SOURCE = `Every night at 05:30 UTC the radar reads the funding n
  * it is still watching.
  */
 export default function Prospects() {
-  const { isManager } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { toast } = useToast();

@@ -1,12 +1,13 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { CalendarClock, Loader2, Mail, PhoneCall } from "lucide-react";
+import { CalendarClock, Eye, Loader2, Mail, PhoneCall } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { CALL_OUTCOME_CHOICES, dueRows, hasDraft, stepLabel, whenWord, type DueRow } from "@/lib/followUps";
 import { activeFollowUpsKey, callFollowUps, useActiveFollowUps } from "@/lib/followUpsData";
 import type { PatchCompany } from "@/lib/patch";
 import { EmailContactDialog } from "@/components/EmailContactDialog";
+import { FollowUpDraftPreview } from "@/components/FollowUpDraftPreview";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -28,6 +29,8 @@ export function FollowUpsDueCard({ companies }: { companies: PatchCompany[] }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [emailRow, setEmailRow] = useState<(DueRow & { company: PatchCompany }) | null>(null);
   const [logKind, setLogKind] = useState<Record<string, string>>({});
+  /** Rows whose draft is open for a quick read (6 October 2026). */
+  const [previewing, setPreviewing] = useState<Record<string, boolean>>({});
 
   const rows = useMemo(() => {
     if (!data) return [] as Array<DueRow & { company: PatchCompany }>;
@@ -81,6 +84,9 @@ export function FollowUpsDueCard({ companies }: { companies: PatchCompany[] }) {
                 <span className="text-xs text-muted-foreground">{whenWord(r.step.due_at, now)}</span>
                 <span className="ml-auto flex flex-wrap items-center gap-1.5">
                   {r.step.kind === "email" && hasDraft(r.step) && (
+                    <Button type="button" variant={previewing[key] ? "secondary" : "outline"} size="sm" className="h-7 gap-1 text-xs" onClick={() => setPreviewing((m) => ({ ...m, [key]: !m[key] }))} aria-expanded={!!previewing[key]} title="Read the email before approving it"><Eye className="h-3.5 w-3.5" aria-hidden="true" />{previewing[key] ? "Hide" : "Preview"}</Button>
+                  )}
+                  {r.step.kind === "email" && hasDraft(r.step) && (
                     <Button type="button" size="sm" className="h-7 gap-1 text-xs" onClick={() => setEmailRow(r)} disabled={!!busy}><Mail className="h-3.5 w-3.5" aria-hidden="true" />Approve and send</Button>
                   )}
                   {r.step.kind === "email" && !hasDraft(r.step) && (
@@ -98,6 +104,7 @@ export function FollowUpsDueCard({ companies }: { companies: PatchCompany[] }) {
                   <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={() => void act(`replied-${key}`, { action: "stop", sequenceId: r.sequence.id, outcomeKind: "replied" }, "Logged as replied")} disabled={!!busy} title="Logs a reply on the Calls tab and stops the follow-ups">{busy === `replied-${key}` && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" aria-hidden="true" />}They replied</Button>
                   <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={() => void act(`skip-${key}`, { action: "skip", stepId: r.step.id }, "Skipped")} disabled={!!busy}>Skip</Button>
                 </span>
+                {previewing[key] && r.step.kind === "email" && <FollowUpDraftPreview step={r.step} />}
               </li>
             );
           })}

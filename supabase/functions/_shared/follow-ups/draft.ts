@@ -180,6 +180,8 @@ export interface DraftSequenceOptions {
   /** Why, for the log: 'start', 'tick', 'redraft'. */
   reason?: string;
   now?: Date;
+  /** The notes for a rewrite (6 October 2026); kept on the step and used again by its later rewrites. */
+  instructions?: string | null;
 }
 
 export interface DraftSequenceResult {
@@ -209,12 +211,14 @@ export async function draftSequenceSteps(supabase: Supabase, sequenceId: string,
   const sc = await loadSequenceContext(supabase, seq as SequenceRow);
   let budget = opts.limit ?? candidates.length;
   for (const step of candidates) {
-    const needs = opts.force ? 'forced' : !step.body ? 'no draft yet' : step.draft_context_key !== sc.contextKey ? 'something changed at the company' : null;
-    if (!needs) { result.reused.push({ stepId: step.id, stepNo: step.step_no, reason: 'nothing changed' }); continue; }
+    // A draft edited by hand is kept as written: only a rewrite asked for (force) replaces it.
+    const needs = opts.force ? 'forced' : step.edited_at ? null : !step.body ? 'no draft yet' : step.draft_context_key !== sc.contextKey ? 'something changed at the company' : null;
+    if (!needs) { result.reused.push({ stepId: step.id, stepNo: step.step_no, reason: step.edited_at && !opts.force ? 'edited by hand, kept' : 'nothing changed' }); continue; }
     if (budget <= 0) { result.reused.push({ stepId: step.id, stepNo: step.step_no, reason: 'left for the next pass' }); continue; }
     budget--;
     // Earlier steps as they are now (a draft written a moment ago counts).
-    const input = buildFollowUpInput(sc, seq as SequenceRow, step, steps, now);
+    const notes = (opts.instructions !== undefined ? opts.instructions : step.notes) || null;
+    const input = buildFollowUpInput(sc, seq as SequenceRow, step, steps, now, notes);
     try {
       const gen = await generateFollowUpDraft(input, seq.company_search_id);
       for (const u of gen.usage) await logAiUsage(supabase, { ...u, companySearchId: seq.company_search_id, details: { ...(u.details || {}), sequenceId, stepNo: step.step_no, reason: opts.reason || 'draft', attempts: gen.attempts } });
@@ -225,6 +229,9 @@ export async function draftSequenceSteps(supabase: Supabase, sequenceId: string,
         draft_generated_at: now.toISOString(),
         draft_context_key: sc.contextKey,
         draft_flags: gen.flags,
+        notes,
+        edited_at: null,
+        edited_by_name: null,
       }).eq('id', step.id).in('status', ['scheduled', 'due']);
       if (upErr) throw new FollowUpDraftError(`could not store the draft: ${upErr.message}`);
       step.subject = gen.draft.subject; step.body = gen.draft.body; step.hook = gen.draft.hook;

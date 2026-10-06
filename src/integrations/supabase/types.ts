@@ -1191,6 +1191,9 @@ export type Database = {
           draft_context_key: string | null
           draft_flags: string[]
           draft_generated_at: string | null
+          edited_at: string | null
+          edited_by_name: string | null
+          notes: string | null
           due_at: string
           hook: string | null
           id: string
@@ -1212,6 +1215,9 @@ export type Database = {
           draft_context_key?: string | null
           draft_flags?: string[]
           draft_generated_at?: string | null
+          edited_at?: string | null
+          edited_by_name?: string | null
+          notes?: string | null
           due_at: string
           hook?: string | null
           id?: string
@@ -1233,6 +1239,9 @@ export type Database = {
           draft_context_key?: string | null
           draft_flags?: string[]
           draft_generated_at?: string | null
+          edited_at?: string | null
+          edited_by_name?: string | null
+          notes?: string | null
           due_at?: string
           hook?: string | null
           id?: string

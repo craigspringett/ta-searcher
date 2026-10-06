@@ -26,6 +26,11 @@ export interface FollowUpStep {
   sent_message_id: string | null;
   outcome_id: string | null;
   completed_at: string | null;
+  /** Set when the draft was saved by hand (6 October 2026); cleared when TA Searcher writes it again. */
+  edited_at?: string | null;
+  edited_by_name?: string | null;
+  /** The notes for the rewrite: pasted signals, likely-to-buy reasons, own words. */
+  notes?: string | null;
 }
 
 export interface FollowUpSequence {
