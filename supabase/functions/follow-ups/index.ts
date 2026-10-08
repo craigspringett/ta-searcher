@@ -7,12 +7,14 @@
 //   plan    { companySearchId }                     the default plan with its dates,
 //                                                   the quiet-period answer, the open
 //                                                   vacancies and the active sequence
-//   start   { companySearchId, contactName, contactEmail, contactRole?, vacancyId? }
+//   start   { companySearchId, contactName, contactEmail, contactRole?, vacancyId?, autoSend? }
 //                                                   start a sequence and draft its
 //                                                   three emails (one model call each)
 //   skip    { stepId }                              skip a due or scheduled step
 //   done    { stepId, outcomeKind, note?, callbackAt? }
 //                                                   log the outcome of a call step
+//   auto_send { sequenceId, enabled }               the emails go by themselves on their days
+//                                                   (clean or hand-edited drafts only; 8 October 2026)
 //   stop    { sequenceId, reason?, outcomeKind? }   stop it, logging the outcome
 //                                                   (replied, not_interested,
 //                                                   spoke_to, meeting_booked) or a note
@@ -129,6 +131,7 @@ Deno.serve(async (req): Promise<Response> => {
         contact_role: contactRole,
         vacancy_id: vacancyId,
         status: 'active',
+        auto_send: b.autoSend === true,
         started_at: now.toISOString(),
         plan: plan.map((p) => ({ step_no: p.stepNo, kind: p.kind, day: p.day, due_at: p.dueAt, label: p.label })),
       }).select(SEQUENCE_COLUMNS).single();
@@ -161,7 +164,8 @@ Deno.serve(async (req): Promise<Response> => {
       }
       const full = await loadSequence(supabase, seq.id);
       console.log('follow-ups started', { sequence: seq.id, company: s.id, by: caller.userId });
-      return json({ ok: true, sequence: full, drafting, message: `Follow-ups started for ${contactName}. The first call is due now; the emails are drafted for you to approve.` });
+      const autoLine = b.autoSend === true ? 'The emails will go by themselves at their due times, as long as each draft passed its checks or you have edited it; read them in the Follow-ups panel before then if you want to change anything.' : 'The first call is due now; the emails are drafted for you to approve.';
+      return json({ ok: true, sequence: full, drafting, message: `Follow-ups started for ${contactName}. ${autoLine}` });
     }
 
     if (action === 'skip' || action === 'done' || action === 'redraft' || action === 'mark_sent' || action === 'save_draft') {
@@ -263,6 +267,22 @@ Deno.serve(async (req): Promise<Response> => {
       const result = await draftSequenceSteps(supabase, sequence.id, { stepIds: [step.id], force: true, reason: instructions ? 'redraft_with_notes' : 'redraft', now, ...(instructions !== undefined ? { instructions: instructions || null } : {}) });
       const failed = result.failed[0];
       return json({ ok: !failed, sequence: await loadSequence(supabase, sequence.id), drafting: result, message: failed ? `Could not write it again: ${failed.error}` : instructions ? 'Written again around your notes.' : 'Written again.' }, failed ? 502 : 200);
+    }
+
+    // Auto-send on or off for a run (8 October 2026).
+    if (action === 'auto_send') {
+      const sequenceId = typeof b.sequenceId === 'string' && UUID.test(b.sequenceId) ? b.sequenceId : null;
+      if (!sequenceId) return json({ error: 'sequenceId (uuid) is required' }, 400);
+      const sequence = await loadSequence(supabase, sequenceId);
+      if (!sequence) return json({ error: 'Sequence not found' }, 404);
+      const s = await company(sequence.company_search_id);
+      if (!s.ok) return s.response;
+      if (sequence.status !== 'active') return json({ error: 'These follow-ups are not running.', code: 'inactive' }, 409);
+      const enabled = b.enabled === true;
+      const { error } = await supabase.from('follow_up_sequences').update({ auto_send: enabled }).eq('id', sequence.id);
+      if (error) return json({ error: error.message }, 500);
+      await logNote(supabase, sequence, enabled ? 'Auto-send switched on: the emails go by themselves on their days.' : 'Auto-send switched off: nothing goes without Approve and send.', caller.userId, { action: 'auto_send', enabled });
+      return json({ ok: true, sequence: await loadSequence(supabase, sequence.id), message: enabled ? 'The emails will go by themselves at their due times when the draft is clean or you have edited it.' : 'Nothing goes until you press Approve and send.' });
     }
 
     if (action === 'stop') {

@@ -1105,6 +1105,7 @@ export type Database = {
           contact_email: string
           contact_name: string
           contact_role: string | null
+          auto_send: boolean
           created_at: string
           created_by: string | null
           ended_at: string | null
@@ -1122,6 +1123,7 @@ export type Database = {
           contact_email: string
           contact_name: string
           contact_role?: string | null
+          auto_send?: boolean
           created_at?: string
           created_by?: string | null
           ended_at?: string | null
@@ -1139,6 +1141,7 @@ export type Database = {
           contact_email?: string
           contact_name?: string
           contact_role?: string | null
+          auto_send?: boolean
           created_at?: string
           created_by?: string | null
           ended_at?: string | null
@@ -1193,6 +1196,9 @@ export type Database = {
           draft_generated_at: string | null
           edited_at: string | null
           edited_by_name: string | null
+          sent_automatically: boolean
+          auto_attempted_at: string | null
+          auto_note: string | null
           notes: string | null
           due_at: string
           hook: string | null
@@ -1217,6 +1223,9 @@ export type Database = {
           draft_generated_at?: string | null
           edited_at?: string | null
           edited_by_name?: string | null
+          sent_automatically?: boolean
+          auto_attempted_at?: string | null
+          auto_note?: string | null
           notes?: string | null
           due_at: string
           hook?: string | null
@@ -1241,6 +1250,9 @@ export type Database = {
           draft_generated_at?: string | null
           edited_at?: string | null
           edited_by_name?: string | null
+          sent_automatically?: boolean
+          auto_attempted_at?: string | null
+          auto_note?: string | null
           notes?: string | null
           due_at?: string
           hook?: string | null

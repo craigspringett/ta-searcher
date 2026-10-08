@@ -28,6 +28,20 @@ const ALERT_LABEL = "New roles at my companies";
 export default function Alerts() {
   const { user, profile, isManager } = useAuth();
   const followUps = hasFeature(profile, "follow_ups");
+  // Automatic follow-up emails (8 October 2026): the switch that turns auto-send off for everyone (app_settings.follow_ups.auto_send).
+  const [autoSendOn, setAutoSendOn] = useState<boolean | null>(null);
+  useEffect(() => {
+    void (async () => {
+      const { data } = await supabase.from("app_settings").select("value").eq("key", "follow_ups").maybeSingle();
+      setAutoSendOn((data?.value as { auto_send?: unknown } | null)?.auto_send !== false);
+    })();
+  }, []);
+  const saveAutoSend = async (on: boolean) => {
+    const { error } = await supabase.from("app_settings").upsert({ key: "follow_ups", value: { auto_send: on }, updated_by: user?.id ?? null });
+    if (error) { toast({ title: "Could not save", description: error.message, variant: "destructive" }); return; }
+    setAutoSendOn(on);
+    toast({ title: "Saved", description: on ? "Follow-up emails on auto-send go by themselves on their days." : "No follow-up email goes without Approve and send, whatever the run says." });
+  };
   const { toast } = useToast();
   const [settings, setSettings] = useState<Setting[]>([]);
   const [consultants, setConsultants] = useState<Consultant[]>([]);
@@ -244,6 +258,14 @@ export default function Alerts() {
         <RaisesDigestCard />
 
         {followUps && <OutlookCard />}
+
+        {followUps && (
+          <Card className="p-5">
+            <h2 className="text-base font-semibold text-foreground">Automatic follow-up emails</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Tick "send the emails by themselves" on a follow-up run and those emails go at their due time on working days, as long as the draft passed every check or you edited it; anything else waits for Approve and send with the reason shown. This switch turns that off for everyone at once.</p>
+            <label className="mt-3 flex items-center gap-2 text-sm"><Switch checked={autoSendOn ?? true} onCheckedChange={(v) => void saveAutoSend(v)} disabled={!isManager || autoSendOn === null} aria-label="Automatic follow-up emails" />{autoSendOn === false ? "Off for everyone" : "On"}{!isManager && <span className="text-xs text-muted-foreground">(managers can change this)</span>}</label>
+          </Card>
+        )}
 
         <Card className="p-5">
           <h2 className="text-base font-semibold text-foreground mb-3">Add an alert</h2>

@@ -35,6 +35,7 @@ PIPELINE="$ROOT/supabase/migrations/20260922100000_pipeline.sql"
 INBOX="$ROOT/supabase/migrations/20260922120000_inbox.sql"
 PARKED="$ROOT/supabase/migrations/20260923100000_parked_prospects.sql"
 STEP_EDITS="$ROOT/supabase/migrations/20261006120000_follow_up_step_edits.sql"
+AUTO_SEND="$ROOT/supabase/migrations/20261008150000_follow_ups_auto_send.sql"
 GEN_TYPES=0
 KEEP=0
 for arg in "$@"; do
@@ -144,6 +145,8 @@ echo "== apply $(basename "$PARKED")"
 psqlq -f "$PARKED" >"$WORK/apply-parked.log" 2>&1 || { cat "$WORK/apply-parked.log"; exit 1; }
 echo "== apply $(basename "$STEP_EDITS")"
 psqlq -f "$STEP_EDITS" >"$WORK/apply-step-edits.log" 2>&1 || { cat "$WORK/apply-step-edits.log"; exit 1; }
+echo "== apply $(basename "$AUTO_SEND")"
+psqlq -f "$AUTO_SEND" >"$WORK/apply-auto-send.log" 2>&1 || { cat "$WORK/apply-auto-send.log"; exit 1; }
 grep -i "error" "$WORK/apply-funding-news.log" && exit 1
 echo "   applied"
 
@@ -434,6 +437,7 @@ check "the monitoring job list names only scheduled jobs" \
   "select bool_and(j ->> 'configured' = 'true') from jsonb_array_elements(public.get_cron_monitoring_jobs_only()) j"
 
 echo
+check "auto-send columns and the manager switch (8 October 2026)" "select (select count(*) = 1 from information_schema.columns where table_schema = 'public' and table_name = 'follow_up_sequences' and column_name = 'auto_send') and (select count(*) = 3 from information_schema.columns where table_schema = 'public' and table_name = 'follow_up_steps' and column_name in ('sent_automatically', 'auto_attempted_at', 'auto_note')) and (select value->>'auto_send' = 'true' from public.app_settings where key = 'follow_ups')"
 check "follow_up_steps carries the edit columns (6 October 2026)" "select count(*) = 3 from information_schema.columns where table_schema = 'public' and table_name = 'follow_up_steps' and column_name in ('edited_at', 'edited_by_name', 'notes')"
 
 echo "== $PASS passed, $FAIL failed"

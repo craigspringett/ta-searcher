@@ -1,7 +1,6 @@
 // tick-follow-ups: the pass over every active follow-up sequence, every
-// fifteen minutes from pg_cron (Follow-ups slice 2). It never sends
-// anything; an email goes only when the consultant presses Approve and
-// send. In order, for each active sequence:
+// fifteen minutes from pg_cron (Follow-ups slice 2). It sends nothing
+// itself except step 4b below, through send-outreach-email. In order, for each active sequence:
 //   1. stop it when a stopping outcome (spoke to, meeting booked, not
 //      interested, replied) was logged after it started, when Resend
 //      reported a bounce or a complaint for the contact, or when the address
@@ -13,6 +12,12 @@
 //   4. write the draft of an email step that is due today or overdue when it
 //      has none, or when something changed at the company since it was
 //      written (draft.ts; a few drafts a pass, one model call each);
+//   4b. (8 October 2026) when the sequence has auto_send and the manager
+//      switch (app_settings follow_ups.auto_send) is on: send a due email
+//      step by itself, inside the email window, when its draft passed every
+//      check or it was edited by hand; a flagged draft, a text warning,
+//      the one-a-day rule, a suppressed address or a send failure leaves it
+//      for Approve and send, with why in auto_note;
 //   5. mark the sequence done when every step has ended.
 //
 // POST {} from the service role (pg_cron) or a manager with the flag
@@ -20,7 +25,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { draftSequenceSteps } from '../_shared/follow-ups/draft.ts';
-import { londonDate } from '../_shared/follow-ups/schedule.ts';
+import { inEmailWindow, londonDate } from '../_shared/follow-ups/schedule.ts';
 import { secondCallScript, stopDecision } from '../_shared/follow-ups/stop.ts';
 import { finishIfDone, logNote, SEQUENCE_COLUMNS, stopSequence } from '../_shared/follow-ups/store.ts';
 import type { SequenceRow, StepRow } from '../_shared/follow-ups/prompt.ts';
@@ -49,7 +54,10 @@ Deno.serve(async (req) => {
   const { data: seqRows, error } = await q;
   if (error) return json({ error: error.message }, 500);
   const sequences = (seqRows || []) as SequenceRow[];
-  const counts = { sequences: sequences.length, stopped: 0, markedDue: 0, callsAttached: 0, scripts: 0, drafted: 0, draftsFailed: 0, done: 0, errors: 0 };
+  const counts = { sequences: sequences.length, stopped: 0, markedDue: 0, callsAttached: 0, scripts: 0, drafted: 0, draftsFailed: 0, autoSent: 0, autoHeld: 0, done: 0, errors: 0 };
+  const { data: fuSettings } = await supabase.from('app_settings').select('value').eq('key', 'follow_ups').maybeSingle();
+  const autoSendOn = (fuSettings?.value as { auto_send?: unknown } | null)?.auto_send !== false;
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
   const log: string[] = [];
   let draftBudget = draftBudgetTotal;
 
@@ -107,6 +115,40 @@ Deno.serve(async (req) => {
         counts.drafted += result.drafted.length;
         counts.draftsFailed += result.failed.length;
         if (result.drafted.length || result.failed.length) log.push(`${seq.id}: drafted ${result.drafted.map((d) => d.stepNo).join(',') || 'none'}${result.failed.length ? `, failed ${result.failed.map((f) => `${f.stepNo} (${f.error.slice(0, 80)})`).join('; ')}` : ''}`);
+      }
+
+      // 4b. Auto-send (8 October 2026): a due, clean (or hand-edited) email goes by itself inside the window.
+      if (seq.auto_send && autoSendOn && inEmailWindow(now)) {
+        const { data: fresh } = await supabase.from('follow_up_steps').select('*').eq('sequence_id', seq.id).eq('kind', 'email').eq('status', 'due').order('step_no');
+        for (const step of ((fresh || []) as StepRow[])) {
+          if (!step.body || !step.subject) continue;
+          const clean = !(step.draft_flags || []).length || !!step.edited_at;
+          const changedSince = (t: string | null | undefined) => !!t && (!step.auto_attempted_at || t > step.auto_attempted_at);
+          const retry = !step.auto_attempted_at || changedSince(step.draft_generated_at) || changedSince(step.edited_at) || londonDate(new Date(step.auto_attempted_at)) < today;
+          if (!retry) continue;
+          if (!clean) {
+            if (step.auto_note !== 'checks') await supabase.from('follow_up_steps').update({ auto_attempted_at: nowIso, auto_note: 'checks' }).eq('id', step.id);
+            counts.autoHeld++;
+            continue;
+          }
+          const { data: sent, error: sendErr } = await supabase.functions.invoke('send-outreach-email', {
+            headers: { Authorization: `Bearer ${serviceKey}` },
+            body: { auto: true, sequenceStepId: step.id, companySearchId: seq.company_search_id, contactName: seq.contact_name, contactRole: seq.contact_role, contactEmail: seq.contact_email, subject: step.subject, body: step.body },
+          });
+          if (sendErr || !sent?.ok) {
+            // The function's answer in its own words: a warning on the text, one a day, a block, suppressed.
+            let why = sendErr?.message || sent?.error || 'send failed';
+            try { const ctx = (sendErr as { context?: Response } | null)?.context; if (ctx) { const j = await ctx.json(); why = j?.error || why; } } catch { /* keep the message */ }
+            await supabase.from('follow_up_steps').update({ auto_attempted_at: nowIso, auto_note: String(why).slice(0, 300) }).eq('id', step.id).eq('status', 'due');
+            counts.autoHeld++;
+            log.push(`${seq.id}: step ${step.step_no} held (${String(why).slice(0, 80)})`);
+            continue;
+          }
+          counts.autoSent++;
+          log.push(`${seq.id}: step ${step.step_no} sent automatically`);
+          await logNote(supabase, seq, `Follow-up email ${step.step_no} sent automatically: ${step.subject}`, null, { action: 'auto_send', step_no: step.step_no });
+          break; // one a day per contact; the next step is days away anyway
+        }
       }
 
       // 5. Done?

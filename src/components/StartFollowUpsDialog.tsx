@@ -29,6 +29,8 @@ export function StartFollowUpsDialog({ companyId, companyName, contact, open, on
   const [plan, setPlan] = useState<FollowUpsReply | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [vacancyId, setVacancyId] = useState<string>("none");
+  // Auto-send (8 October 2026): remembered per browser, so once ticked it stays ticked.
+  const [autoSend, setAutoSend] = useState<boolean>(() => { try { return localStorage.getItem("followUps.autoSend") === "1"; } catch { return false; } });
   const [busy, setBusy] = useState<"plan" | "start" | null>(null);
   const [started, setStarted] = useState<FollowUpsReply | null>(null);
 
@@ -46,7 +48,8 @@ export function StartFollowUpsDialog({ companyId, companyName, contact, open, on
     setBusy("start");
     setProblem(null);
     try {
-      const { status, data } = await callFollowUps({ action: "start", companySearchId: companyId, contactName: contact.name, contactEmail: contact.email, contactRole: contact.role || null, vacancyId: vacancyId === "none" ? null : vacancyId });
+      const { status, data } = await callFollowUps({ action: "start", companySearchId: companyId, contactName: contact.name, contactEmail: contact.email, contactRole: contact.role || null, vacancyId: vacancyId === "none" ? null : vacancyId, autoSend });
+      try { localStorage.setItem("followUps.autoSend", autoSend ? "1" : "0"); } catch { /* a private window */ }
       if (status >= 400) { setProblem(data.error || `HTTP ${status}`); return; }
       setStarted(data);
       toast({ title: "Follow-ups started", description: data.message });
@@ -95,6 +98,13 @@ export function StartFollowUpsDialog({ companyId, companyName, contact, open, on
               ))}
             </ol>
             <p className="text-xs text-muted-foreground">Emails go in the afternoon, Friday afternoons where the plan allows, never on a Monday morning or at a weekend. Dates move to the next working day when they land on one.</p>
+            <label className="flex items-start gap-2 rounded-md border border-border p-3">
+              <input type="checkbox" className="mt-0.5 h-4 w-4" checked={autoSend} onChange={(e) => setAutoSend(e.target.checked)} />
+              <span>
+                <span className="font-medium text-foreground">Send the three emails by themselves on their days</span>
+                <span className="block text-xs text-muted-foreground">Each goes at its due time without asking you, as long as its draft passed every check or you have edited it. A draft with a "check before sending" note waits for Approve and send. You can read and change the drafts in the Follow-ups panel at any point before they go, and switch this off there.</span>
+              </span>
+            </label>
             {(plan.vacancies || []).length > 0 && (
               <div>
                 <Label htmlFor="follow-ups-vacancy">Which vacancy is this about?</Label>

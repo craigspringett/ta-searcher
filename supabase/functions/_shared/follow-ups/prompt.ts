@@ -288,6 +288,7 @@ export interface SequenceRow {
   vacancy_id: string | null;
   status: string;
   started_at: string;
+  auto_send?: boolean | null;
 }
 
 export interface StepRow {
@@ -311,6 +312,9 @@ export interface StepRow {
   edited_at?: string | null;
   edited_by_name?: string | null;
   notes?: string | null;
+  sent_automatically?: boolean | null;
+  auto_attempted_at?: string | null;
+  auto_note?: string | null;
 }
 
 export interface SequenceContext {

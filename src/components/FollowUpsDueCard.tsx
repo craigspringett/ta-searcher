@@ -81,6 +81,7 @@ export function FollowUpsDueCard({ companies }: { companies: PatchCompany[] }) {
                 <button type="button" className="font-medium text-foreground hover:underline" onClick={() => navigate(`/companies/${r.company.id}#follow-ups`)}>{r.company.name}</button>
                 <span className="text-muted-foreground">{r.sequence.contact_name}</span>
                 <span className="text-foreground/90">{stepLabel(r.step)}</span>
+                {r.step.kind === "email" && r.sequence.auto_send && hasDraft(r.step) && ((r.step.draft_flags || []).length && !r.step.edited_at ? <span className="rounded bg-warning/15 px-1.5 py-0.5 text-[10px] font-semibold text-warning" title="The draft did not pass every check, so it waits for you.">waiting for you</span> : r.step.auto_note && r.step.auto_note !== "checks" ? <span className="rounded bg-warning/15 px-1.5 py-0.5 text-[10px] font-semibold text-warning" title={r.step.auto_note}>held: {r.step.auto_note.slice(0, 60)}</span> : <span className="rounded bg-positive/15 px-1.5 py-0.5 text-[10px] font-semibold text-positive" title="Goes by itself at the due time unless you send or skip it first.">goes by itself</span>)}
                 <span className="text-xs text-muted-foreground">{whenWord(r.step.due_at, now)}</span>
                 <span className="ml-auto flex flex-wrap items-center gap-1.5">
                   {r.step.kind === "email" && hasDraft(r.step) && (

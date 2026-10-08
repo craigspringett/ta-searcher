@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 
 interface Props {
   companyId: string;
@@ -86,9 +87,15 @@ export function FollowUpsCard({ companyId, companyName, onChange }: Props) {
       {latest && (
         <>
           <p className="text-sm text-foreground">{sequenceLine(latest, now)}</p>
-          <p className="text-xs text-muted-foreground mb-3">
-            {latest.contact_email}{latest.contact_role ? `, ${latest.contact_role}` : ""}. Started {whenWord(latest.started_at, now).replace(" (overdue)", "")}. Emails go only when you press Approve and send, or when you copy one into Outlook and tick it as sent; a reply, a "spoke to", a meeting, "not interested", a bounce or a complaint stops the run.
+          <p className="text-xs text-muted-foreground mb-2">
+            {latest.contact_email}{latest.contact_role ? `, ${latest.contact_role}` : ""}. Started {whenWord(latest.started_at, now).replace(" (overdue)", "")}. {latest.auto_send ? "The emails go by themselves at their due times when the draft is clean or you have edited it; a flagged draft waits for you." : "Emails go only when you press Approve and send, or when you copy one into Outlook and tick it as sent."} A reply, a "spoke to", a meeting, "not interested", a bounce or a complaint stops the run.
           </p>
+          {latest.status === "active" && (
+            <label className="mb-3 flex items-center gap-2 text-xs text-foreground">
+              <Switch checked={!!latest.auto_send} onCheckedChange={(v) => void act(`auto-${latest.id}`, { action: "auto_send", sequenceId: latest.id, enabled: v }, v ? "Auto-send on" : "Auto-send off")} disabled={!!busy} aria-label="Send the emails by themselves on their days" />
+              Send the emails by themselves on their days
+            </label>
+          )}
 
           <ol className="space-y-2">
             {latest.steps.map((step) => {
@@ -105,6 +112,14 @@ export function FollowUpsCard({ companyId, companyName, onChange }: Props) {
                     <span className="text-xs text-muted-foreground">
                       {open ? `Due ${whenWord(step.due_at, now)}` : `${STEP_STATUS_LABELS[step.status] || step.status}${step.completed_at ? ` ${whenWord(step.completed_at, now).replace(" (overdue)", "")}` : ""}`}
                       {dueNow && <span className="ml-2 rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold text-primary">due now</span>}
+                      {step.status === "sent" && step.sent_automatically && <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">sent automatically</span>}
+                      {open && step.kind === "email" && latest.auto_send && step.body && (
+                        (step.draft_flags || []).length && !step.edited_at
+                          ? <span className="ml-2 rounded bg-warning/15 px-1.5 py-0.5 text-[10px] font-semibold text-warning" title="The draft did not pass every check, so it waits for you: edit it and save, or approve it as it is.">waiting for you</span>
+                          : step.auto_note && step.auto_note !== "checks"
+                            ? <span className="ml-2 rounded bg-warning/15 px-1.5 py-0.5 text-[10px] font-semibold text-warning" title={step.auto_note}>held: {step.auto_note.slice(0, 60)}</span>
+                            : <span className="ml-2 rounded bg-positive/15 px-1.5 py-0.5 text-[10px] font-semibold text-positive" title="Goes by itself at the due time; edit or approve it before then if you like.">goes by itself</span>
+                      )}
                     </span>
                   </div>
 

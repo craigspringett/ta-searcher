@@ -15,7 +15,12 @@
 //
 // The caller must be a signed-in user whose profile carries the follow_ups
 // flag (the service role is refused: an email in a person's name is sent
-// by that person). The checks, in order:
+// by that person). The one exception (8 October 2026): the tick sends a
+// follow-up step by itself when the sequence has auto_send, with
+// { auto: true, sequenceStepId } from the service role; the person is then
+// the one who started the sequence, and the same checks apply, except
+// that a warning on the text leaves the email for them rather than
+// sending anyway. The checks, in order:
 //   1. the request is well formed (parseOutreachRequest);
 //   2. the company exists and the consultant is on its list (a manager may
 //      email for any company), and the address is one of the company's
@@ -48,10 +53,8 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
   const supabase = createClient(supabaseUrl, serviceKey);
-  const who = await requireFollowUpsCaller(req, supabase, { usersOnly: true });
+  const who = await requireFollowUpsCaller(req, supabase, {});
   if (who.reject) return who.reject;
-  const caller = who.ok.caller;
-  if (caller.kind !== 'user') return json({ error: 'A signed-in consultant must send this.' }, 403);
   if (req.method !== 'POST') return json({ error: 'POST only' }, 405);
 
   let raw: unknown;
@@ -59,6 +62,24 @@ Deno.serve(async (req) => {
   const parsed = parseOutreachRequest(raw);
   if (parsed.ok === null) return json({ error: parsed.error }, 400);
   const r = parsed.ok;
+
+  // The automatic send (the tick, service role): the person is whoever started the sequence.
+  const auto = who.ok.caller.kind === 'service';
+  const autoStepId = typeof (raw as { sequenceStepId?: unknown })?.sequenceStepId === 'string' ? (raw as { sequenceStepId: string }).sequenceStepId : null;
+  if (auto && !((raw as { auto?: unknown })?.auto === true && autoStepId)) return json({ error: 'A signed-in consultant must send this.' }, 403);
+  let caller: Extract<Awaited<ReturnType<typeof requireFollowUpsCaller>>['ok'], object>['caller'] & { kind: 'user' };
+  if (auto) {
+    const found = await loadStep(supabase, autoStepId!);
+    if (!found) return json({ error: 'That follow-up step was not found.' }, 404);
+    const owner = found.sequence.created_by;
+    const { data: prof } = owner ? await supabase.from('profiles').select('id, email, display_name, role, consultant_id').eq('id', owner).maybeSingle() : { data: null };
+    if (!prof?.email) return json({ error: 'The person who started these follow-ups has no profile to send as.', code: 'no_owner' }, 409);
+    caller = { kind: 'user', userId: prof.id, email: String(prof.email), profile: { id: prof.id, email: String(prof.email), display_name: prof.display_name ?? null, role: prof.role ?? 'consultant', consultant_id: prof.consultant_id ?? found.sequence.consultant_id ?? null } } as typeof caller;
+  } else {
+    if (who.ok.caller.kind !== 'user') return json({ error: 'A signed-in consultant must send this.' }, 403);
+    caller = who.ok.caller as typeof caller;
+  }
+  const isManager = auto ? true : who.ok.isManager;
 
   // 2. The company, and whether it is on the caller's list.
   const { data: company, error: companyErr } = await supabase.from('company_searches').select('id, company_name, analysis_result').eq('id', r.companySearchId).maybeSingle();
@@ -69,7 +90,7 @@ Deno.serve(async (req) => {
   const { data: assigned } = await supabase.from('company_consultants').select('consultant_id').eq('company_search_id', company.id);
   const assignedIds = ((assigned || []) as Array<{ consultant_id: string }>).map((a) => a.consultant_id);
   const onMyList = assignedIds.some((id) => mine.includes(id));
-  if (!onMyList && !who.ok.isManager) return json({ error: `${companyName} is not on your list. Ask a manager to assign it to you first.` }, 403);
+  if (!onMyList && !isManager) return json({ error: `${companyName} is not on your list. Ask a manager to assign it to you first.` }, 403);
   const consultantId = assignedIds.find((id) => mine.includes(id)) || caller.profile.consultant_id || mine[0] || null;
 
   // 2a. The address must belong to one of the company's contacts as edited (Contact edits, 18 September 2026).
@@ -104,7 +125,7 @@ Deno.serve(async (req) => {
   // 4. The rules on the text.
   const check = checkOutreachText(r.subject, r.body);
   if (check.blocked.length) return json({ error: check.blocked.join(' '), code: 'blocked', blocked: check.blocked, warnings: check.warnings }, 422);
-  if (check.warnings.length && !r.sendAnyway && !r.dryRun) return json({ error: 'Worth a second look before it goes.', code: 'warnings', warnings: check.warnings }, 422);
+  if (check.warnings.length && (!r.sendAnyway || auto) && !r.dryRun) return json({ error: 'Worth a second look before it goes.', code: 'warnings', warnings: check.warnings }, 422);
 
   // 5. One a day per contact.
   if (!r.dryRun) {
@@ -151,6 +172,7 @@ Deno.serve(async (req) => {
         company_name: companyName,
         consultant_id: consultantId,
         sent_by: caller.userId,
+        ...(auto ? { sent_automatically: true } : {}),
         contact_name: r.contactName,
         contact_role: r.contactRole,
         contact_email: r.contactEmail,
@@ -181,7 +203,7 @@ Deno.serve(async (req) => {
     contact_role: r.contactRole,
     kind: 'emailed',
     note: r.subject,
-    external_refs: { message_id: sent.messageId, contact_email: r.contactEmail, from: sent.from, ...(stepInfo ? { sequence_id: stepInfo.sequence.id, step_no: stepInfo.step.step_no } : {}) },
+    external_refs: { message_id: sent.messageId, contact_email: r.contactEmail, from: sent.from, ...(auto ? { sent_automatically: true } : {}), ...(stepInfo ? { sequence_id: stepInfo.sequence.id, step_no: stepInfo.step.step_no } : {}) },
   }).select('id').maybeSingle();
   if (outcomeErr) console.warn('send-outreach-email: outcome not logged', { message: outcomeErr.message });
 
@@ -195,6 +217,7 @@ Deno.serve(async (req) => {
       sent_message_id: sent.messageId,
       outcome_id: outcome?.id ?? null,
       completed_at: new Date().toISOString(),
+      ...(auto ? { sent_automatically: true, auto_note: null } : {}),
     }).eq('id', stepInfo.step.id);
     if (stepErr) console.warn('send-outreach-email: step not marked sent', { message: stepErr.message });
     else sequenceDone = await finishIfDone(supabase, stepInfo.sequence.id);

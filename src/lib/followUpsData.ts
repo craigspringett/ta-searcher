@@ -23,8 +23,8 @@ function attachSteps(sequences: Omit<FollowUpSequence, "steps">[], steps: Follow
   return sequences.map((q) => ({ ...q, steps: (bySeq.get(q.id) || []).sort((a, b) => a.step_no - b.step_no) }));
 }
 
-const SEQ_COLUMNS = "id, company_search_id, consultant_id, created_by, contact_name, contact_email, contact_role, vacancy_id, status, stop_reason, started_at, ended_at";
-const STEP_COLUMNS = "id, sequence_id, step_no, kind, day, label, due_at, status, subject, body, hook, draft_generated_at, draft_flags, sent_message_id, outcome_id, completed_at, edited_at, edited_by_name, notes";
+const SEQ_COLUMNS = "id, company_search_id, consultant_id, created_by, contact_name, contact_email, contact_role, vacancy_id, status, stop_reason, started_at, ended_at, auto_send";
+const STEP_COLUMNS = "id, sequence_id, step_no, kind, day, label, due_at, status, subject, body, hook, draft_generated_at, draft_flags, sent_message_id, outcome_id, completed_at, edited_at, edited_by_name, notes, sent_automatically, auto_attempted_at, auto_note";
 
 /** The sequences for one company with their steps, newest first (row security limits what comes back). */
 export async function loadCompanyFollowUps(companyId: string): Promise<FollowUpSequence[]> {

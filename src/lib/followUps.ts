@@ -31,6 +31,10 @@ export interface FollowUpStep {
   edited_by_name?: string | null;
   /** The notes for the rewrite: pasted signals, likely-to-buy reasons, own words. */
   notes?: string | null;
+  /** Auto-send (8 October 2026): sent by the tick rather than a person; and why the tick held it, when it did. */
+  sent_automatically?: boolean | null;
+  auto_attempted_at?: string | null;
+  auto_note?: string | null;
 }
 
 export interface FollowUpSequence {
@@ -46,6 +50,8 @@ export interface FollowUpSequence {
   stop_reason: string | null;
   started_at: string;
   ended_at: string | null;
+  /** The emails go by themselves on their days when the draft is clean or hand-edited (8 October 2026). */
+  auto_send?: boolean | null;
   steps: FollowUpStep[];
 }
 

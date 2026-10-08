@@ -10,7 +10,7 @@ import type { SequenceRow, StepRow } from './prompt.ts';
 // deno-lint-ignore no-explicit-any
 type Supabase = any;
 
-export const SEQUENCE_COLUMNS = 'id, company_search_id, consultant_id, created_by, contact_name, contact_email, contact_role, vacancy_id, status, stop_reason, started_at, ended_at, plan, created_at, updated_at';
+export const SEQUENCE_COLUMNS = 'id, company_search_id, consultant_id, created_by, contact_name, contact_email, contact_role, vacancy_id, status, stop_reason, started_at, ended_at, auto_send, plan, created_at, updated_at';
 
 export interface SequenceWithSteps extends SequenceRow {
   stop_reason: string | null;

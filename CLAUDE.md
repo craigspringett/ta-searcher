@@ -188,6 +188,23 @@ built and verified on 21 September 2026 and what is not yet applied.
   Save the draft, Rewrite with these notes), Save without sending in
   `EmailContactDialog`, Preview (`FollowUpDraftPreview`) on
   `FollowUpsDueCard` and the Follow-ups page.
+- Auto-send on follow-ups (8 October 2026, the same change as He-Giveth
+  that day): `follow_up_sequences.auto_send` (set by the tick on Start
+  follow-ups, remembered per browser, or the switch on the company page;
+  action `auto_send { sequenceId, enabled }`), `follow_up_steps`
+  `sent_automatically`, `auto_attempted_at`, `auto_note`; migration
+  `20261008150000_follow_ups_auto_send.sql`, which also seeds
+  `app_settings.follow_ups = {"auto_send": true}` (the manager switch on
+  the Alerts page turns it off for everyone). `tick-follow-ups` step 4b:
+  inside the email window, a due email of an auto-send run goes by
+  itself when its draft has no flags or was edited by hand, through
+  `send-outreach-email` `{ auto: true, sequenceStepId }` from the service
+  role, which then acts as the person who started the run and applies
+  the same checks (a text warning, the one-a-day rule, a block, a
+  suppressed address or a send failure hold it, with the reason in
+  `auto_note`; a flagged draft is held as `auto_note = 'checks'`). Steps
+  show "goes by itself", "waiting for you", "held: …" and "sent
+  automatically"; the Calls history gets a note.
 - Pipeline board (22 September 2026): `company_searches.pipeline_stage`
   (prospect, contacted, call_booked, search_agreed, lost) and
   `pipeline_moved_at`; an outcome advances the stage on its own (trigger
@@ -280,6 +297,6 @@ npx tsc --noEmit -p tsconfig.app.json # frontend types
 npx eslint src                        # 0 errors expected
 npm test                              # Vitest for src/lib
 cd supabase/functions && DENO_NO_PACKAGE_JSON=1 deno test --allow-all --no-check --node-modules-dir=none _shared   # unit tests (Deno: curl -fsSL https://deno.land/install.sh | sh -s v2.4.5, then ~/.deno/bin)
-scripts/local-db-test.sh              # every plain-SQL migration and its row security on a throwaway local Postgres 16 (155 assertions)
+scripts/local-db-test.sh              # every plain-SQL migration and its row security on a throwaway local Postgres 16 (156 assertions)
 node scripts/embed-value-proposition.mjs   # after editing _shared/copy/value-proposition.md
 ```
