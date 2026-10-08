@@ -178,6 +178,12 @@ built and verified on 21 September 2026 and what is not yet applied.
   later rewrites (`draft.ts`, `prompt.ts` `instructions`). An edited draft
   is never overwritten by the tick or a changed company; only a rewrite
   asked for replaces it (`draft.ts` skips `edited_at` rows unless forced).
+  An instruction in the notes is binding (8 October 2026, He-Giveth's
+  change of 7 October): the notes block in `prompt.ts` states the
+  precedence (carry out every instruction in the body; the sender's own
+  claims may be stated plainly; only the hard rules override), the draft
+  schema has `notesFollowed` and `notesMissed`, and anything reported as
+  missed is a failed check that the one rewrite pass carries out.
   App: Edit / Write it yourself on `FollowUpsCard` (subject, email, notes,
   Save the draft, Rewrite with these notes), Save without sending in
   `EmailContactDialog`, Preview (`FollowUpDraftPreview`) on

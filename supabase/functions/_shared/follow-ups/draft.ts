@@ -83,7 +83,7 @@ async function callModel(system: Anthropic.Beta.BetaTextBlockParam[], messages: 
   try {
     const obj = JSON.parse(text);
     if (!obj?.subject || !obj?.body) throw new Error('missing subject or body');
-    draft = { subject: String(obj.subject), body: String(obj.body), hook: String(obj.hook || '') };
+    draft = { subject: String(obj.subject), body: String(obj.body), hook: String(obj.hook || ''), notesMissed: typeof obj.notesMissed === 'string' ? obj.notesMissed : '' };
   } catch (e) {
     usage.ok = false; usage.error = 'invalid json';
     throw Object.assign(new FollowUpDraftError(`Claude output was not valid draft JSON: ${e instanceof Error ? e.message : e}`, true), { usage });
@@ -100,7 +100,7 @@ export interface DraftResult {
   usage: UsageRecord[];
 }
 
-const CORRECTION = 'The previous draft failed these checks. Rewrite the whole email so that every check passes, keeping what was good:';
+const CORRECTION = "The previous draft failed these checks. Rewrite the whole email so that every check passes, keeping what was good. Where a check says the sender's instruction was not carried out, carry it out now in the body of the email: the sender's notes are part of the input and their own claims may be stated plainly.";
 
 /** One draft, checked, rewritten once on a failure. Usage for every call comes back so the caller can log it even when the second attempt fails. */
 export async function generateFollowUpDraft(input: FollowUpInput, companySearchId: string | null): Promise<DraftResult> {
@@ -115,7 +115,7 @@ export async function generateFollowUpDraft(input: FollowUpInput, companySearchI
   const inputText = `${rules}\n${companyBlock}\n${stepText}`;
   const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: 'user', content: stepText }];
   const usage: UsageRecord[] = [];
-  const tidy = (d: FollowUpDraft): FollowUpDraft => ({ ...d, subject: d.subject.replace(/[\r\n]+/g, ' ').trim(), body: stripSignature(d.body, input.consultant), hook: d.hook.trim() });
+  const tidy = (d: FollowUpDraft): FollowUpDraft => ({ ...d, subject: d.subject.replace(/[\r\n]+/g, ' ').trim(), body: stripSignature(d.body, input.consultant), hook: d.hook.trim(), notesMissed: (d.notesMissed || '').trim() });
   let first: Awaited<ReturnType<typeof callModel>>;
   try {
     first = await callModel(system, messages, companySearchId, 'follow_up');

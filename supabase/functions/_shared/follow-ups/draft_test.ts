@@ -159,4 +159,20 @@ Deno.test('the input for a step carries only the earlier emails, as they stand',
   assertEquals(forFirst.step.purpose, 'first');
 });
 
+Deno.test("the sender's notes: an instruction is binding; a draft that admits it did not carry one out is flagged for the rewrite (8 October 2026)", () => {
+  const withNotes: FollowUpInput = { ...input, instructions: 'Mention we have candidates who match this.' };
+  const msg = buildStepMessage(withNotes);
+  assert(/MUST be carried out/.test(msg), 'the notes block states the precedence');
+  assert(/may be stated plainly as their claim/.test(msg));
+  assert(/Mention we have candidates/.test(msg));
+  const inputText = `${buildCompanyBlock(withNotes)}\n${msg}`;
+  const draft = { subject: 'Doubling the team by spring', body: goodBody, hook: 'the plan to double the team by spring' };
+  const missed = followUpDraftFlags({ ...draft, notesMissed: 'The email does not say that matching candidates are available.' }, withNotes, inputText);
+  assert(missed.some((f) => f.startsWith("the sender's instruction was not carried out")), missed.join('; '));
+  const met = followUpDraftFlags({ ...draft, notesMissed: '' }, withNotes, inputText);
+  assert(!met.some((f) => f.includes('instruction')), met.join('; '));
+  const noNotes = followUpDraftFlags({ ...draft, notesMissed: 'anything' }, input, inputText);
+  assert(!noNotes.some((f) => f.includes('instruction')), noNotes.join('; '));
+});
+
 type SequenceContextCtx = Parameters<typeof buildFollowUpInput>[0]['ctx'];

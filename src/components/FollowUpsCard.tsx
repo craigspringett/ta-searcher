@@ -131,7 +131,7 @@ export function FollowUpsCard({ companyId, companyName, onChange }: Props) {
                       </div>
                       <div>
                         <Label htmlFor={`edit-notes-${step.id}`}>Notes for a rewrite</Label>
-                        <Textarea id={`edit-notes-${step.id}`} value={editNotes} onChange={(e) => setEditNotes(e.target.value)} rows={4} maxLength={4000} className="text-xs" placeholder="Paste anything from this page you want worked in: a buyer intent signal, a likely-to-buy reason, a line from the latest raise, or tell it the angle in your own words. Then press Rewrite with these notes." />
+                        <Textarea id={`edit-notes-${step.id}`} value={editNotes} onChange={(e) => setEditNotes(e.target.value)} rows={4} maxLength={4000} className="text-xs" placeholder="Two things go here, often both: material pasted from this page (a buyer intent signal, a likely-to-buy reason, a line from the latest raise), which becomes the hook and the evidence; and instructions in your own words (mention we have candidates who match, lead with the Series A), which are carried out in the email. A claim you make here may be stated plainly as yours." />
                       </div>
                       <div className="flex flex-wrap gap-2">
                         <Button type="submit" size="sm" className="h-7 gap-1.5 text-xs" disabled={!!busy || !editSubject.trim() || !editBody.trim()}>
@@ -142,7 +142,7 @@ export function FollowUpsCard({ companyId, companyName, onChange }: Props) {
                         </Button>
                         <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setEditing(null)} disabled={!!busy}>Cancel</Button>
                       </div>
-                      <p className="text-xs text-muted-foreground">Save keeps your words exactly; nothing goes until you press Approve and send on the day. Rewrite asks TA Searcher for a fresh email built around your notes, keeping the usual rules (no fee figure, one question at the end).</p>
+                      <p className="text-xs text-muted-foreground">Save keeps your words exactly; nothing goes until you press Approve and send on the day. Rewrite asks TA Searcher for a fresh email built around your notes: pasted material is the hook and the evidence, an instruction in your own words is carried out in the body, and a claim you make there (candidates who match, say) is stated as your claim. The hard rules still hold: no fee figure or day rate, nothing about the company beyond the page and your notes, one question at the end.</p>
                     </form>
                   )}
                   {step.kind === "email" && open && !step.body && (

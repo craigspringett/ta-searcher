@@ -62,7 +62,13 @@ export interface FollowUpInput {
   instructions?: string | null;
 }
 
-export interface FollowUpDraft { subject: string; body: string; hook: string }
+export interface FollowUpDraft {
+  subject: string;
+  body: string;
+  hook: string;
+  /** When the notes held instructions (8 October 2026): any the email does not carry out, in the model's own words; empty when all are met or there were none. */
+  notesMissed?: string;
+}
 
 export const FOLLOW_UP_SCHEMA = {
   type: 'object',
@@ -71,8 +77,10 @@ export const FOLLOW_UP_SCHEMA = {
     subject: { type: 'string', description: `Under ${SUBJECT_MAX} characters, plain, names the hook. No "Re:", no clickbait.` },
     body: { type: 'string', description: `${WORDS.min} to ${WORDS.max} words of plain text: a greeting line, two or three short paragraphs separated by blank lines, a final line that is a light question, then a sign-off line such as "Best wishes," on its own. No bullet points, no name under the sign-off.` },
     hook: { type: 'string', description: 'The one concrete thing this email is about, in a few words, e.g. "the three engineering roles open since July".' },
+    notesFollowed: { type: 'string', description: "When the sender's notes contain instructions (mention this, lead with that, leave out the other), one short line per instruction saying which sentence of the email carries it out. 'none' when the notes contain no instruction." },
+    notesMissed: { type: 'string', description: "Any instruction in the sender's notes that the email does NOT carry out, and why. An empty string when every instruction is carried out or there were none. Be honest: this is checked." },
   },
-  required: ['subject', 'body', 'hook'],
+  required: ['subject', 'body', 'hook', 'notesFollowed', 'notesMissed'],
 };
 
 const PURPOSE_NOTES: Record<StepPurpose, string> = {
@@ -208,8 +216,11 @@ export function buildStepMessage(input: FollowUpInput): string {
   const notes = (input.instructions || '').replace(/\r\n?/g, '\n').trim();
   if (notes) {
     lines.push('');
-    lines.push("The sender's notes for this email (pasted from the company's page: buyer intent signals, why they are likely to buy, or their own words). Build the email around what is here, in the sender's voice, keeping every rule above; use only what is stated, invent nothing beyond it:");
+    lines.push("THE SENDER'S NOTES FOR THIS EMAIL. They may be two things, often both: material pasted from the company's page (a buyer intent signal, a likely-to-buy reason, a line about the latest raise), and instructions in the sender's own words (\"mention we have candidates who match this\", \"lead with the Series A\", \"don't mention the layoffs\").");
+    lines.push("Rules of precedence: an instruction in the notes MUST be carried out, in the email itself, not just the subject. The notes are part of the input, so a claim the sender makes in them (that they have candidates who match, that they placed a Head of Talent at a similar company) may be stated plainly as their claim; it is not inventing. Pasted material is the hook and the evidence: build the email around it in the sender's voice. The only rules that still override the notes are the hard ones: never a margin, fee, percentage or day rate; never a banned phrase; nothing about the company beyond the input and the notes; the length and the shape above. If an instruction cannot be carried out because of one of those, say which in notesMissed.");
+    lines.push('--- notes ---');
     lines.push(notes.slice(0, 4000));
+    lines.push('--- end of notes ---');
   }
   lines.push(`Write the ${input.step.purpose} email now: subject, body and hook, following the schema.`);
   return lines.join('\n');
@@ -258,6 +269,9 @@ export function followUpDraftFlags(draft: FollowUpDraft, input: FollowUpInput, i
   if (!/^(dear|hello|hi|good (morning|afternoon))\b/i.test(lines[0] || '')) flags.push('no greeting line');
   const earlierHooks = input.earlierEmails.filter((e) => e.stepNo < input.step.stepNo && e.hook).map((e) => e.hook!.trim().toLowerCase());
   if (earlierHooks.includes((draft.hook || '').trim().toLowerCase())) flags.push('same hook as an earlier email');
+  // The sender's instructions (8 October 2026): the model says which it did not carry out; that is a failed check and gets the rewrite.
+  const missed = (draft.notesMissed || '').trim();
+  if ((input.instructions || '').trim() && missed && !/^(none|n\/a|nothing|-|no)\.?$/i.test(missed)) flags.push(`the sender's instruction was not carried out: ${missed.slice(0, 200)}`);
   const named = namedPeopleFlags({ call: { opener: '', discovery_questions: [], objections: [], voicemail: '', close: '' }, email: { subject: subj, body, followup: '' } }, { contactNames: [input.contact.name], consultantName: input.consultant.displayName, inputText });
   flags.push(...named);
   return flags;
