@@ -79,7 +79,7 @@ export async function loadIndex(supabase: Supabase) {
   }
   const sequences: KnownSequence[] = (seqs || []).map((s: any) => ({ id: s.id, companyId: s.company_search_id, contactEmail: String(s.contact_email).toLowerCase(), contactName: String(s.contact_name) }));
   const nameById = new Map(known.map((k) => [k.id, k.name]));
-  return { index: buildIndex({ sequences, contacts, companies: known }), nameById, hostById: new Map(known.map((k) => [k.id, k.host])) };
+  return { index: buildIndex({ sequences, contacts, companies: known, own: ((profiles || []) as Array<{ email: string | null }>).map((p) => p.email || '') }), nameById, hostById: new Map(known.map((k) => [k.id, k.host])) };
 }
 
 async function accessTokenFor(supabase: Supabase, cfg: MsConfig, conn: ConnectionRow, deps: InboxRunDeps, now: Date): Promise<string> {

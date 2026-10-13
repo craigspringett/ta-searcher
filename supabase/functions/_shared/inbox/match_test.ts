@@ -6,6 +6,7 @@ const index = buildIndex({
   sequences: [{ id: 's1', companyId: 'c1', contactEmail: 'priya@metris.example', contactName: 'Priya Shah' }],
   contacts: [{ companyId: 'c1', companyName: 'Metris Energy', email: 'bob@metris.example', name: 'Bob Builder' }, { companyId: 'c2', companyName: 'Dex', email: 'ben@dex.com', name: 'Ben Townsend' }],
   companies: [{ id: 'c1', name: 'Metris Energy', host: 'metris.example' }, { id: 'c3', name: 'Gmail Co', host: 'gmail.com' }],
+  own: ['craig@bigfishrecruitment.co.uk'],
 });
 
 Deno.test('inbox match: the follow-up contact first, then a stored contact, then anyone at the domain, never a robot', () => {
@@ -19,6 +20,12 @@ Deno.test('inbox match: the follow-up contact first, then a stored contact, then
   assertEquals(matchSender(index, 'noreply@metris.example', null), null);
   assertEquals(matchSender(index, 'someone@gmail.com', null), null, 'a free mail host never matches a company');
   assertEquals(matchSender(index, 'stranger@other.example', null), null);
+  // The team's own mail is never a reply, even when a test contact carries Craig's address (13 October 2026).
+  const own = buildIndex({ sequences: [{ id: 's9', companyId: 'c2', contactEmail: 'craig@bigfishrecruitment.co.uk', contactName: 'Test Name' }], contacts: [], companies: [], own: ['craig@bigfishrecruitment.co.uk'] });
+  assertEquals(matchSender(own, 'Craig@BigFishRecruitment.co.uk', 'Craig'), null, 'a profile address');
+  const noProfiles = buildIndex({ sequences: [{ id: 's9', companyId: 'c2', contactEmail: 'craig@bigfishrecruitment.co.uk', contactName: 'Test Name' }], contacts: [], companies: [] });
+  assertEquals(matchSender(noProfiles, 'craig@bigfishrecruitment.co.uk', null, ['craig@bigfishrecruitment.co.uk']), null, 'the connected mailbox itself');
+  assertEquals(matchSender(noProfiles, 'craig@bigfishrecruitment.co.uk', null)?.sequenceId, 's9', 'without either list it would still match, which is the bug');
   assertEquals(hostOfEmail('x@Y.com'), 'y.com');
 });
 
