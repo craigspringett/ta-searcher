@@ -32,6 +32,27 @@ export interface EmailPayload {
   no_unsubscribe?: boolean
 }
 
+/** Where the signature images are served from; the same constant as SIGNATURE_ASSET_BASE in signature.ts. */
+const SIGNATURE_IMAGE_BASE = 'https://ta-searcher.netlify.app/email/'
+
+/**
+ * Outlook holds back pictures on a web address until the reader presses
+ * "download pictures", so the signature looked broken (Craig, 13 October
+ * 2026). Pictures attached to the message and pointed at with cid: show at
+ * once. Every signature image on the app's own site becomes an inline
+ * attachment; Resend fetches each file from its address.
+ */
+export function inlineSignatureImages(html: string): { html: string; attachments: Array<{ filename: string; path: string; content_id: string }> } {
+  const found = new Map<string, string>()
+  const out = html.replace(/(src=")(https:\/\/ta-searcher\.netlify\.app\/email\/([A-Za-z0-9_-]+\.(?:png|jpg|jpeg|gif)))(")/g, (_m, a, url, file, z) => {
+    const id = file.replace(/\.[^.]+$/, '')
+    found.set(id, url)
+    return `${a}cid:${id}${z}`
+  })
+  const attachments = [...found].map(([id, url]) => ({ filename: url.split('/').pop() as string, path: url, content_id: id }))
+  return { html: out, attachments }
+}
+
 export class EmailAPIError extends Error {
   status: number
   retryAfterSeconds: number | null
@@ -71,6 +92,8 @@ export async function sendEmail(payload: EmailPayload): Promise<{ id: string }> 
   if (payload.purpose) tags.push({ name: 'purpose', value: sanitizeTag(payload.purpose) })
   if (payload.message_id) tags.push({ name: 'message_id', value: sanitizeTag(payload.message_id) })
 
+  const inline = inlineSignatureImages(payload.html)
+
   const response = await fetch(sendUrl, {
     method: 'POST',
     headers,
@@ -79,8 +102,9 @@ export async function sendEmail(payload: EmailPayload): Promise<{ id: string }> 
       to: [payload.to],
       reply_to: payload.reply_to || undefined,
       subject: payload.subject,
-      html: payload.html,
+      html: inline.html,
       text: payload.text,
+      attachments: inline.attachments.length ? inline.attachments : undefined,
       headers: Object.keys(emailHeaders).length ? emailHeaders : undefined,
       tags: tags.length ? tags : undefined,
     }),
