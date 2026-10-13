@@ -248,6 +248,7 @@ built and verified on 21 September 2026 and what is not yet applied.
   App: `OutlookCard` (Alerts page), `RepliesCard` (company page),
   `RepliesDueCard` (My patch); rules in `src/lib/inbox.ts`, reads in
   `inboxData.ts`.
+- Signature images (13 October 2026): `sendEmail` (`_shared/email.ts`) turns every image on `ta-searcher.netlify.app/email/` into an inline attachment (`cid:`), because Outlook holds back web-address pictures until the reader presses download. Verified in Craig's Outlook.
 - Weekly cadence (UTC): Friday 05:00 snapshot, 05:05 `refresh-all-companies`
   queues every company into `analyze_company_queue` (ten a minute), 06:55
   `send-friday-brief`, 07:30 `auto-refresh-vacancies` compare-and-alert.
