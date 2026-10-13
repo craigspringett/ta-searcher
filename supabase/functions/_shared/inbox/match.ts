@@ -29,6 +29,8 @@ export interface MatchIndex {
   sequencesByEmail: Map<string, KnownSequence>;
   contactsByEmail: Map<string, KnownContact>;
   companiesByHost: Map<string, KnownCompany>;
+  /** The team's own addresses, never a sender that counts. */
+  ownEmails: Set<string>;
 }
 
 const NEVER_RE = /^(?:no-?reply|noreply|donotreply|do-not-reply|mailer-daemon|postmaster|notifications?|newsletter|news|marketing|hello|info|support|billing|bounce\w*|alerts?|updates?|team|digest)@/i;
@@ -46,14 +48,15 @@ export function normaliseHost(url: string | null | undefined): string | null {
   try { return new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`).hostname.toLowerCase().replace(/^www\./, '') || null; } catch { return null; }
 }
 
-export function buildIndex(input: { sequences: KnownSequence[]; contacts: KnownContact[]; companies: KnownCompany[] }): MatchIndex {
+export function buildIndex(input: { sequences: KnownSequence[]; contacts: KnownContact[]; companies: KnownCompany[]; /** The team's own addresses (every profile): mail from them is never a reply (13 October 2026). */ own?: string[] }): MatchIndex {
   const sequencesByEmail = new Map<string, KnownSequence>();
   for (const s of input.sequences) sequencesByEmail.set(s.contactEmail.toLowerCase(), s);
   const contactsByEmail = new Map<string, KnownContact>();
   for (const c of input.contacts) if (c.email) contactsByEmail.set(c.email.toLowerCase(), c);
   const companiesByHost = new Map<string, KnownCompany>();
   for (const c of input.companies) if (c.host && !FREE_HOSTS.has(c.host)) companiesByHost.set(c.host, c);
-  return { sequencesByEmail, contactsByEmail, companiesByHost };
+  const ownEmails = new Set((input.own || []).map((e) => (e || '').toLowerCase().trim()).filter(Boolean));
+  return { sequencesByEmail, contactsByEmail, companiesByHost, ownEmails };
 }
 
 export interface ReplyMatch {
@@ -65,10 +68,12 @@ export interface ReplyMatch {
   note: string;
 }
 
-/** The company a sender belongs to, or null when the site does not know them. */
-export function matchSender(index: MatchIndex, fromEmail: string | null | undefined, fromName: string | null | undefined): ReplyMatch | null {
+/** The company a sender belongs to, or null when the site does not know them. Mail from the team's own addresses, the connected mailbox first (`exclude`), is never a reply: a test contact with Craig's own address matched every email he sent himself (13 October 2026). */
+export function matchSender(index: MatchIndex, fromEmail: string | null | undefined, fromName: string | null | undefined, exclude: Iterable<string> = []): ReplyMatch | null {
   const email = (fromEmail || '').toLowerCase().trim();
   if (!email || NEVER_RE.test(email)) return null;
+  if (index.ownEmails.has(email)) return null;
+  for (const x of exclude) if ((x || '').toLowerCase().trim() === email) return null;
   const seq = index.sequencesByEmail.get(email);
   if (seq) return { companyId: seq.companyId, companyName: '', contactName: seq.contactName, sequenceId: seq.id, note: 'the contact of an active follow-up run' };
   const contact = index.contactsByEmail.get(email);

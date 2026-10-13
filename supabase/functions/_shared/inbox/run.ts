@@ -64,9 +64,10 @@ export interface ConnectionResult {
 
 /** Everything the matcher needs, from the database. */
 export async function loadIndex(supabase: Supabase) {
-  const [{ data: companies }, { data: seqs }] = await Promise.all([
+  const [{ data: companies }, { data: seqs }, { data: profiles }] = await Promise.all([
     supabase.from('company_searches').select('id, company_name, url, analysis_result').limit(2000),
     supabase.from('follow_up_sequences').select('id, company_search_id, contact_email, contact_name').eq('status', 'active'),
+    supabase.from('profiles').select('email'),
   ]);
   const known: KnownCompany[] = [];
   const contacts: KnownContact[] = [];
@@ -109,7 +110,7 @@ export async function readConnection(supabase: Supabase, cfg: MsConfig, conn: Co
     let drafts = 0;
     for (const m of messages) {
       if (!newest || m.receivedAt > newest) newest = m.receivedAt;
-      const match: ReplyMatch | null = matchSender(ctx.index, m.fromEmail, m.fromName);
+      const match: ReplyMatch | null = matchSender(ctx.index, m.fromEmail, m.fromName, [conn.mailbox]);
       if (!match) continue;
       const companyName = ctx.nameById.get(match.companyId) || match.companyName;
       const messageId = m.internetMessageId || m.id;
