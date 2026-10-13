@@ -256,6 +256,25 @@ built and verified on 21 September 2026 and what is not yet applied.
   the follow-ups tick; 7, 22, 37 and 52 past the hour: the inbox read.
   Monday 07:00: the raises digest.
 
+## State on 13 October 2026 (handover)
+
+Craig talks to one session; it needs a working `SUPABASE_ACCESS_TOKEN`
+(set in the Default environment's settings; a session takes it when it
+starts). Live and verified that day: follow-up emails go from
+craig@bigfishrecruitment.co.uk (Resend domain `bigfishrecruitment.co.uk`
+verified; in `app_settings.sending_domains`); the Outlook-style signature
+("Regards," photo, Director, E and M, logo, Sourcr badge, address band;
+`_shared/signature.ts`, images in `public/email/`, Craig's row in
+`email_signatures`); "Hey <first name>," greetings everywhere; the inbox
+reader ignores mail from the team's own addresses and the connected
+mailbox. Open items: Chris Donnelly's one-line quote for the first
+follow-up email (`_shared/copy/value-proposition.md`, then
+`node scripts/embed-value-proposition.mjs`); the 123-Reg login OhSo sent
+is Craig's to keep safe; Craig tests follow-ups with a "Test Name"
+contact on Dex carrying his own address (clear its runs with the SQL in
+the Calls history pattern: delete the outcomes by `external_refs
+->>'sequence_id'`, then the steps, then the sequences).
+
 ## Working in a cloud session
 
 - `scripts/local-db-test.sh` applies the migrations to a throwaway
