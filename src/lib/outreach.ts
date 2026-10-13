@@ -38,14 +38,14 @@ export function rememberPhone(v: string): void {
   try { localStorage.setItem(PHONE_KEY, v.trim()); } catch { /* private window */ }
 }
 
-/** "Dear Mrs Patel," from "Mrs Patel", "Dear Sam," from "Sam Jones", "Hello," when there is no name. */
+/** "Hey Sam," from "Sam Jones", "Hey Mrs Patel," from "Mrs Patel", "Hello," when there is no name (Craig, 13 October 2026: never "Dear"). */
 export function greeting(name: string | null | undefined): string {
   const n = (name || "").trim();
   if (!n) return "Hello,";
   const parts = n.split(/\s+/);
   const title = /^(mr|mrs|ms|miss|dr|prof|professor|rev|sir|dame)\.?$/i.test(parts[0]);
-  if (title && parts.length >= 2) return `Dear ${parts[0]} ${parts[parts.length - 1]},`;
-  return `Dear ${parts[0]},`;
+  if (title && parts.length >= 2) return `Hey ${parts[0]} ${parts[parts.length - 1]},`;
+  return `Hey ${parts[0]},`;
 }
 
 

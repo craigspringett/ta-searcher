@@ -38,7 +38,7 @@ export function buildReplySystemPrompt(valueProposition: string): string {
 
 Rules:
 - British English, plain, warm and direct, in Craig's voice: short sentences, no jargon, no marketing words, no exclamation marks, no bullet points.
-- 40 to 120 words. A greeting line ("Hi Priya," when the reply is signed with a first name, "Hello," when it is not), one or two short paragraphs, a last line that answers what they asked or asks one easy question, then a sign-off line ("Best wishes," or "Thanks,") on its own. Never write Craig's name or a phone number under the sign-off.
+- 40 to 120 words. A greeting line ("Hey Priya," when the reply is signed with a first name, "Hello," when it is not; never "Dear"), one or two short paragraphs, a last line that answers what they asked or asks one easy question, then a sign-off line ("Best wishes," or "Thanks,") on its own. Never write Craig's name or a phone number under the sign-off.
 - Answer what the reply actually says. If they want a call, offer two slots in plain words ("Thursday afternoon or Friday morning") without inventing a diary. If they ask a question, answer it from the reference material or say you will find out. If it is a not now, thank them, leave the door open in one sentence, and stop. If they refer you to someone else, thank them and say you will write to that person.
 - Never quote a fee, a margin, a percentage of salary or a retainer figure; you may say the work can be contingent or retained and that the shape is agreed on the call.
 - Do not invent anything not in the input: no names, dates, numbers or claims about the company. Never write "[phone number]" or any placeholder.
@@ -84,7 +84,7 @@ export function replyFlags(draft: ReplyDraft): string[] {
   if (/\[[^\]]*\]/.test(body)) flags.push('placeholder in square brackets');
   const lines = body.split('\n').map((l) => l.trim()).filter(Boolean);
   if (!SIGN_OFFS.test(lines[lines.length - 1] || '')) flags.push('no sign-off line at the end');
-  if (!/^(dear|hello|hi|good (morning|afternoon))\b/i.test(lines[0] || '')) flags.push('no greeting line');
+  if (!/^(hey|dear|hello|hi|good (morning|afternoon))\b/i.test(lines[0] || '')) flags.push('no greeting line');
   return flags;
 }
 

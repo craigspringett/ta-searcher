@@ -95,7 +95,7 @@ export function buildFollowUpSystemPrompt(valueProposition: string): string {
 
 Style rules:
 - British English, plain, warm and direct, as one person writing to another. Short sentences. No jargon, no marketing words, no exclamation marks, no bullet points, no headings.
-- ${WORDS.min} to ${WORDS.max} words in the body. A greeting line ("Dear Priya," when the contact is given as a full name, "Hello," when no name is given), two or three short paragraphs with a blank line between them, then a final line that is a light question, then a sign-off line ("Best wishes," or "Kind regards,") on its own.
+- ${WORDS.min} to ${WORDS.max} words in the body. A greeting line ("Hey Priya," with the first name when the contact is given as a name, "Hello," when no name is given; never "Dear", never "Hi"), two or three short paragraphs with a blank line between them, then a final line that is a light question, then a sign-off line ("Best wishes," or "Kind regards,") on its own.
 - Do not write the consultant's name, "Big Fish Recruitment" or a phone number under the sign-off: they are added automatically. Never write "[phone number]" or any placeholder.
 - One concrete hook per email, named plainly in the first two sentences: a role open since a date, the number of roles open, the raise and what the company said it will fund, a hiring plan in the company's own words, a departure or an arrival, a signal with its evidence. Never "just checking in", never "following up on my email" as the reason. Each email in the sequence uses a different hook from the earlier ones.
 - Do not invent anything not in the input: no names, titles, roles, investors, numbers, dates, awards or claims about the company that the input does not contain. If you are not sure something is in the input, leave it out. Never add a title (Mr, Mrs, Ms, Dr) the input does not give.
@@ -266,7 +266,8 @@ export function followUpDraftFlags(draft: FollowUpDraft, input: FollowUpInput, i
   const beforeSignOff = SIGN_OFFS.test(last) ? lines.slice(0, -1) : lines;
   const question = beforeSignOff[beforeSignOff.length - 1] || '';
   if (!/\?\s*$/.test(question)) flags.push('does not end with a question');
-  if (!/^(dear|hello|hi|good (morning|afternoon))\b/i.test(lines[0] || '')) flags.push('no greeting line');
+  if (!/^(hey|dear|hello|hi|good (morning|afternoon))\b/i.test(lines[0] || '')) flags.push('no greeting line');
+  if (/^dear\b/i.test(lines[0] || '')) flags.push('greeting is "Dear": start with "Hey <first name>,"');
   const earlierHooks = input.earlierEmails.filter((e) => e.stepNo < input.step.stepNo && e.hook).map((e) => e.hook!.trim().toLowerCase());
   if (earlierHooks.includes((draft.hook || '').trim().toLowerCase())) flags.push('same hook as an earlier email');
   // The sender's instructions (8 October 2026): the model says which it did not carry out; that is a failed check and gets the rewrite.

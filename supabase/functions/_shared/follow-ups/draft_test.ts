@@ -26,7 +26,7 @@ const input: FollowUpInput = {
   today: new Date('2026-09-18T08:00:00Z'),
 };
 
-const goodBody = `Dear Priya,
+const goodBody = `Hey Priya,
 
 I rang on Tuesday and emailed the same afternoon about the six roles you have opened since the seed round. One more thing worth saying: your own blog says you are doubling the team by spring, and the Senior Engineer post has been open since August, which is the point where founders usually stop being able to run every loop themselves.
 
