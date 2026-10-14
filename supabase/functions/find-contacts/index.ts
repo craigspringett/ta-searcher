@@ -8,7 +8,13 @@
 //   Finder for each name-only person with a ranked role, else a guess
 //   verified by Hunter) over the stored decisionMakers, writes them back
 //   with contactsRun.enrichment, and answers { ok, filled, summary,
-//   contacts, account }. force ignores the thirty-day cache.
+//   contacts, account }. force ignores the thirty-day cache. maxPeople
+//   lifts the three-a-company cap (the full sweep, 14 October 2026).
+//   anyRole also looks up register directors with no ranked role.
+//   reverify asks again for every guessed address Hunter has not called
+//   deliverable (the old guess is kept when nothing better turns up).
+//   verifyFound has Hunter's verifier check each named person's address
+//   that was found on a page, and records the answer as `verification`.
 // POST { action: 'account' }
 //   { ok, account, line }: the Hunter plan and what is left.
 //
@@ -18,7 +24,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { identifyCaller } from '../_shared/auth.ts';
 import { enrichContacts, enrichSummary, mailDomain, type EnrichmentEntry } from '../_shared/contacts/enrich.ts';
-import { hunterAccount, hunterAccountLine, hunterConfigured } from '../_shared/contacts/hunter.ts';
+import { hunterAccount, hunterAccountLine, hunterConfigured, hunterVerifyEmail } from '../_shared/contacts/hunter.ts';
 import type { DecisionMaker } from '../_shared/contacts/review.ts';
 import { cors, json } from '../_shared/outreach/caller.ts';
 
@@ -46,13 +52,37 @@ Deno.serve(async (req): Promise<Response> => {
     const contacts: DecisionMaker[] = Array.isArray(analysis.decisionMakers) ? analysis.decisionMakers : [];
     const cache = (analysis.contactsRun?.enrichment ?? null) as Record<string, EnrichmentEntry> | null;
     const now = new Date();
-    const en = await enrichContacts(contacts, { domain: mailDomain(row.url), now, cache, force: b.force === true });
-    const summary = `${enrichSummary(en.entries)}${en.finderCalls + en.verifyCalls ? ` (${en.finderCalls} Finder and ${en.verifyCalls} Verifier calls)` : ' (from the last run)'}${en.notes.length ? `; ${en.notes.join('; ')}` : ''}`;
+    const maxPeople = typeof b.maxPeople === 'number' && b.maxPeople > 0 ? Math.min(Math.floor(b.maxPeople), 25) : undefined;
+    // reverify: a guessed address Hunter has not called deliverable is looked up again as if it were name-only.
+    const held = new Map<number, DecisionMaker>();
+    const toEnrich = b.reverify === true
+      ? contacts.map((c, i) => {
+          if (c.confidence === 'pattern_guess' && !(c as any).provided_by && !(c as any).edited && c.email && c.verification !== 'deliverable') {
+            held.set(i, c);
+            return { ...c, email: '', confidence: 'role_only' } as DecisionMaker;
+          }
+          return c;
+        })
+      : contacts;
+    const en = await enrichContacts(toEnrich, { domain: mailDomain(row.url), now, cache, force: b.force === true, maxPeople, anyRole: b.anyRole === true });
+    for (const [i, orig] of held) if (!en.contacts[i].email) en.contacts[i] = orig;
+    let verifyFoundCalls = 0;
+    if (b.verifyFound === true) {
+      for (let i = 0; i < en.contacts.length; i++) {
+        const c = en.contacts[i] as any;
+        if (c.confidence !== 'found' || !c.name || !c.email || c.verification) continue;
+        const v = await hunterVerifyEmail(c.email);
+        verifyFoundCalls++;
+        if (v.error && !v.ok) break;
+        if (v.ok && v.status !== 202) en.contacts[i] = { ...c, verification: v.result };
+      }
+    }
+    const summary = `${enrichSummary(en.entries)}${verifyFoundCalls ? `, ${verifyFoundCalls} found addresses checked` : ''}${en.finderCalls + en.verifyCalls ? ` (${en.finderCalls} Finder and ${en.verifyCalls} Verifier calls)` : ' (from the last run)'}${en.notes.length ? `; ${en.notes.join('; ')}` : ''}`;
     const nextAnalysis = { ...analysis, decisionMakers: en.contacts, contactsRun: { ...(analysis.contactsRun || {}), enrichment: en.entries, enrichmentNote: summary, enrichedAt: now.toISOString() } };
     const { error: upErr } = await supabase.from('company_searches').update({ analysis_result: nextAnalysis }).eq('id', row.id);
     if (upErr) return json({ error: `Could not save: ${upErr.message}` }, 500);
     console.log(`[find-contacts] ${row.company_name}: ${summary}; ${en.filled} filled this pass`);
-    const account = en.finderCalls + en.verifyCalls ? await hunterAccount() : null;
+    const account = en.finderCalls + en.verifyCalls + verifyFoundCalls ? await hunterAccount() : null;
     return json({ ok: true, filled: en.filled, summary, contacts: en.contacts, account, line: account ? hunterAccountLine(account) : null });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

@@ -61,6 +61,8 @@ export interface EnrichOptions {
   /** True ignores the cache (the page's Find addresses button after a change). */
   force?: boolean;
   maxPeople?: number;
+  /** Also look up named people whose role is not ranked (register directors). */
+  anyRole?: boolean;
   deps?: EnrichDeps;
 }
 
@@ -95,7 +97,7 @@ export function mailDomain(siteUrl: string | null | undefined): string | null {
 }
 
 /** Name-only people worth a Hunter call, best rank first: a full personal name, a role the app contacts, not an investor, not reported. */
-export function enrichCandidates<T extends EnrichableContact>(contacts: T[], max = MAX_FINDER_PER_COMPANY): T[] {
+export function enrichCandidates<T extends EnrichableContact>(contacts: T[], max = MAX_FINDER_PER_COMPANY, anyRole = false): T[] {
   const out: Array<{ c: T; rank: number }> = [];
   for (const c of contacts) {
     if ((c.email || '').trim()) continue;
@@ -107,8 +109,9 @@ export function enrichCandidates<T extends EnrichableContact>(contacts: T[], max
     if (!parts.first || !parts.last || parts.first.length < 2 || parts.last.length < 2) continue;
     const cls = classifyRole(c.role || '');
     const rank = c.rank ?? cls?.rank ?? null;
-    if (rank === null || rank >= INVESTOR_RANK) continue;
-    out.push({ c, rank });
+    // anyRole (the full sweep, 14 October 2026): a register director with no ranked role is still a named person worth one lookup, after every ranked one.
+    if (rank === null ? !anyRole : rank >= INVESTOR_RANK) continue;
+    out.push({ c, rank: rank ?? INVESTOR_RANK - 1 });
   }
   return out.sort((a, b) => a.rank - b.rank).slice(0, max).map((x) => x.c);
 }
@@ -148,7 +151,7 @@ export async function enrichContacts<T extends EnrichableContact>(contacts: T[],
   const result: EnrichResult<T> = { contacts: contacts.map((c) => ({ ...c })), entries, finderCalls: 0, verifyCalls: 0, filled: 0, notes: [] };
   const domain = options.domain;
   if (!domain) { result.notes.push('no domain to look up'); return result; }
-  const candidates = enrichCandidates(result.contacts, options.maxPeople ?? MAX_FINDER_PER_COMPANY);
+  const candidates = enrichCandidates(result.contacts, options.maxPeople ?? MAX_FINDER_PER_COMPANY, options.anyRole === true);
   if (!candidates.length) return result;
   let quotaSpent = false;
   for (const c of candidates) {
