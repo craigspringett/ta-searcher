@@ -14,7 +14,7 @@ import { loadCopyContext } from '../copy/assemble.ts';
 import { COPY_MODEL } from '../copy/generate.ts';
 import { loadValueProposition } from '../copy/prompt.ts';
 import { logAiUsage, type UsageRecord } from '../copy/usage.ts';
-import { type ApprovedScript, buildFollowUpInput, buildFollowUpSystemPrompt, buildCompanyBlock, buildStepMessage, type DraftOutcome, type DraftVacancy, draftContextKey, FOLLOW_UP_SCHEMA, type FollowUpDraft, followUpDraftFlags, type FollowUpInput, personaForRole, type SequenceContext, type SequenceRow, type StepRow, stripSignature } from './prompt.ts';
+import { type ApprovedScript, buildFollowUpInput, buildFollowUpSystemPrompt, buildCompanyBlock, buildStepMessage, buildVoiceBlock, type DraftOutcome, type DraftVacancy, draftContextKey, FOLLOW_UP_SCHEMA, type FollowUpDraft, followUpDraftFlags, type FollowUpInput, personaForRole, type SequenceContext, type SequenceRow, type StepRow, stripSignature, type StepPurpose, type VoiceExample } from './prompt.ts';
 
 export * from './prompt.ts';
 
@@ -108,12 +108,13 @@ export async function generateFollowUpDraft(input: FollowUpInput, companySearchI
   const rules = buildFollowUpSystemPrompt(vp.text);
   const companyBlock = buildCompanyBlock(input);
   const stepText = buildStepMessage(input);
+  const voice = buildVoiceBlock(input);
   const system: Anthropic.Beta.BetaTextBlockParam[] = [
     { type: 'text', text: rules, cache_control: { type: 'ephemeral' } },
     { type: 'text', text: companyBlock, cache_control: { type: 'ephemeral' } },
   ];
   const inputText = `${rules}\n${companyBlock}\n${stepText}`;
-  const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: 'user', content: stepText }];
+  const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: 'user', content: voice ? `${voice}\n\n${stepText}` : stepText }];
   const usage: UsageRecord[] = [];
   const tidy = (d: FollowUpDraft): FollowUpDraft => ({ ...d, subject: d.subject.replace(/[\r\n]+/g, ' ').trim(), body: stripSignature(d.body, input.consultant), hook: d.hook.trim(), notesMissed: (d.notesMissed || '').trim() });
   let first: Awaited<ReturnType<typeof callModel>>;
@@ -146,6 +147,33 @@ export async function generateFollowUpDraft(input: FollowUpInput, companySearchI
 // ---------------------------------------------------------------------------
 // Loading a sequence's context from the database.
 
+/** The sender's most recent hand-edited emails to other companies, for the writer to learn the voice from (14 October 2026). Never the test contact, never this run. */
+export async function loadVoiceExamples(supabase: Supabase, seq: Pick<SequenceRow, 'id' | 'consultant_id'>): Promise<VoiceExample[]> {
+  if (!seq.consultant_id) return [];
+  try {
+    const { data, error } = await supabase.from('follow_up_steps')
+      .select('day, subject, body, original_subject, original_body, edited_at, sequence_id, follow_up_sequences!inner(consultant_id, contact_name)')
+      .eq('kind', 'email').not('edited_at', 'is', null).not('body', 'is', null)
+      .eq('follow_up_sequences.consultant_id', seq.consultant_id).neq('follow_up_sequences.contact_name', 'Test Name')
+      .order('edited_at', { ascending: false }).limit(40);
+    if (error || !Array.isArray(data)) return [];
+    const out: VoiceExample[] = [];
+    const seen = new Set<string>();
+    for (const r of data as Array<{ day: number; subject: string | null; body: string; original_subject: string | null; original_body: string | null; sequence_id: string }>) {
+      if (r.sequence_id === seq.id || !r.subject) continue;
+      const purpose: StepPurpose = r.day === 0 ? 'first' : r.day >= 12 ? 'last' : 'second';
+      const key = `${purpose}:${r.sequence_id}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ purpose, subject: r.subject, body: r.body, original: r.original_body ? { subject: r.original_subject || '', body: r.original_body } : null });
+    }
+    return out;
+  } catch (e) {
+    console.warn('voice examples could not be loaded:', e instanceof Error ? e.message : e);
+    return [];
+  }
+}
+
 export async function loadSequenceContext(supabase: Supabase, seq: SequenceRow): Promise<SequenceContext> {
   const { data: company, error } = await supabase.from('company_searches').select('id, company_name, company_number, analysis_result, evidence_fingerprint').eq('id', seq.company_search_id).maybeSingle();
   if (error || !company) throw new FollowUpDraftError(`company not found: ${error?.message || seq.company_search_id}`);
@@ -167,7 +195,8 @@ export async function loadSequenceContext(supabase: Supabase, seq: SequenceRow):
   const approvedScript: ApprovedScript | null = copy ? { opener: copy.call?.opener || null, emailSubject: copy.email?.subject || null, emailBody: copy.email?.body || null } : null;
   const outcomes = (outcomeRows || []) as DraftOutcome[];
   const contextKey = draftContextKey({ vacancies: (openVacancies || []) as Array<{ vacancy_key: string; title: string; closing_date: string | null }>, factKeys: ((factRows || []) as Array<{ statement_key: string }>).map((f) => f.statement_key), outcomeCount: outcomes.length });
-  return { ctx, persona, consultant, vacancy, approvedScript, outcomes, companyName: ctx.company.name, contextKey };
+  const voiceExamples = await loadVoiceExamples(supabase, seq);
+  return { ctx, persona, consultant, vacancy, approvedScript, outcomes, companyName: ctx.company.name, contextKey, voiceExamples };
 }
 
 export interface DraftSequenceOptions {
@@ -232,6 +261,8 @@ export async function draftSequenceSteps(supabase: Supabase, sequenceId: string,
         notes,
         edited_at: null,
         edited_by_name: null,
+        original_subject: null,
+        original_body: null,
       }).eq('id', step.id).in('status', ['scheduled', 'due']);
       if (upErr) throw new FollowUpDraftError(`could not store the draft: ${upErr.message}`);
       step.subject = gen.draft.subject; step.body = gen.draft.body; step.hook = gen.draft.hook;

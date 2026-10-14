@@ -1,7 +1,7 @@
 import { assert, assertEquals } from '../test-assert.ts';
 import { bannedPhraseHits, feeFigureViolations } from '../copy/checks.ts';
 import { VALUE_PROPOSITION_DEFAULT } from '../copy/value-proposition.default.ts';
-import { buildFollowUpInput, buildFollowUpSystemPrompt, buildCompanyBlock, buildStepMessage, draftContextKey, followUpDraftFlags, type FollowUpInput, personaForRole, purposeForStep, stripSignature, type StepRow } from './prompt.ts';
+import { buildVoiceBlock, talentRolesOpen, buildFollowUpInput, buildFollowUpSystemPrompt, buildCompanyBlock, buildStepMessage, draftContextKey, followUpDraftFlags, type FollowUpInput, personaForRole, purposeForStep, stripSignature, type StepRow } from './prompt.ts';
 
 const input: FollowUpInput = {
   ctx: {
@@ -201,4 +201,27 @@ Deno.test('the company block says how long each open role has been open', () => 
   assert(block.includes('Senior Engineer, open since 2026-08-03'), block);
   assert(block.includes('Staff Engineer'));
   assert(!block.includes('Staff Engineer, open since'));
+});
+
+Deno.test('a talent role already open switches the brief to Craig\'s Talent Partner approach', () => {
+  const withTalent = { ...input, ctx: { ...input.ctx, openRoles: [{ family: 'people_talent', label: 'People and talent', count: 1, titles: ['Talent Partner'] }, { family: 'engineering', label: 'Engineering', count: 1, titles: ['Senior Engineer'] }] } };
+  assertEquals(talentRolesOpen(withTalent.ctx), ['Talent Partner']);
+  const text = buildStepMessage(withTalent);
+  assert(text.includes('A TALENT ROLE IS ALREADY OPEN AT THIS COMPANY (Talent Partner)'));
+  assert(text.includes('could I work it?'));
+  assertEquals(talentRolesOpen({ openRoles: [{ family: 'engineering', label: 'Engineering', count: 1, titles: ['Senior Engineer'] }] }), []);
+  assert(!buildStepMessage(input).includes('A TALENT ROLE IS ALREADY OPEN'));
+});
+
+Deno.test('Craig\'s edited emails become voice examples for the same email only, with the draft he started from when kept', () => {
+  const ex = [
+    { purpose: 'second' as const, subject: 'Founder to founder: six roles', body: 'Hey A,\n\nI can help here.', original: { subject: 'x', body: 'Hey A,\n\nGlad to talk it through.' } },
+    { purpose: 'first' as const, subject: 'First', body: 'Hey B,\n\nText.', original: null },
+  ];
+  const block = buildVoiceBlock({ ...input, voiceExamples: ex });
+  assert(block.includes('HOW CRAIG ACTUALLY WRITES'));
+  assert(block.includes('I can help here.'));
+  assert(block.includes('Glad to talk it through.'));
+  assert(!block.includes('Hey B,'), 'a first-email example is not shown for the second email');
+  assertEquals(buildVoiceBlock({ ...input, voiceExamples: [] }), '');
 });

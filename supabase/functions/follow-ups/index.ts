@@ -254,7 +254,9 @@ Deno.serve(async (req): Promise<Response> => {
         if (!subject || !body) return json({ error: 'A subject and an email are both needed.' }, 400);
         if (subject.length > 150 || body.length > 8000) return json({ error: 'That is too long: up to 150 characters of subject and 8,000 of email.' }, 400);
         const editor = (caller.profile.display_name || caller.email || 'a consultant').trim();
-        const { error: upErr } = await supabase.from('follow_up_steps').update({ subject, body, draft_flags: [], edited_at: now.toISOString(), edited_by_name: editor }).eq('id', step.id).in('status', ['scheduled', 'due']);
+        // The first edit keeps the draft the writer produced, once, so it can learn from what was changed (14 October 2026).
+        const keepOriginal = !step.edited_at && !step.original_body && step.body ? { original_subject: step.subject, original_body: step.body } : {};
+        const { error: upErr } = await supabase.from('follow_up_steps').update({ subject, body, draft_flags: [], edited_at: now.toISOString(), edited_by_name: editor, ...keepOriginal }).eq('id', step.id).in('status', ['scheduled', 'due']);
         if (upErr) return json({ error: upErr.message }, 500);
         if (subject !== (step.subject || '') || body !== (step.body || '')) {
           await logNote(supabase, sequence, `Edited the draft of follow-up ${describeStep(step)} by hand.`, caller.userId, { action: 'save_draft', step_no: step.step_no, before_subject: step.subject, after_subject: subject });

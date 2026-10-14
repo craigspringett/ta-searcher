@@ -63,6 +63,16 @@ Confirmed by Craig on 14 October 2026.
   one is in once budgets allow, the better for the founders, the candidate
   experience and the way the business looks to the best people.
 
+## How Craig words things (from his hand edits, 14 October 2026)
+
+- "Great, honest recruitment, what it says on the tin." and "nothing flashy".
+- He offers to help with a named open role in one short line: "let me help
+  you with these?", "I can help here."
+- When the company is already advertising a talent role (a Talent Partner,
+  a recruiter, a founding talent lead) he writes about that role and offers
+  exclusive contingent search for it, with a rebate, to the head of people
+  or talent. He does not call it a first Head of Talent.
+
 ## Every email makes replying easy
 
 - Every email invites a one-line reply: "send me the details of what you

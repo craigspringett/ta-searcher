@@ -146,7 +146,10 @@ Deno.serve(async (req) => {
 
   // The step is approved from here until the send is confirmed.
   if (stepInfo && !r.dryRun) {
-    const { error: apprErr } = await supabase.from('follow_up_steps').update({ status: 'approved', subject: r.subject, body: r.body }).eq('id', stepInfo.step.id).in('status', ['scheduled', 'due', 'approved']);
+    // An email changed on the way out keeps the draft it started from, once (14 October 2026).
+    const st = stepInfo.step as { edited_at?: string | null; original_body?: string | null; subject: string | null; body: string | null };
+    const keepOriginal = !st.edited_at && !st.original_body && st.body && (st.body !== r.body || (st.subject || '') !== r.subject) ? { original_subject: st.subject, original_body: st.body } : {};
+    const { error: apprErr } = await supabase.from('follow_up_steps').update({ status: 'approved', subject: r.subject, body: r.body, ...keepOriginal }).eq('id', stepInfo.step.id).in('status', ['scheduled', 'due', 'approved']);
     if (apprErr) return json({ error: `Could not mark the step approved: ${apprErr.message}` }, 500);
   }
   const revertStep = async () => {
