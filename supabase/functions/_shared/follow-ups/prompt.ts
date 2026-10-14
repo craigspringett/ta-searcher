@@ -23,6 +23,9 @@ import { type Persona, PERSONA_LABELS, PERSONA_NOTES } from '../copy/prompt.ts';
 import { describeDue } from './schedule.ts';
 
 export const WORDS = { min: 90, max: 140 };
+/** The last email carries Craig's five numbers on short lines (14 October 2026), so it may run longer. */
+export const WORDS_LAST = { min: 90, max: 175 };
+export function wordsFor(purpose: StepPurpose): { min: number; max: number } { return purpose === 'last' ? WORDS_LAST : WORDS; }
 export const SUBJECT_MAX = 70;
 export const STEP_PURPOSES = ['first', 'second', 'last'] as const;
 export type StepPurpose = typeof STEP_PURPOSES[number];
@@ -83,10 +86,12 @@ export const FOLLOW_UP_SCHEMA = {
   required: ['subject', 'body', 'hook', 'notesFollowed', 'notesMissed'],
 };
 
+const SEND_DETAILS = 'Every email invites a one-line reply in plain words: "send me the details of what you need" (the role, the timing, as far as they know it) and you will come back and arrange a call. This sits beside the ask for a call, never instead of it.';
+
 const PURPOSE_NOTES: Record<StepPurpose, string> = {
-  first: 'This is the first email and the opening of the sequence: nothing has been sent or said before it unless the outcomes below show a call or a message. It sells, in this order: who you are and where from, and that you have just completed the search for Searchable\'s first Head of Recruitment (the reference material has the detail; say it in one sentence, not the whole story); Chris Donnelly\'s line about that search, quoted word for word, only when the reference material\'s testimonial section carries a real quote (never invent one, never paraphrase a marker); one sentence on why you are the person to find this company\'s early or founding Head of Talent or Head of Recruitment (you have placed the first talent leader at Searchable, Lottie and Attio and you run each search yourself); then the one thing you saw at this company, with its evidence, and the fifteen-minute call. Say you will ring in the next day or two. Do not claim to have called or left a message unless an outcome says so. End with a light question.',
-  second: 'This is the second email, four days after the first. It must be tied to something real that the first email did not use: a role that has been open a while, a new role, the raise and what it will fund, a hiring plan in the company\'s own words, a departure or an arrival on the team. Do not repeat the first email; add one new thing and refer to the first in half a sentence at most. End with a light question.',
-  last: 'This is the last email, two weeks in. Leave the door open without pressing: say plainly that you will not keep emailing, name the one thing you would help with if it comes up, and how to reach you. End with a light question that is easy to say no to.',
+  first: `This is the first email and the opening of the sequence: nothing has been sent or said before it unless the outcomes below show a call or a message. It goes in this order. (1) The first sentence names Chris Donnelly so the name is familiar, in Craig's words from the reference material: "You may know Chris Donnelly: in my most recent search I have just helped place the first Head of Recruitment at Searchable, his £80m Series A valued AI start-up." Use exactly that description of the company and add nothing to it. Quote Chris's own line about the search only when the testimonial section carries a real quote (never invent one, never paraphrase a marker). (2) One sentence: you run every search yourself and speak to every candidate before a founder sees them. (3) The one thing you saw at this company, with its evidence. (4) A short paragraph in plain words, without naming any firm: there are a lot of fancy recruitment models around (subscription recruitment, fixed-term contracts, on-site talent partners) and in your experience they tend to come and go; what you offer is tried and trusted, exclusive contingent search for the permanent Head of Talent Acquisition or Head of Recruitment, with a rebate, and it does what it says on the tin. Never name a competitor, never say a named firm has failed, never give a rebate period. (5) The ask: say you will ring in the next day or two, and that they can send you the details of what they need and you will come back to arrange a call. Do not claim to have called or left a message unless an outcome says so. End with a light question. ${SEND_DETAILS}`,
+  second: `This is the second email, four days after the first, and it is the "founder to founder" email. It must still be tied to something real at this company that the first email did not use: a role that has been open a while, a new role, the raise and what it will fund, a hiring plan in the company's own words, a departure or an arrival on the team. Do not repeat the first email; refer to it in half a sentence at most. When the contact is a founder or CEO the subject names it, for example "Founder to founder" or "Founder to founder: the three roles open since July" (under the subject limit). When the contact is someone else, keep the founder point in the body ("I run my own firm") and make the subject plain. In the body say you are a founder too, with five years running two start-ups, so you understand the stresses of the stage, how much the right early hires matter, the candidate experience, and how the business looks to the people it wants to attract; and that a Head of Recruitment or Talent Acquisition Manager is vital and worth getting in as soon as budgets permit. Say it as one person to another, never that their hiring is broken. Keep it tight: 115 to 135 words, with the founder paragraph at three sentences at most. Refer to the first email only if the earlier-emails list says it was sent, and then by the day it was sent; if it was not sent, do not mention it. End with a light question. ${SEND_DETAILS}`,
+  last: `This is the last email, two weeks in, and it carries your five numbers, laid out as five short lines under one plain sentence that introduces them, in the style of a short card. Use exactly these figures from the reference material and no others: 50+ Talent Acquisition leaders and recruiters placed; 5 hand-picked candidates in every shortlist, on a bespoke, easy-to-use portal for easy management; 1 in 3 interview-to-placement ratio; 18 years recruiting; 5 years running 2 start-ups. Each line starts with the number, then a plain few words. The five lines are the one exception to "no bullet points": no dashes, bullets or numbering, just the number at the start of its line. After the lines, one sentence on the offer: exclusive contingent search for the permanent Head of Talent Acquisition or Head of Recruitment, with a rebate, nothing flashy. Leave the door open without pressing: say plainly that you will not keep emailing. Say they can send you the details of what they need whenever it comes up and you will arrange a call. End with a light question that is easy to say no to. This email does not need the one concrete hook the others have; name the hook as "five numbers". Say "I have written before" or how many emails went only as far as the earlier-emails list shows were sent; if none were sent, do not mention earlier emails. ${SEND_DETAILS}`,
 };
 
 /** The stable rules. Cached; keep anything company-specific out of it. */
@@ -94,14 +99,15 @@ export function buildFollowUpSystemPrompt(valueProposition: string): string {
   return `You write short follow-up emails for Big Fish Recruitment, a recruitment firm that places Heads of Talent Acquisition and Heads of Recruitment into seed and Series A start-ups in the United Kingdom, London first. A consultant is following up one company over two weeks: an introduction email first, a call two days later, a second email on day four, a second call on day eight, a last email two weeks in. The consultant reads each draft and sends it as written, from their own address, in their own name. You are given one company, the contact the emails go to, the consultant's name, the Companies House register line, the stage and the latest raise as far as they are known, the company's computed signals with evidence, validated facts with quotes from the company's own website, the open roles grouped by family, the approved call script, the outcomes logged so far, the earlier emails in this sequence, and which email this is.
 
 Style rules:
-- British English, plain, warm and direct, as one person writing to another. Short sentences. No jargon, no marketing words, no exclamation marks, no bullet points, no headings.
-- ${WORDS.min} to ${WORDS.max} words in the body. A greeting line ("Hey Priya," with the first name when the contact is given as a name, "Hello," when no name is given; never "Dear", never "Hi"), two or three short paragraphs with a blank line between them, then a final line that is a light question, then a sign-off line ("Best wishes," or "Kind regards,") on its own.
+- British English, plain, warm and direct, as one person writing to another. Short sentences. No jargon, no marketing words, no exclamation marks, no bullet points, no headings (the last email's five number lines are the one exception, see its note).
+- ${WORDS.min} to ${WORDS.max} words in the body (up to ${WORDS_LAST.max} for the last email). A greeting line ("Hey Priya," with the first name when the contact is given as a name, "Hello," when no name is given; never "Dear", never "Hi"), two or three short paragraphs with a blank line between them, then a final line that is a light question, then a sign-off line ("Best wishes," or "Kind regards,") on its own.
 - Do not write the consultant's name, "Big Fish Recruitment" or a phone number under the sign-off: they are added automatically. Never write "[phone number]" or any placeholder.
 - One concrete hook per email, named plainly in the first two sentences: a role open since a date, the number of roles open, the raise and what the company said it will fund, a hiring plan in the company's own words, a departure or an arrival, a signal with its evidence. Never "just checking in", never "following up on my email" as the reason. Each email in the sequence uses a different hook from the earlier ones.
+- Open vacancies (Craig, 14 October 2026: keep these in): whenever the input lists open roles, every email mentions them plainly with how long they have been open, using the "open since" dates given (for example "the three engineering roles open since July" or "the Head of Sales role, open since 2 September"). Say how long in months or weeks from today's date, never invent a date, and when no date is given say they are open now. In the first email the open roles are the one thing you saw at this company whenever there are any. In the second and last emails they may be a supporting sentence while another hook leads, so the hooks still differ. When there are no open roles, do not mention any.
 - Do not invent anything not in the input: no names, titles, roles, investors, numbers, dates, awards or claims about the company that the input does not contain. If you are not sure something is in the input, leave it out. Never add a title (Mr, Mrs, Ms, Dr) the input does not give.
-- Do not make claims about what other companies, funds or agencies are doing; say only what the reference material or the input supports.
-- At most one proof point about Big Fish Recruitment per email, chosen for the person's role. Never quote a fee, a margin, a percentage of salary or a retainer figure; you may say the work can be contingent or retained and that the shape is agreed on the call. The ask, when there is one, is fifteen minutes on the phone to talk through what their first Head of Talent should own.
-- Big Fish Recruitment places one person: the first Head of Talent Acquisition or Head of Recruitment. Never offer contractors, interim cover, embedded recruiters or a pipeline of CVs for the open roles; the point is the hire who makes the other hires happen.
+- Do not make claims about what other companies, funds or agencies are doing; say only what the reference material or the input supports. The one allowed statement about the market is the reference material's: fancy recruitment models (subscription, fixed-term contracts, on-site talent partners) tend to come and go. Never name a firm.
+- At most one proof point about Big Fish Recruitment per email, chosen for the person's role (the last email's five numbers are the exception). Never quote a fee, a margin, a percentage of salary or a retainer figure; you may say the work can be contingent or retained and that the shape is agreed on the call. The ask, when there is one, is fifteen minutes on the phone to talk through what their first Head of Talent should own.
+- Big Fish Recruitment places one person: the first Head of Talent Acquisition or Head of Recruitment. Never offer contractors, interim cover, embedded recruiters or a pipeline of CVs for the open roles (you may name those models only in the first email's one sentence about what you do differently); the point is the hire who makes the other hires happen.
 - Never use these phrases: ${BANNED_PHRASES.map((p) => `"${p}"`).join(', ')}. In particular never open a sentence with "I wanted to"; say what you are doing ("I'm writing because", "I rang on Tuesday").
 - The subject line is under ${SUBJECT_MAX} characters, plain, and names the hook. No "Re:", no "Following up", no clickbait.
 
@@ -145,7 +151,7 @@ export function buildCompanyBlock(input: Pick<FollowUpInput, 'ctx' | 'contact' |
   const total = ctx.openRoles.reduce((n, g) => n + g.count, 0);
   if (total) {
     lines.push(`Open roles (${total}), by family:`);
-    for (const g of ctx.openRoles) lines.push(`- ${g.label}: ${g.count}${g.titles.length ? ` (${g.titles.slice(0, 6).join('; ')})` : ''}`);
+    for (const g of ctx.openRoles) lines.push(`- ${g.label}: ${g.count}${g.titles.length ? ` (${g.titles.slice(0, 6).map((t, i) => (g.firstSeen && g.firstSeen[i] ? `${t}, open since ${g.firstSeen[i]}` : t)).join('; ')})` : ''}`);
   } else {
     lines.push('Open roles: none found on the careers feeds or the website.');
   }
@@ -247,7 +253,8 @@ export function followUpDraftFlags(draft: FollowUpDraft, input: FollowUpInput, i
   const flags: string[] = [];
   const body = (draft.body || '').trim();
   const words = wordCount(body);
-  if (words < WORDS.min || words > WORDS.max) flags.push(`body ${words} words (want ${WORDS.min} to ${WORDS.max})`);
+  const limit = wordsFor(input.step.purpose);
+  if (words < limit.min || words > limit.max) flags.push(`body ${words} words (want ${limit.min} to ${limit.max})`);
   const subj = (draft.subject || '').trim();
   if (!subj || subj.length > SUBJECT_MAX) flags.push(`subject ${subj.length} characters (want 1 to ${SUBJECT_MAX})`);
   if (/^(re|fwd?):/i.test(subj) || /following up/i.test(subj)) flags.push('subject reads as a reply or a chaser');
@@ -258,7 +265,8 @@ export function followUpDraftFlags(draft: FollowUpDraft, input: FollowUpInput, i
   const banned = bannedPhraseHits(all);
   if (banned.length) flags.push(`banned phrase: ${banned.join(', ')}`);
   if (/!/.test(all)) flags.push('exclamation mark');
-  if (BULLET.test(body)) flags.push('bullet list');
+  if (input.step.purpose !== 'last' && BULLET.test(body)) flags.push('bullet list');
+  if (input.step.purpose === 'last' && BULLET.test(body)) flags.push('bullets or numbering on the number lines: start each line with the figure');
   if (/\[[^\]]*\]/.test(body)) flags.push('placeholder in square brackets');
   const lines = body.split('\n').map((l) => l.trim()).filter(Boolean);
   const last = lines[lines.length - 1] || '';
@@ -268,6 +276,16 @@ export function followUpDraftFlags(draft: FollowUpDraft, input: FollowUpInput, i
   if (!/\?\s*$/.test(question)) flags.push('does not end with a question');
   if (!/^(hey|dear|hello|hi|good (morning|afternoon))\b/i.test(lines[0] || '')) flags.push('no greeting line');
   if (/^dear\b/i.test(lines[0] || '')) flags.push('greeting is "Dear": start with "Hey <first name>,"');
+  // Craig, 14 October 2026: every email invites the reader to send the details; each email carries its own idea.
+  if (!/\bsend (?:me|over)\b[^.?\n]*\b(?:details|detail|brief|spec)\b/i.test(body)) flags.push('missing the invitation to send you the details of what they need');
+  if (input.step.purpose === 'first' && !/chris donnelly/i.test(lines.slice(0, 3).join(' '))) flags.push('the first email should name Chris Donnelly and Searchable in its opening lines');
+  if (input.step.purpose === 'second') {
+    if (input.persona === 'founder' && !/founder to founder/i.test(subj)) flags.push('the second email to a founder or CEO should say "Founder to founder" in the subject');
+    if (!/\bfounder\b/i.test(body)) flags.push('the second email should say you are a founder too');
+  }
+  if (input.step.purpose === 'last') {
+    for (const [re, what] of [[/50\+/, '50+ placed'], [/18 years/i, '18 years recruiting'], [/1 in 3/i, '1 in 3 interview-to-placement']] as Array<[RegExp, string]>) if (!re.test(body)) flags.push(`the five numbers email is missing "${what}"`);
+  }
   const earlierHooks = input.earlierEmails.filter((e) => e.stepNo < input.step.stepNo && e.hook).map((e) => e.hook!.trim().toLowerCase());
   if (earlierHooks.includes((draft.hook || '').trim().toLowerCase())) flags.push('same hook as an earlier email');
   // The sender's instructions (8 October 2026): the model says which it did not carry out; that is a failed check and gets the rewrite.

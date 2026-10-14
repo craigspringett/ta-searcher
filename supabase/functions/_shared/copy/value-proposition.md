@@ -26,18 +26,66 @@ writer skips a marked line and never writes the marker.
 
 ## The introduction (the first email of a follow-up run, and the opener of a cold email)
 
-- Lead with the search just completed: Big Fish Recruitment has just placed
-  the first Head of Recruitment at Searchable, the Series A AI company in
-  London, a search Craig ran end to end.
-- Follow it with Chris Donnelly's line about that search when the
-  testimonial section below carries one; until then, name the placement and
-  never invent a quote.
-- Then one sentence on why Craig is the person to find a start-up's early or
-  founding talent lead: he has placed first Heads of Talent and Heads of
-  Recruitment at Searchable, Lottie and Attio, he knows what the role should
-  own at seed and Series A, and he runs each search himself.
-- Only after that, the one thing seen at this company (the roles open, the
-  raise, the hiring plan in their own words) and the fifteen-minute call.
+Confirmed by Craig on 14 October 2026.
+
+- Open by naming Chris Donnelly so the name is familiar: "You may know Chris
+  Donnelly: in my most recent search I have just helped place the first Head
+  of Recruitment at Searchable, his £80m Series A valued AI start-up." Use
+  Craig's own words for the company, exactly "£80m Series A valued", and add
+  nothing to them. Say it once, in the first sentence or two.
+- Then one sentence: Craig runs every search himself and speaks to every
+  candidate before a founder sees them. He has also placed the first Head of
+  Talent at Lottie and Attio.
+- Then the one thing seen at this company (the roles open, the raise, the
+  hiring plan in their own words).
+- Then the way he works, in plain words and without naming any firm: there
+  are a lot of fancy recruitment models around, such as subscription
+  recruitment, fixed-term contracts and on-site talent partners, and in his
+  experience they tend to come and go. What he offers is tried and trusted:
+  exclusive contingent search for the permanent Head of Talent Acquisition or
+  Head of Recruitment, with a rebate. It does what it says on the tin. Never
+  name a competitor, never say any named firm has failed, never give a
+  rebate period.
+
+## Facts about Craig (confirmed by Craig on 14 October 2026; use exactly these)
+
+- 50+ Talent Acquisition leaders and recruiters placed.
+- 18 years recruiting.
+- 5 years running two start-ups of his own: he is a founder as well as a
+  recruiter, so he understands the stresses of the stage, why the right early
+  hires matter, how candidates experience the process and how the business
+  looks to the people it wants to attract.
+- 1 in 3: his interview-to-placement ratio, so about one interview in three
+  ends in a placement.
+- Shortlists are five hand-picked candidates on a bespoke, easy-to-use portal
+  that makes them easy to manage: ranked, interviews booked, in one place.
+- A Head of Recruitment or Talent Acquisition Manager is vital, and the sooner
+  one is in once budgets allow, the better for the founders, the candidate
+  experience and the way the business looks to the best people.
+
+## Every email makes replying easy
+
+- Every email invites a one-line reply: "send me the details of what you
+  need" (the role, the timing, the budget as far as it is known), and Craig
+  will come back and arrange a call. This sits beside the ask for a call,
+  never instead of it.
+
+## The emails of a follow-up run (Craig, 14 October 2026)
+
+- First email: Chris Donnelly and Searchable, the one thing seen at this
+  company, the recruitment-models paragraph, the invitation to send details.
+- Second email, four days later: "Founder to founder". The subject says so
+  when the contact is a founder or CEO. Craig is a founder too (five years
+  running two start-ups), understands the stresses, the importance of the
+  right hires, candidate experience and how the business looks to attract the
+  best, and a Head of Recruitment or Talent Acquisition Manager is vital as
+  soon as budgets permit. Tied to something real at the company.
+- Last email, two weeks in: five numbers. 50+ Talent Acquisition people
+  placed. 5 hand-picked candidates in every shortlist, on a bespoke,
+  easy-to-use portal for easy management. 1 in 3 interview-to-placement
+  ratio. 18 years recruiting. 5 years running 2 start-ups. Then the offer
+  (exclusive contingent search, with a rebate, no flashy new model) and the
+  invitation to send the details of what they need.
 
 ## Testimonial (quote verbatim when present; skip the section when it only carries a marker)
 

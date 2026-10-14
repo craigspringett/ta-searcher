@@ -126,6 +126,8 @@ export interface CopyRoleGroup {
   label: string;
   count: number;
   titles: string[];
+  /** The date each title was first seen (ISO), parallel to titles; null when unknown. Used by the follow-up emails to say how long a role has been open. */
+  firstSeen?: Array<string | null>;
 }
 
 export interface CopyCompany {

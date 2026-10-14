@@ -67,16 +67,16 @@ export function contactForPersona(persona: Persona, contacts: CopyContact[]): Co
 const FAMILY_ORDER: RoleFamily[] = ['people_talent', 'leadership', 'engineering', 'product_design', 'go_to_market', 'operations', 'other'];
 
 /** Open roles grouped by family with counts; the people-and-talent family first, then by count, then the fixed order. */
-export function groupRolesByFamily(roles: Array<{ title: string; department?: string | null }>): CopyRoleGroup[] {
-  const groups = new Map<RoleFamily, string[]>();
+export function groupRolesByFamily(roles: Array<{ title: string; department?: string | null; firstSeen?: string | null }>): CopyRoleGroup[] {
+  const groups = new Map<RoleFamily, Array<{ title: string; firstSeen: string | null }>>();
   for (const r of roles) {
     const title = (r.title || '').trim();
     if (!title) continue;
     const fam = roleFamily(title, r.department ?? null);
-    groups.set(fam, [...(groups.get(fam) || []), title]);
+    groups.set(fam, [...(groups.get(fam) || []), { title, firstSeen: r.firstSeen ? String(r.firstSeen).slice(0, 10) : null }]);
   }
   return Array.from(groups.entries())
-    .map(([family, titles]) => ({ family, label: ROLE_FAMILY_LABELS[family], count: titles.length, titles }))
+    .map(([family, items]) => ({ family, label: ROLE_FAMILY_LABELS[family], count: items.length, titles: items.map((i) => i.title), ...(items.some((i) => i.firstSeen) ? { firstSeen: items.map((i) => i.firstSeen) } : {}) }))
     .sort((a, b) => {
       if (a.family === 'people_talent') return -1;
       if (b.family === 'people_talent') return 1;
@@ -147,11 +147,11 @@ export async function loadCopyContext(supabase: Supabase, row: CompanyRow): Prom
 }
 
 /** The open roles from the vacancies table (fresh daily from the ATS feeds), else the stored analysis's list. */
-async function loadOpenRoles(supabase: Supabase, row: CompanyRow): Promise<Array<{ title: string; department: string | null }>> {
+async function loadOpenRoles(supabase: Supabase, row: CompanyRow): Promise<Array<{ title: string; department: string | null; firstSeen?: string | null }>> {
   try {
-    const { data, error } = await supabase.from('vacancies').select('title, raw').eq('company_search_id', row.id).eq('status', 'open').limit(300);
+    const { data, error } = await supabase.from('vacancies').select('title, raw, first_seen').eq('company_search_id', row.id).eq('status', 'open').limit(300);
     if (!error && Array.isArray(data) && data.length) {
-      return data.map((v: { title: string; raw: Record<string, unknown> | null }) => ({ title: String(v.title || ''), department: (v.raw?.department as string) || null })).filter((v: { title: string }) => v.title);
+      return data.map((v: { title: string; raw: Record<string, unknown> | null; first_seen: string | null }) => ({ title: String(v.title || ''), department: (v.raw?.department as string) || null, firstSeen: v.first_seen })).filter((v: { title: string }) => v.title);
     }
   } catch (e) {
     console.warn('vacancies read failed for copy; using the stored list:', e instanceof Error ? e.message : e);

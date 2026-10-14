@@ -43,7 +43,7 @@ async function callModel(system: Anthropic.Beta.BetaTextBlockParam[], messages: 
   try {
     response = await anthropic().beta.messages.create({
       model: COPY_MODEL,
-      max_tokens: 2000,
+      max_tokens: 6000,
       betas: BETAS,
       fallbacks: 'default',
       system,
