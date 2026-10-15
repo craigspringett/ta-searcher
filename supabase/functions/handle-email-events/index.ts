@@ -74,10 +74,19 @@ Deno.serve(async (req) => {
     }
   }
 
+  // Is this one of our own emails? Every send of this project has a send log row under its message id.
+  let ours = false
+  if (event.messageId) {
+    const { count: own } = await supabase.from('email_send_log').select('id', { count: 'exact', head: true }).eq('message_id', event.messageId)
+    ours = (own ?? 0) > 0
+  }
+
   let stored = 0
   let suppressed = 0
   let alerted = 0
   for (const recipient of event.recipients) {
+    // Only this project's own emails are recorded (15 October 2026): Resend sends every event on the account to every webhook, and the WhoFoundWho schools site shares it. A bounce or complaint still suppresses the address below.
+    if (ours) {
     const { error: insertError } = await supabase.from('email_events').upsert({
       message_id: event.messageId,
       email_id: event.emailId,
@@ -126,6 +135,8 @@ Deno.serve(async (req) => {
       } catch (e) {
         console.warn('Engagement alert failed', { error: e instanceof Error ? e.message : String(e) })
       }
+    }
+
     }
 
     if (shouldSuppress(event)) {
