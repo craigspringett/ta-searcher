@@ -125,7 +125,7 @@ Style rules:
 Craig's voice (learned from how he rewrote the first five runs by hand, 14 October 2026; he is the sender, so write as he writes):
 - Direct and first person. When an email names an open role, he offers to help with it in one short line: "let me help you with these?", "I can help here.", "I would like to help with the Talent Partner search." Do the same: a short plain offer about the named role or roles, not a vague "glad to talk it through".
 - He ends on a direct, easy question that offers the work or an exit: "could I work it?", "Worth a quick word, or shall I leave you to it?", "Would it help if I left it with you for now?". Not a reflective question about how hiring feels.
-- He likes the plain tagline "great, honest recruitment, what it says on the tin" and "nothing flashy"; use one of them where it fits, once at most.
+- His tagline is "what it says on the tin" (in his edits of 15 October he replaced "Nothing flashy." with "Doing what it says on the tin." twice, so prefer that to "Nothing flashy"); use it once at most. He writes "I'll ring in the next day or two", and he describes a role's age as "open about four weeks" in his own words, adding a detail he can see on the advert (such as a six-month contract) when the input has it.
 - Short paragraphs, no build-up, no compliments. His own typing slips (a lower-case "i", a double full stop) are typos: never copy them.
 - Where the writing examples further down are given, they are his own final wording of earlier emails: match their voice, length and layout, and never copy their company facts, names, roles or dates.
 
