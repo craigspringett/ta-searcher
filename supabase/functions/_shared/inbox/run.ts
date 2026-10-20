@@ -8,6 +8,7 @@
 
 import { mergedContactsFor } from '../contacts/edits.ts';
 import { stopSequence } from '../follow-ups/store.ts';
+import { autoReplyVerdict } from './auto-reply.ts';
 import { logAiUsage } from '../copy/usage.ts';
 import { GraphError, listInboxSince, type MsConfig, refreshTokens, type GraphMessage } from './graph.ts';
 import { buildIndex, matchSender, normaliseHost, stripQuotedThread, type KnownCompany, type KnownContact, type KnownSequence, type ReplyMatch } from './match.ts';
@@ -118,6 +119,22 @@ export async function readConnection(supabase: Supabase, cfg: MsConfig, conn: Co
       if (existing) continue;
       result.matched++;
       const replyText = stripQuotedThread(m.bodyText || m.preview || '');
+      // An out-of-office is not a reply (Craig, 20 October 2026): note it, leave the run going, draft nothing, and mark it handled so it does not wait on the Replies card.
+      const auto = autoReplyVerdict(m.subject, replyText || m.preview || '');
+      if (auto.auto) {
+        const { data: note } = await supabase.from('outcomes').insert({
+          company_search_id: match.companyId, consultant_id: null, created_by: conn.profile_id, contact_name: match.contactName, kind: 'note',
+          note: `Out of office, not a reply${m.subject ? `: ${m.subject}` : ''}${replyText ? ` | ${replyText.slice(0, 300)}` : ''} The follow-ups carry on.`,
+          external_refs: { via: 'outlook', message_id: messageId, sequence_id: match.sequenceId, auto_reply: true },
+        }).select('id').maybeSingle();
+        const { error: autoErr } = await supabase.from('inbox_replies').insert({
+          connection_id: conn.id, message_id: messageId, graph_id: m.id, conversation_id: m.conversationId, from_email: m.fromEmail, from_name: m.fromName, subject: m.subject,
+          received_at: m.receivedAt, preview: m.preview, body_text: replyText || m.bodyText, company_search_id: match.companyId, contact_name: match.contactName,
+          match_note: `${match.note}; ${auto.reason}`, sequence_id: match.sequenceId, outcome_id: note?.id ?? null, handled_at: now.toISOString(),
+        });
+        if (autoErr) result.error = `inbox_replies insert failed: ${autoErr.message}`;
+        continue;
+      }
       // The outcome: a reply on the company, which is what stops a follow-up run.
       const { data: outcome } = await supabase.from('outcomes').insert({
         company_search_id: match.companyId, consultant_id: null, created_by: conn.profile_id, contact_name: match.contactName, kind: 'replied',
