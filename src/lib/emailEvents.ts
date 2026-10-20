@@ -64,6 +64,28 @@ export function linkWord(url: string | null): string {
   return "a link";
 }
 
+/**
+ * An open or click seconds after delivery is a mail security scan or an image
+ * proxy, not a person (Craig, 20 October 2026: Samantha Robinson, on maternity
+ * leave, "opened" and "clicked" within 28 seconds, from a Microsoft address).
+ * Those are kept in the table but never counted as interest.
+ */
+export const AUTOMATIC_OPEN_SECONDS = 60;
+export const AUTOMATIC_CLICK_SECONDS = 120;
+
+/** True when the event happened too soon after delivery for a person; false when unknown. */
+export function isAutomaticEngagement(e: EmailEvent, events: EmailEvent[]): boolean {
+  if (e.event_type !== "opened" && e.event_type !== "clicked") return false;
+  const addr = e.recipient_email.toLowerCase();
+  const at = new Date(e.occurred_at).getTime();
+  const delivered = events
+    .filter((d) => d.event_type === "delivered" && d.recipient_email.toLowerCase() === addr && (e.message_id ? d.message_id === e.message_id : true) && new Date(d.occurred_at).getTime() <= at)
+    .sort((a, b) => b.occurred_at.localeCompare(a.occurred_at))[0];
+  if (!delivered) return false;
+  const secs = (at - new Date(delivered.occurred_at).getTime()) / 1000;
+  return secs <= (e.event_type === "opened" ? AUTOMATIC_OPEN_SECONDS : AUTOMATIC_CLICK_SECONDS);
+}
+
 const byTimeDesc = (a: { occurred_at: string }, b: { occurred_at: string }) => b.occurred_at.localeCompare(a.occurred_at);
 
 /**
@@ -91,15 +113,17 @@ export function engagementLine(email: string, events: EmailEvent[], emailed: Ema
   if (recent.some((e) => e.event_type === "bounced")) { parts.push("Bounced: the address does not work."); return parts.join(" "); }
   if (recent.some((e) => e.event_type === "complained")) { parts.push("Marked as spam; do not email again."); return parts.join(" "); }
 
-  const opens = recent.filter((e) => e.event_type === "opened");
-  const clicks = recent.filter((e) => e.event_type === "clicked");
+  const autoCount = recent.filter((e) => isAutomaticEngagement(e, recent)).length;
+  const opens = recent.filter((e) => e.event_type === "opened" && !isAutomaticEngagement(e, recent));
+  const clicks = recent.filter((e) => e.event_type === "clicked" && !isAutomaticEngagement(e, recent));
   if (opens.length) parts.push(`Opened ${times(opens.length)}, last ${timeOfDay(opens[0].occurred_at)} ${dayWord(opens[0].occurred_at, now)}.`);
   if (clicks.length) {
     const links = [...new Set(clicks.map((c) => linkWord(c.url)))];
     parts.push(`Clicked ${links.length === 1 ? links[0] : `${clicks.length} links`}${clicks.length > 1 && links.length === 1 ? ` ${times(clicks.length)}` : ""}.`);
   }
   if (!opens.length && !clicks.length) {
-    if (recent.some((e) => e.event_type === "delivered")) parts.push("Delivered, not opened yet (or opened in a mail app that hides it).");
+    if (autoCount) parts.push("Delivered. Only an automatic security scan so far, seconds after it arrived, so not read yet.");
+    else if (recent.some((e) => e.event_type === "delivered")) parts.push("Delivered, not opened yet (or opened in a mail app that hides it).");
     else if (recent.some((e) => e.event_type === "delivery_delayed")) parts.push("Delivery delayed; their mail server is slow to accept it.");
   }
   return parts.join(" ");
@@ -129,6 +153,7 @@ export function warmCompanies(events: EmailEvent[], lastOutcomeAt: Map<string, s
   for (const e of [...events].sort(byTimeDesc)) {
     if (!e.company_search_id || e.occurred_at < since || e.occurred_at > new Date(now.getTime() + 60_000).toISOString()) continue;
     if (e.event_type !== "opened" && e.event_type !== "clicked") continue;
+    if (isAutomaticEngagement(e, events)) continue;
     const cur = byCompany.get(e.company_search_id) || { companyId: e.company_search_id, lastAt: e.occurred_at, lastKind: e.event_type, contactName: e.contact_name, opens: 0, clicks: 0, url: e.event_type === "clicked" ? e.url : null };
     if (e.event_type === "opened") cur.opens++; else cur.clicks++;
     byCompany.set(e.company_search_id, cur);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { engagementLine, linkWord, warmLine, warmCompanies, type EmailEvent } from "../emailEvents";
+import { engagementLine, isAutomaticEngagement, linkWord, warmLine, warmCompanies, type EmailEvent } from "../emailEvents";
 
 const now = new Date("2026-09-17T10:00:00");
 const ev = (event_type: string, occurred_at: string, extra: Partial<EmailEvent> = {}): EmailEvent => ({
@@ -78,5 +78,25 @@ describe("warmCompanies", () => {
     const rows = warmCompanies(events, new Map(), now);
     expect(warmLine(rows.find((r) => r.companyId === "s1")!, now)).toBe("Opened twice, last 09:12 today");
     expect(warmLine(rows.find((r) => r.companyId === "s2")!, now)).toBe("Clicked the careers link 08:40 today");
+  });
+});
+
+describe("automatic security scans are not interest", () => {
+  const delivered = ev("delivered", "2026-09-17T09:12:22");
+  it("an open within a minute and a click within two minutes of delivery are automatic", () => {
+    const events = [ev("sent", "2026-09-17T09:12:18"), delivered, ev("opened", "2026-09-17T09:12:27"), ev("clicked", "2026-09-17T09:12:50", { url: "https://bigfishrecruitment.co.uk" })];
+    expect(isAutomaticEngagement(events[2], events)).toBe(true);
+    expect(isAutomaticEngagement(events[3], events)).toBe(true);
+    expect(engagementLine("head@company.sch.uk", events, [], now)).toBe("Emailed 17 Sep 09:12. Delivered. Only an automatic security scan so far, seconds after it arrived, so not read yet.");
+    expect(warmCompanies(events, new Map(), now)).toEqual([]);
+  });
+  it("an open hours later is a person, and still counts", () => {
+    const events = [delivered, ev("opened", "2026-09-17T09:12:27"), ev("opened", "2026-09-17T09:40:00")];
+    expect(isAutomaticEngagement(events[2], events)).toBe(false);
+    expect(warmCompanies(events, new Map(), now)[0].opens).toBe(1);
+  });
+  it("with no delivery on record the event is kept", () => {
+    const o = ev("opened", "2026-09-17T09:12:27");
+    expect(isAutomaticEngagement(o, [o])).toBe(false);
   });
 });

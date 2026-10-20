@@ -17,7 +17,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { WebhookError, verifyResendWebhook } from '../_shared/resend-webhook.ts'
-import { dedupeKey, IgnoredEvent, linkFromMetadata, parseResendEvent, shouldSuppress, type ParsedEmailEvent } from '../_shared/email-events.ts'
+import { dedupeKey, IgnoredEvent, isAutomaticEngagement, linkFromMetadata, parseResendEvent, shouldSuppress, type ParsedEmailEvent } from '../_shared/email-events.ts'
 import { decideEngagementAlert, engagementSettingsFrom, engagementSubject } from '../_shared/engagement-alert.ts'
 import { APP_BASE_URL } from '../_shared/alerts.ts'
 
@@ -112,8 +112,10 @@ Deno.serve(async (req) => {
     if ((event.type === 'opened' || event.type === 'clicked') && meta && event.messageId) {
       try {
         const { count } = await supabase.from('email_events').select('id', { count: 'exact', head: true }).eq('message_id', event.messageId).eq('recipient_email', recipient).eq('event_type', event.type)
+        const { data: deliveredRow } = await supabase.from('email_events').select('occurred_at').eq('message_id', event.messageId).eq('recipient_email', recipient).eq('event_type', 'delivered').order('occurred_at', { ascending: true }).limit(1).maybeSingle()
+        const automatic = isAutomaticEngagement(event.type, event.occurredAt, deliveredRow?.occurred_at)
         const { data: settingRow } = await supabase.from('app_settings').select('value').eq('key', 'engagement_alerts').maybeSingle()
-        const decision = decideEngagementAlert({ type: event.type, recipient, url: event.url, occurredAt: event.occurredAt, countAfterInsert: count ?? 0, metadata: meta, settings: engagementSettingsFrom(settingRow?.value), appBaseUrl: APP_BASE_URL })
+        const decision = decideEngagementAlert({ type: event.type, recipient, url: event.url, occurredAt: event.occurredAt, countAfterInsert: count ?? 0, metadata: meta, automatic, settings: engagementSettingsFrom(settingRow?.value), appBaseUrl: APP_BASE_URL })
         if (decision.alert) {
           const a = decision.alert
           const { data: sent, error: sendErr } = await supabase.functions.invoke('send-transactional-email', {

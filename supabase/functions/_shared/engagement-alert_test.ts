@@ -32,3 +32,14 @@ Deno.test('settings: off for everyone, for one kind, or for one person', () => {
   assert(decideEngagementAlert({ ...base, type: 'clicked', settings: s, metadata: { ...meta, reply_to: 'luke@whofoundwho.co.uk' } }).alert, 'Luke is on');
   assertEquals(decideEngagementAlert({ ...base, settings: { ...s, enabled: false }, type: 'clicked', metadata: { ...meta, reply_to: 'luke@whofoundwho.co.uk' } }).alert, null, 'all off');
 });
+
+Deno.test('an open or click seconds after delivery is a security scan and sends no alert (20 October 2026)', async () => {
+  const { isAutomaticEngagement } = await import('./email-events.ts');
+  const { decideEngagementAlert, DEFAULT_ENGAGEMENT_SETTINGS } = await import('./engagement-alert.ts');
+  assertEquals(isAutomaticEngagement('opened', '2026-10-20T09:12:27Z', '2026-10-20T09:12:22Z'), true);
+  assertEquals(isAutomaticEngagement('clicked', '2026-10-20T09:12:50Z', '2026-10-20T09:12:22Z'), true);
+  assertEquals(isAutomaticEngagement('opened', '2026-10-20T09:40:00Z', '2026-10-20T09:12:22Z'), false);
+  assertEquals(isAutomaticEngagement('opened', '2026-10-20T09:12:27Z', null), false);
+  const d = decideEngagementAlert({ type: 'opened', recipient: 'a@b.com', url: null, occurredAt: '2026-10-20T09:12:27Z', countAfterInsert: 1, metadata: { kind: 'outreach', reply_to: 'craig@bigfishrecruitment.co.uk' }, automatic: true, settings: DEFAULT_ENGAGEMENT_SETTINGS, appBaseUrl: 'https://x' });
+  assertEquals(d.alert, null);
+});

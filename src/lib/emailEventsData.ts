@@ -32,13 +32,13 @@ export function useCompanyEmailEvents(companyId: string | null | undefined, enab
   });
 }
 
-/** Opens and clicks in the last `hours`, for the "Warm right now" strip. */
+/** Opens and clicks in the last `hours` (with the deliveries, to tell a person from a security scan), for the "Warm right now" strip. */
 export async function loadRecentEngagement(hours = 24, now = new Date()): Promise<EmailEvent[]> {
   const since = new Date(now.getTime() - hours * 3600_000).toISOString();
   const { data, error } = await supabase
     .from("email_events")
     .select("event_type, recipient_email, occurred_at, url, company_search_id, contact_name, message_id")
-    .in("event_type", ["opened", "clicked"])
+    .in("event_type", ["opened", "clicked", "delivered"])
     .gte("occurred_at", since)
     .not("company_search_id", "is", null)
     .order("occurred_at", { ascending: false })

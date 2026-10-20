@@ -116,3 +116,14 @@ export function linkFromMetadata(metadata: unknown): OutreachLink {
     contact_name: typeof m.contact_name === 'string' && m.contact_name ? m.contact_name.slice(0, 200) : null,
   };
 }
+
+/** An open or click this soon after delivery is a mail security scan or an image proxy, not a person (Craig, 20 October 2026). Same limits as src/lib/emailEvents.ts. */
+export const AUTOMATIC_OPEN_SECONDS = 60;
+export const AUTOMATIC_CLICK_SECONDS = 120;
+
+export function isAutomaticEngagement(type: string, occurredAt: string, deliveredAt: string | null | undefined): boolean {
+  if ((type !== 'opened' && type !== 'clicked') || !deliveredAt) return false;
+  const secs = (Date.parse(occurredAt) - Date.parse(deliveredAt)) / 1000;
+  if (!Number.isFinite(secs) || secs < 0) return false;
+  return secs <= (type === 'opened' ? AUTOMATIC_OPEN_SECONDS : AUTOMATIC_CLICK_SECONDS);
+}

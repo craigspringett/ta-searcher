@@ -63,6 +63,8 @@ export interface DecideInput {
   /** How many events of this type are stored for this message and recipient, counting the one just written. */
   countAfterInsert: number;
   metadata: unknown;
+  /** True when it happened seconds after delivery: a security scan, not a person. */
+  automatic?: boolean;
   settings: EngagementSettings;
   appBaseUrl: string;
 }
@@ -71,6 +73,7 @@ export interface DecideInput {
 export function decideEngagementAlert(input: DecideInput): { alert: EngagementAlert | null; reason: string } {
   const { type, settings } = input;
   if (type !== 'opened' && type !== 'clicked') return { alert: null, reason: 'not an open or a click' };
+  if (input.automatic) return { alert: null, reason: 'seconds after delivery: a mail security scan, not a person' };
   if (!settings.enabled) return { alert: null, reason: 'engagement alerts are off' };
   if (type === 'opened' && !settings.opens) return { alert: null, reason: 'open alerts are off' };
   if (type === 'clicked' && !settings.clicks) return { alert: null, reason: 'click alerts are off' };
