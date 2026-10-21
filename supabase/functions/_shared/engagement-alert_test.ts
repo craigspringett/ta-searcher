@@ -43,3 +43,18 @@ Deno.test('an open or click seconds after delivery is a security scan and sends 
   const d = decideEngagementAlert({ type: 'opened', recipient: 'a@b.com', url: null, occurredAt: '2026-10-20T09:12:27Z', countAfterInsert: 1, metadata: { kind: 'outreach', reply_to: 'craig@bigfishrecruitment.co.uk' }, automatic: true, settings: DEFAULT_ENGAGEMENT_SETTINGS, appBaseUrl: 'https://x' });
   assertEquals(d.alert, null);
 });
+
+Deno.test('classifyEngagement: scanners, data centres and Microsoft within minutes are machines; later human-looking opens are not (21 October 2026)', async () => {
+  const { classifyEngagement, engagementIp } = await import('./email-events.ts');
+  const d = '2026-10-21T13:50:12Z';
+  assertEquals(classifyEngagement('opened', '2026-10-21T13:50:35Z', d, 'AS8075 Microsoft Corporation').automatic, true);
+  assertEquals(classifyEngagement('clicked', '2026-10-21T13:52:52Z', d, 'AS396982 Google LLC').automatic, true, 'Google Cloud');
+  assertEquals(classifyEngagement('clicked', '2026-10-21T13:53:00Z', d, 'AS16509 Amazon.com, Inc.').automatic, true, 'Amazon');
+  assertEquals(classifyEngagement('opened', '2026-10-21T14:35:00Z', d, 'AS54113 Fastly, Inc.').automatic, true, 'privacy relay');
+  assertEquals(classifyEngagement('opened', '2026-10-21T13:59:22Z', '2026-10-21T13:35:00Z', 'AS2856 British Telecommunications Limited').automatic, false, 'a home connection 24 minutes later');
+  assertEquals(classifyEngagement('clicked', '2026-10-21T14:00:57Z', '2026-10-21T13:35:00Z', 'AS8075 Microsoft Corporation').automatic, false, 'Microsoft 25 minutes later still counts');
+  assertEquals(classifyEngagement('opened', '2026-10-21T13:52:12Z', d, null).automatic, false, 'unknown owner, over a minute after delivery');
+  assertEquals(engagementIp({ data: { open: { ipAddress: '1.2.3.4' } } }), '1.2.3.4');
+  assertEquals(engagementIp({ data: { click: { ipAddress: '5.6.7.8' } } }), '5.6.7.8');
+  assertEquals(engagementIp({ data: {} }), null);
+});

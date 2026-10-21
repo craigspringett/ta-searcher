@@ -17,7 +17,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { WebhookError, verifyResendWebhook } from '../_shared/resend-webhook.ts'
-import { dedupeKey, IgnoredEvent, isAutomaticEngagement, linkFromMetadata, parseResendEvent, shouldSuppress, type ParsedEmailEvent } from '../_shared/email-events.ts'
+import { classifyEngagement, dedupeKey, engagementIp, IgnoredEvent, lookupIpOrg, linkFromMetadata, parseResendEvent, shouldSuppress, type ParsedEmailEvent } from '../_shared/email-events.ts'
 import { decideEngagementAlert, engagementSettingsFrom, engagementSubject } from '../_shared/engagement-alert.ts'
 import { APP_BASE_URL } from '../_shared/alerts.ts'
 
@@ -87,6 +87,14 @@ Deno.serve(async (req) => {
   for (const recipient of event.recipients) {
     // Only this project's own emails are recorded (15 October 2026): Resend sends every event on the account to every webhook, and the WhoFoundWho schools site shares it. A bounce or complaint still suppresses the address below.
     if (ours) {
+    // Is this open or click a machine? (21 October 2026) Worked out here, once, and stored with its reason.
+    let verdict = { automatic: false, reason: null as string | null }
+    let ipOrg: string | null = null
+    if ((event.type === 'opened' || event.type === 'clicked') && event.messageId) {
+      const { data: deliveredRow } = await supabase.from('email_events').select('occurred_at').eq('message_id', event.messageId).eq('recipient_email', recipient).eq('event_type', 'delivered').order('occurred_at', { ascending: true }).limit(1).maybeSingle()
+      ipOrg = await lookupIpOrg(engagementIp(event.raw))
+      verdict = classifyEngagement(event.type, event.occurredAt, deliveredRow?.occurred_at, ipOrg)
+    }
     const { error: insertError } = await supabase.from('email_events').upsert({
       message_id: event.messageId,
       email_id: event.emailId,
@@ -99,6 +107,9 @@ Deno.serve(async (req) => {
       contact_name: link.contact_name,
       dedupe_key: dedupeKey(event, recipient),
       raw: event.raw,
+      automatic: verdict.automatic,
+      automatic_reason: verdict.reason,
+      ip_org: ipOrg,
     }, { onConflict: 'dedupe_key', ignoreDuplicates: true })
     if (insertError) {
       console.error('Failed to store email event', { type: event.type, error: insertError.message })
@@ -111,9 +122,9 @@ Deno.serve(async (req) => {
     // consultant. Never fatal: an alert that fails is logged, the event stays.
     if ((event.type === 'opened' || event.type === 'clicked') && meta && event.messageId) {
       try {
-        const { count } = await supabase.from('email_events').select('id', { count: 'exact', head: true }).eq('message_id', event.messageId).eq('recipient_email', recipient).eq('event_type', event.type)
-        const { data: deliveredRow } = await supabase.from('email_events').select('occurred_at').eq('message_id', event.messageId).eq('recipient_email', recipient).eq('event_type', 'delivered').order('occurred_at', { ascending: true }).limit(1).maybeSingle()
-        const automatic = isAutomaticEngagement(event.type, event.occurredAt, deliveredRow?.occurred_at)
+        // Only people count: the first human open or click alerts, whatever scans came before it.
+        const { count } = await supabase.from('email_events').select('id', { count: 'exact', head: true }).eq('message_id', event.messageId).eq('recipient_email', recipient).eq('event_type', event.type).eq('automatic', false)
+        const automatic = verdict.automatic
         const { data: settingRow } = await supabase.from('app_settings').select('value').eq('key', 'engagement_alerts').maybeSingle()
         const decision = decideEngagementAlert({ type: event.type, recipient, url: event.url, occurredAt: event.occurredAt, countAfterInsert: count ?? 0, metadata: meta, automatic, settings: engagementSettingsFrom(settingRow?.value), appBaseUrl: APP_BASE_URL })
         if (decision.alert) {

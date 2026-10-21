@@ -100,3 +100,12 @@ describe("automatic security scans are not interest", () => {
     expect(isAutomaticEngagement(o, [o])).toBe(false);
   });
 });
+
+describe("events marked automatic by the webhook", () => {
+  it("never count, even hours after delivery", () => {
+    const events = [ev("delivered", "2026-09-17T08:00:00"), ev("opened", "2026-09-17T09:12:27", { automatic: true }), ev("opened", "2026-09-17T09:40:00", { automatic: false })];
+    expect(isAutomaticEngagement(events[1], events)).toBe(true);
+    expect(isAutomaticEngagement(events[2], events)).toBe(false);
+    expect(warmCompanies(events, new Map(), now)[0].opens).toBe(1);
+  });
+});

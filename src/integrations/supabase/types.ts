@@ -910,6 +910,9 @@ export type Database = {
       }
       email_events: {
         Row: {
+          automatic: boolean
+          automatic_reason: string | null
+          ip_org: string | null
           company_search_id: string | null
           consultant_id: string | null
           contact_name: string | null
@@ -925,6 +928,9 @@ export type Database = {
           url: string | null
         }
         Insert: {
+          automatic?: boolean
+          automatic_reason?: string | null
+          ip_org?: string | null
           company_search_id?: string | null
           consultant_id?: string | null
           contact_name?: string | null
@@ -940,6 +946,9 @@ export type Database = {
           url?: string | null
         }
         Update: {
+          automatic?: boolean
+          automatic_reason?: string | null
+          ip_org?: string | null
           company_search_id?: string | null
           consultant_id?: string | null
           contact_name?: string | null

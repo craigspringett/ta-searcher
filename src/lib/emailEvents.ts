@@ -18,6 +18,8 @@ export interface EmailEvent {
   company_search_id: string | null;
   contact_name: string | null;
   message_id: string | null;
+  /** Set by the webhook (21 October 2026): a scanner, relay or data centre, not a person. */
+  automatic?: boolean | null;
 }
 
 /** An "emailed" outcome, for the date when the sent event has not arrived (or the webhook is not on yet). */
@@ -76,6 +78,7 @@ export const AUTOMATIC_CLICK_SECONDS = 120;
 /** True when the event happened too soon after delivery for a person; false when unknown. */
 export function isAutomaticEngagement(e: EmailEvent, events: EmailEvent[]): boolean {
   if (e.event_type !== "opened" && e.event_type !== "clicked") return false;
+  if (e.automatic === true) return true;
   const addr = e.recipient_email.toLowerCase();
   const at = new Date(e.occurred_at).getTime();
   const delivered = events

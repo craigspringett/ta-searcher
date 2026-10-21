@@ -5,7 +5,7 @@ import type { EmailEvent, EmailedOutcome } from "@/lib/emailEvents";
 /** The email events for one company (every contact), plus the "emailed" outcomes, for the engagement lines. */
 export async function loadCompanyEmailEvents(companyId: string): Promise<{ events: EmailEvent[]; emailed: EmailedOutcome[] }> {
   const [events, outcomes] = await Promise.all([
-    supabase.from("email_events").select("event_type, recipient_email, occurred_at, url, company_search_id, contact_name, message_id").eq("company_search_id", companyId).order("occurred_at", { ascending: false }).limit(500),
+    supabase.from("email_events").select("event_type, recipient_email, occurred_at, url, company_search_id, contact_name, message_id, automatic").eq("company_search_id", companyId).order("occurred_at", { ascending: false }).limit(500),
     supabase.from("outcomes").select("created_at, contact_name, external_refs").eq("company_search_id", companyId).eq("kind", "emailed").order("created_at", { ascending: false }).limit(100),
   ]);
   if (events.error) throw new Error(events.error.message);
@@ -37,7 +37,7 @@ export async function loadRecentEngagement(hours = 24, now = new Date()): Promis
   const since = new Date(now.getTime() - hours * 3600_000).toISOString();
   const { data, error } = await supabase
     .from("email_events")
-    .select("event_type, recipient_email, occurred_at, url, company_search_id, contact_name, message_id")
+    .select("event_type, recipient_email, occurred_at, url, company_search_id, contact_name, message_id, automatic")
     .in("event_type", ["opened", "clicked", "delivered"])
     .gte("occurred_at", since)
     .not("company_search_id", "is", null)

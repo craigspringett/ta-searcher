@@ -127,3 +127,54 @@ export function isAutomaticEngagement(type: string, occurredAt: string, delivere
   if (!Number.isFinite(secs) || secs < 0) return false;
   return secs <= (type === 'opened' ? AUTOMATIC_OPEN_SECONDS : AUTOMATIC_CLICK_SECONDS);
 }
+
+/** The address that opened or clicked, from Resend's payload. */
+export function engagementIp(raw: unknown): string | null {
+  const d = (raw && typeof raw === 'object' ? (raw as { data?: Record<string, unknown> }).data : null) || {};
+  for (const k of ['open', 'click']) {
+    const o = d[k];
+    if (o && typeof o === 'object' && typeof (o as { ipAddress?: unknown }).ipAddress === 'string') return String((o as { ipAddress: string }).ipAddress);
+  }
+  return null;
+}
+
+// Networks no person reads email from: clouds, hosting, CDNs and privacy relays that load pictures and follow links for a scanner or a mail app.
+const HOSTING_ASN = /^AS(?:16509|14618|396982|16276|14061|24940|63949|54113|13335|20940|31898|45102|20473|12876|8100|36351|46606|19551)\b/;
+const MICROSOFT_ASN = /^AS8075\b/;
+export const MICROSOFT_SCAN_SECONDS = 300;
+
+export interface EngagementVerdict { automatic: boolean; reason: string | null }
+
+/**
+ * Is this open or click a machine? (a) seconds after delivery, (b) from a cloud, hosting or relay network at
+ * any time, (c) from Microsoft's network within five minutes of delivery (Defender and Safe Links scan on
+ * arrival; a person on Outlook on the web later also shows a Microsoft address, so later ones still count).
+ * `ipOrg` is the owner line from an address lookup ("AS8075 Microsoft Corporation"); null when unknown.
+ */
+export function classifyEngagement(type: string, occurredAt: string, deliveredAt: string | null | undefined, ipOrg: string | null | undefined): EngagementVerdict {
+  if (type !== 'opened' && type !== 'clicked') return { automatic: false, reason: null };
+  if (isAutomaticEngagement(type, occurredAt, deliveredAt)) return { automatic: true, reason: 'seconds after delivery: a mail security scan' };
+  const org = (ipOrg || '').trim();
+  if (org && HOSTING_ASN.test(org)) return { automatic: true, reason: `from a cloud or relay network (${org.slice(0, 60)}), not a person` };
+  if (org && MICROSOFT_ASN.test(org) && deliveredAt) {
+    const secs = (Date.parse(occurredAt) - Date.parse(deliveredAt)) / 1000;
+    if (Number.isFinite(secs) && secs >= 0 && secs <= MICROSOFT_SCAN_SECONDS) return { automatic: true, reason: 'Microsoft link scanning within minutes of delivery' };
+  }
+  return { automatic: false, reason: null };
+}
+
+/** Who owns an address ("AS8075 Microsoft Corporation"), or null. Free lookup, three seconds, never throws. */
+export async function lookupIpOrg(ip: string | null, fetcher: typeof fetch = fetch): Promise<string | null> {
+  if (!ip || !/^[0-9a-f:.]{3,45}$/i.test(ip)) return null;
+  try {
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), 3000);
+    const res = await fetcher(`https://ipinfo.io/${encodeURIComponent(ip)}/json`, { signal: ctl.signal, headers: { Accept: 'application/json' } });
+    clearTimeout(t);
+    if (!res.ok) return null;
+    const j = await res.json() as { org?: unknown };
+    return typeof j.org === 'string' ? j.org.slice(0, 120) : null;
+  } catch {
+    return null;
+  }
+}
