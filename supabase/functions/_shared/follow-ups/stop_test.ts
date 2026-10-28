@@ -64,3 +64,18 @@ Deno.test('the second call script names the emails that went, without a model', 
   const none = secondCallScript(null, null, [], 'Holland Park Company');
   assert(none.includes('the Big Fish Recruitment team') && none.includes('about Holland Park Company'));
 });
+
+Deno.test('with several people followed up at one company, a reply or a call stops only that person; not interested and a meeting stop them all (23 October 2026)', async () => {
+  const { outcomeConcernsRun, stopDecision } = await import('./stop.ts');
+  const siblings = ['Priya Shah', 'Tom Hirst'];
+  assertEquals(outcomeConcernsRun({ kind: 'replied', created_at: 'x', contact_name: 'Priya Shah' }, 'Tom Hirst', siblings), false, 'Priya replied, Tom carries on');
+  assertEquals(outcomeConcernsRun({ kind: 'replied', created_at: 'x', contact_name: 'tom hirst' }, 'Tom Hirst', siblings), true, 'his own reply, names compared loosely');
+  assertEquals(outcomeConcernsRun({ kind: 'spoke_to', created_at: 'x', contact_name: 'Priya Shah' }, 'Tom Hirst', siblings), false);
+  assertEquals(outcomeConcernsRun({ kind: 'not_interested', created_at: 'x', contact_name: 'Priya Shah' }, 'Tom Hirst', siblings), true, 'the company said no');
+  assertEquals(outcomeConcernsRun({ kind: 'meeting_booked', created_at: 'x', contact_name: 'Priya Shah' }, 'Tom Hirst', siblings), true);
+  assertEquals(outcomeConcernsRun({ kind: 'replied', created_at: 'x', contact_name: null }, 'Tom Hirst', siblings), true, 'no name: cannot tell, stop');
+  assertEquals(outcomeConcernsRun({ kind: 'replied', created_at: 'x', contact_name: 'Someone Else' }, 'Tom Hirst', siblings), true, 'a stranger at the company: stop all');
+  const base = { startedAt: '2026-10-20T00:00:00Z', contactEmail: 'tom@x.com', contactName: 'Tom Hirst', siblingContactNames: siblings, events: [] };
+  assertEquals(stopDecision({ ...base, outcomes: [{ kind: 'replied', created_at: '2026-10-21T00:00:00Z', contact_name: 'Priya Shah' }] }), null);
+  assertEquals(stopDecision({ ...base, outcomes: [{ kind: 'replied', created_at: '2026-10-21T00:00:00Z', contact_name: 'Tom Hirst' }] })?.reason, 'they replied');
+});

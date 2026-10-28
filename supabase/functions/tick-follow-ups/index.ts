@@ -26,7 +26,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { draftSequenceSteps } from '../_shared/follow-ups/draft.ts';
 import { inEmailWindow, londonDate } from '../_shared/follow-ups/schedule.ts';
-import { secondCallScript, stopDecision } from '../_shared/follow-ups/stop.ts';
+import { outcomeConcernsRun, secondCallScript, stopDecision } from '../_shared/follow-ups/stop.ts';
 import { finishIfDone, logNote, SEQUENCE_COLUMNS, stopSequence } from '../_shared/follow-ups/store.ts';
 import type { SequenceRow, StepRow } from '../_shared/follow-ups/prompt.ts';
 import { cors, json, requireFollowUpsCaller } from '../_shared/outreach/caller.ts';
@@ -63,17 +63,19 @@ Deno.serve(async (req) => {
 
   for (const seq of sequences) {
     try {
-      const [{ data: stepRows }, { data: outcomeRows }, { data: eventRows }, { data: suppressed }] = await Promise.all([
+      const [{ data: stepRows }, { data: outcomeRows }, { data: eventRows }, { data: suppressed }, { data: siblingRows }] = await Promise.all([
         supabase.from('follow_up_steps').select('*').eq('sequence_id', seq.id).order('step_no'),
         supabase.from('outcomes').select('id, kind, created_at, contact_name, external_refs').eq('company_search_id', seq.company_search_id).gt('created_at', seq.started_at).order('created_at'),
         supabase.from('email_events').select('event_type, recipient_email, occurred_at').eq('recipient_email', seq.contact_email).gt('occurred_at', seq.started_at).in('event_type', ['bounced', 'complained']),
         supabase.from('suppressed_emails').select('reason').eq('email', seq.contact_email).maybeSingle(),
+        supabase.from('follow_up_sequences').select('contact_name').eq('company_search_id', seq.company_search_id).neq('id', seq.id),
       ]);
+      const siblingContactNames = ((siblingRows || []) as Array<{ contact_name: string }>).map((r) => r.contact_name);
       const steps = (stepRows || []) as StepRow[];
       const outcomes = (outcomeRows || []) as Array<{ id: string; kind: string; created_at: string; contact_name: string | null; external_refs: Record<string, unknown> | null }>;
 
       // 1. Stop?
-      const stop = stopDecision({ startedAt: seq.started_at, contactEmail: seq.contact_email, outcomes, events: (eventRows || []) as Array<{ event_type: string; recipient_email: string; occurred_at: string }>, suppressedReason: (suppressed as { reason?: string } | null)?.reason || null });
+      const stop = stopDecision({ startedAt: seq.started_at, contactEmail: seq.contact_email, contactName: seq.contact_name, siblingContactNames, outcomes, events: (eventRows || []) as Array<{ event_type: string; recipient_email: string; occurred_at: string }>, suppressedReason: (suppressed as { reason?: string } | null)?.reason || null });
       if (stop) {
         await stopSequence(supabase, seq.id, stop.reason, now);
         if (stop.because !== 'outcome') await logNote(supabase, seq, `Follow-ups stopped: ${stop.reason}.`, null, { action: 'auto_stop', because: stop.because });
@@ -101,7 +103,7 @@ Deno.serve(async (req) => {
       for (const step of steps) {
         if (step.kind !== 'call' || step.status !== 'due') continue;
         const claimed = new Set(steps.map((s) => s.outcome_id).filter(Boolean));
-        const hit = outcomes.find((o) => CALL_OUTCOME_KINDS.includes(o.kind) && o.created_at >= step.due_at && !claimed.has(o.id));
+        const hit = outcomes.find((o) => CALL_OUTCOME_KINDS.includes(o.kind) && o.created_at >= step.due_at && !claimed.has(o.id) && outcomeConcernsRun(o, seq.contact_name, siblingContactNames));
         if (!hit) continue;
         const { error: upErr } = await supabase.from('follow_up_steps').update({ status: 'done', outcome_id: hit.id, completed_at: hit.created_at }).eq('id', step.id).eq('status', 'due');
         if (!upErr) { step.status = 'done'; step.outcome_id = hit.id; counts.callsAttached++; }

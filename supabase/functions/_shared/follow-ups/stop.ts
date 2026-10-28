@@ -39,6 +39,9 @@ export interface EmailEventLike {
 export interface StopCheckInput {
   startedAt: string;
   contactEmail: string;
+  /** This run's contact, and the contacts of the other runs at the same company (23 October 2026: several people at a company can each have a run). */
+  contactName?: string | null;
+  siblingContactNames?: string[];
   outcomes: OutcomeLike[];
   events: EmailEventLike[];
   /** The suppressed_emails reason for the address, when it is listed. */
@@ -52,12 +55,30 @@ export interface StopDecision {
   outcomeKind?: string;
 }
 
+const nameKey = (n: string | null | undefined) => (n || '').toLowerCase().replace(/[^a-z]/g, '');
+
+/**
+ * Does an outcome logged on the company concern this run? A reply or a
+ * conversation with one of the other people being followed up at the company
+ * does not stop this person's run; a "not interested" or a booked meeting
+ * speaks for the company and stops every run there. An outcome with no name,
+ * or the name of someone who is not being followed up, stops them all (we
+ * cannot tell whom it was about).
+ */
+export function outcomeConcernsRun(o: OutcomeLike, contactName: string | null | undefined, siblingContactNames: string[] = []): boolean {
+  if (o.kind === 'not_interested' || o.kind === 'meeting_booked') return true;
+  const who = nameKey(o.contact_name);
+  if (!who) return true;
+  if (who === nameKey(contactName)) return true;
+  return !siblingContactNames.some((n) => nameKey(n) === who);
+}
+
 /** Why the sequence should stop now, or null to carry on. */
 export function stopDecision(input: StopCheckInput): StopDecision | null {
   const since = input.startedAt;
   const addr = input.contactEmail.trim().toLowerCase();
   const hit = [...input.outcomes]
-    .filter((o) => o.created_at > since && STOP_OUTCOME_KINDS[o.kind])
+    .filter((o) => o.created_at > since && STOP_OUTCOME_KINDS[o.kind] && outcomeConcernsRun(o, input.contactName, input.siblingContactNames))
     .sort((a, b) => a.created_at.localeCompare(b.created_at))[0];
   if (hit) return { reason: STOP_OUTCOME_KINDS[hit.kind], because: 'outcome', outcomeKind: hit.kind };
   const mine = input.events.filter((e) => e.recipient_email.trim().toLowerCase() === addr && e.occurred_at > since);

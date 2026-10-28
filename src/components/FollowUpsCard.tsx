@@ -74,9 +74,10 @@ export function FollowUpsCard({ companyId, companyName, onChange }: Props) {
   };
 
   const sequences = data || [];
-  const active = sequences.find((s) => s.status === "active") || null;
-  const latest = active || sequences[0] || null;
-  if (!isLoading && !error && !latest) return null;
+  // Several contacts at one company can each have a run (23 October 2026): show every active one, or the latest when none is.
+  const activeRuns = sequences.filter((s) => s.status === "active");
+  const runs = activeRuns.length ? activeRuns : sequences[0] ? [sequences[0]] : [];
+  if (!isLoading && !error && !runs.length) return null;
 
   const now = new Date();
   return (
@@ -84,8 +85,8 @@ export function FollowUpsCard({ companyId, companyName, onChange }: Props) {
       <h3 className="text-lg font-bold text-foreground mb-1 flex items-center gap-2"><CalendarClock className="h-5 w-5 text-primary" aria-hidden="true" />Follow-ups</h3>
       {isLoading && <p className="text-xs text-muted-foreground" role="status">Loading…</p>}
       {error && <p className="text-sm text-destructive" role="alert">Could not load: {(error as Error).message}</p>}
-      {latest && (
-        <>
+      {runs.map((latest) => (
+        <div key={latest.id} className="mb-6 border-b border-border/40 pb-4 last:mb-0 last:border-b-0 last:pb-0">
           <p className="text-sm text-foreground">{sequenceLine(latest, now)}</p>
           <p className="text-xs text-muted-foreground mb-2">
             {latest.contact_email}{latest.contact_role ? `, ${latest.contact_role}` : ""}. Started {whenWord(latest.started_at, now).replace(" (overdue)", "")}. {latest.auto_send ? "The emails go by themselves at their due times when the draft is clean or you have edited it; a flagged draft waits for you." : "Emails go only when you press Approve and send, or when you copy one into Outlook and tick it as sent."} A reply, a "spoke to", a meeting, "not interested", a bounce or a complaint stops the run.
@@ -256,19 +257,20 @@ export function FollowUpsCard({ companyId, companyName, onChange }: Props) {
             </div>
           )}
 
-          {sequences.length > 1 && (
+        </div>
+      ))}
+
+          {sequences.length > runs.length && (
             <div className="mt-3">
-              <button type="button" className="text-xs text-muted-foreground hover:underline" onClick={() => setShowHistory((v) => !v)}>{showHistory ? "Hide" : "Show"} earlier follow-ups ({sequences.length - 1})</button>
+              <button type="button" className="text-xs text-muted-foreground hover:underline" onClick={() => setShowHistory((v) => !v)}>{showHistory ? "Hide" : "Show"} earlier follow-ups ({sequences.length - runs.length})</button>
               {showHistory && (
                 <ul className="mt-1 space-y-1 text-xs text-muted-foreground">
-                  {sequences.filter((s) => s.id !== latest.id).map((s) => <li key={s.id}>{sequenceLine(s, now)} Started {whenWord(s.started_at, now).replace(" (overdue)", "")}; {s.steps.filter((x) => x.status === "sent").length} email{s.steps.filter((x) => x.status === "sent").length === 1 ? "" : "s"} sent.</li>)}
+                  {sequences.filter((s) => !runs.some((r) => r.id === s.id)).map((s) => <li key={s.id}>{sequenceLine(s, now)} Started {whenWord(s.started_at, now).replace(" (overdue)", "")}; {s.steps.filter((x) => x.status === "sent").length} email{s.steps.filter((x) => x.status === "sent").length === 1 ? "" : "s"} sent.</li>)}
                 </ul>
               )}
             </div>
           )}
-          <p className="mt-3 text-xs text-muted-foreground">A company that finished or stopped its follow-ups goes quiet for eight weeks unless a new vacancy or a new fact appears there.</p>
-        </>
-      )}
+          <p className="mt-3 text-xs text-muted-foreground">You can run follow-ups to more than one person at a company. A person whose follow-ups finished or stopped goes quiet for eight weeks unless a new vacancy or a new fact appears there; another person at the company can start at once.</p>
 
       {emailStep && (
         <EmailContactDialog

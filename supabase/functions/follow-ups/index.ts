@@ -81,11 +81,13 @@ Deno.serve(async (req): Promise<Response> => {
         supabase.from('company_facts').select('first_seen').eq('company_search_id', s.id).eq('active', true).order('first_seen', { ascending: false }).limit(1).maybeSingle(),
       ]);
       const rows = (previous || []) as Array<{ id: string; status: string; started_at: string; ended_at: string | null; contact_name: string; stop_reason: string | null }>;
-      const active = rows.find((r) => r.status === 'active') || null;
+      // Several people at a company can each have a run (23 October 2026): the plan never blocks the company; `start` refuses a repeat for the same person.
+      const activeContacts = rows.filter((r) => r.status === 'active').map((r) => ({ id: r.id, contact_name: r.contact_name }));
       const openVacancies = (vacancies || []) as Array<{ id: string; title: string; closing_date: string | null; first_seen: string; source: string; url: string | null }>;
-      const quiet = quietPeriodBlock({ previous: rows, newestVacancySeen: openVacancies[0]?.first_seen || null, newestFactSeen: (newestFact as { first_seen?: string } | null)?.first_seen || null, now });
+      const quiet: string | null = null;
+      void newestFact;
       const plan = buildPlan(now).map((p) => ({ ...p, when: describeDue(new Date(p.dueAt)) }));
-      return json({ ok: true, company: s.name, plan, endsAt: planEndsAt(buildPlan(now)), quiet, active, vacancies: openVacancies, previous: rows.slice(0, 5) });
+      return json({ ok: true, company: s.name, plan, endsAt: planEndsAt(buildPlan(now)), quiet, active: null, activeContacts, vacancies: openVacancies, previous: rows.slice(0, 5) });
     }
 
     if (action === 'start') {
@@ -107,13 +109,14 @@ Deno.serve(async (req): Promise<Response> => {
       const { data: suppressed } = await supabase.from('suppressed_emails').select('reason').eq('email', contactEmail).maybeSingle();
       if (suppressed) return json({ error: `This address ${suppressed.reason === 'complaint' ? 'marked an earlier email as spam' : suppressed.reason === 'bounce' ? 'bounced before' : 'asked not to be emailed'}, so TA Searcher will not email it. Phone instead.`, code: 'suppressed' }, 409);
       const [{ data: previous }, { data: newestVacancy }, { data: newestFact }] = await Promise.all([
-        supabase.from('follow_up_sequences').select('id, status, started_at, ended_at, contact_name').eq('company_search_id', s.id).order('started_at', { ascending: false }),
+        supabase.from('follow_up_sequences').select('id, status, started_at, ended_at, contact_name, contact_email').eq('company_search_id', s.id).order('started_at', { ascending: false }),
         supabase.from('vacancies').select('first_seen').eq('company_search_id', s.id).eq('status', 'open').order('first_seen', { ascending: false }).limit(1).maybeSingle(),
         supabase.from('company_facts').select('first_seen').eq('company_search_id', s.id).eq('active', true).order('first_seen', { ascending: false }).limit(1).maybeSingle(),
       ]);
-      const rows = (previous || []) as Array<{ id: string; status: string; started_at: string; ended_at: string | null; contact_name: string }>;
+      // Only this person's earlier runs count (23 October 2026): a different person at the company can start at once, beside any other run.
+      const rows = ((previous || []) as Array<{ id: string; status: string; started_at: string; ended_at: string | null; contact_name: string; contact_email: string }>).filter((r) => (r.contact_email || '').toLowerCase() === contactEmail);
       const active = rows.find((r) => r.status === 'active');
-      if (active) return json({ error: `${s.name} already has follow-ups running for ${active.contact_name}. Stop those first.`, code: 'active', sequenceId: active.id }, 409);
+      if (active) return json({ error: `${active.contact_name} already has follow-ups running at ${s.name}. Stop those first, or start them for a different person.`, code: 'active', sequenceId: active.id }, 409);
       const quiet = quietPeriodBlock({ previous: rows, newestVacancySeen: (newestVacancy as { first_seen?: string } | null)?.first_seen || null, newestFactSeen: (newestFact as { first_seen?: string } | null)?.first_seen || null, now });
       if (quiet) return json({ error: quiet, code: 'quiet' }, 409);
       if (vacancyId) {
@@ -136,7 +139,7 @@ Deno.serve(async (req): Promise<Response> => {
         plan: plan.map((p) => ({ step_no: p.stepNo, kind: p.kind, day: p.day, due_at: p.dueAt, label: p.label })),
       }).select(SEQUENCE_COLUMNS).single();
       if (seqErr) {
-        if (/follow_up_sequences_one_active_per_company/.test(seqErr.message)) return json({ error: `${s.name} already has follow-ups running. Stop those first.`, code: 'active' }, 409);
+        if (/follow_up_sequences_one_active_per_contact/.test(seqErr.message)) return json({ error: `${contactName} already has follow-ups running at ${s.name}. Stop those first, or start them for a different person.`, code: 'active' }, 409);
         return json({ error: `Could not start: ${seqErr.message}` }, 500);
       }
       const { error: stepErr } = await supabase.from('follow_up_steps').insert(plan.map((p) => ({

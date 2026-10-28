@@ -63,7 +63,6 @@ export function StartFollowUpsDialog({ companyId, companyName, contact, open, on
     }
   };
 
-  const blocked = plan?.active ? `${companyName} already has follow-ups running with ${plan.active.contact_name}. Stop those first.` : plan?.quiet || null;
   const chosen = (plan?.vacancies || []).find((v) => v.id === vacancyId);
 
   return (
@@ -88,7 +87,6 @@ export function StartFollowUpsDialog({ companyId, companyName, contact, open, on
           </div>
         ) : plan ? (
           <div className="space-y-3 text-sm">
-            {blocked && <p className="rounded-md border border-warning/50 bg-warning/10 p-3 text-foreground" role="note">{blocked}</p>}
             <ol className="divide-y divide-border/60 rounded-md border border-border">
               {(plan.plan || []).map((p) => (
                 <li key={p.stepNo} className="flex items-baseline justify-between gap-3 px-3 py-1.5">
@@ -119,7 +117,7 @@ export function StartFollowUpsDialog({ companyId, companyName, contact, open, on
               </div>
             )}
             <div className="flex flex-wrap gap-2">
-              <Button type="button" size="sm" onClick={() => void start()} disabled={!!busy || !!blocked} className="gap-2">
+              <Button type="button" size="sm" onClick={() => void start()} disabled={!!busy} className="gap-2">
                 {busy === "start" && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}{busy === "start" ? "Starting and drafting the emails…" : "Start follow-ups"}
               </Button>
               <Button type="button" variant="ghost" size="sm" onClick={() => onOpenChange(false)}>Cancel</Button>
