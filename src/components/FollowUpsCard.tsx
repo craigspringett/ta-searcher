@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { CALL_OUTCOME_CHOICES, hasDraft, isDueNow, isOpen, sequenceLine, STEP_STATUS_LABELS, stepLabel, STOP_CHOICES, whenWord, wordCount, type FollowUpSequence, type FollowUpStep } from "@/lib/followUps";
 import { callFollowUps, companyFollowUpsKey, useCompanyFollowUps } from "@/lib/followUpsData";
+import { SnoozeButton } from "@/components/SnoozeButton";
 import { EmailContactDialog } from "@/components/EmailContactDialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -193,6 +194,7 @@ export function FollowUpsCard({ companyId, companyName, onChange }: Props) {
                           <PhoneCall className="h-3.5 w-3.5" aria-hidden="true" />Log outcome
                         </Button>
                       )}
+                      <SnoozeButton busy={!!busy} working={busy === `snooze-${step.id}`} onSnooze={(until) => act(`snooze-${step.id}`, { action: "snooze", stepId: step.id, until }, "Snoozed")} />
                       <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={() => void act(`skip-${step.id}`, { action: "skip", stepId: step.id }, "Skipped")} disabled={!!busy}>
                         {busy === `skip-${step.id}` && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" aria-hidden="true" />}Skip
                       </Button>

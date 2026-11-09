@@ -251,3 +251,22 @@ export function groupByDay(sequences: FollowUpSequence[], now: Date = new Date()
   for (const g of out) g.rows.sort((a, b) => (a.step.due_at.localeCompare(b.step.due_at)) || a.sequence.contact_name.localeCompare(b.sequence.contact_name));
   return out.sort((a, b) => (a.key === "overdue" ? -1 : b.key === "overdue" ? 1 : a.key.localeCompare(b.key)));
 }
+
+/** Today in London, "YYYY-MM-DD" (the earliest day a step can be snoozed to). */
+export function londonToday(now: Date = new Date()): string {
+  return londonDay(now);
+}
+
+/** Quick snooze choices, each a London date: tomorrow, in three days, next week, in two weeks. */
+export function snoozeChoices(today: string): Array<{ label: string; date: string }> {
+  const add = (days: number) => {
+    const [y, m, d] = today.split("-").map(Number);
+    return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+  };
+  return [
+    { label: "Tomorrow", date: add(1) },
+    { label: "In 3 days", date: add(3) },
+    { label: "Next week", date: add(7) },
+    { label: "In 2 weeks", date: add(14) },
+  ];
+}

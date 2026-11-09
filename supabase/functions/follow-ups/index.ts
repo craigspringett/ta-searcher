@@ -11,6 +11,9 @@
 //                                                   start a sequence and draft its
 //                                                   three emails (one model call each)
 //   skip    { stepId }                              skip a due or scheduled step
+//   snooze  { stepId, until }                       move a step to a later London day (YYYY-MM-DD)
+//                                                   and every step after it by the same gaps
+//                                                   (Craig, 9 November 2026)
 //   done    { stepId, outcomeKind, note?, callbackAt? }
 //                                                   log the outcome of a call step
 //   auto_send { sequenceId, enabled }               the emails go by themselves on their days
@@ -31,6 +34,7 @@ import { mergedContactsFor } from '../_shared/contacts/edits.ts';
 import { draftSequenceSteps } from '../_shared/follow-ups/draft.ts';
 import { buildPlan, planEndsAt } from '../_shared/follow-ups/plan.ts';
 import { describeDue } from '../_shared/follow-ups/schedule.ts';
+import { planSnooze } from '../_shared/follow-ups/snooze.ts';
 import { quietPeriodBlock, STOP_OUTCOME_KINDS } from '../_shared/follow-ups/stop.ts';
 import { describeStep, finishIfDone, loadSequence, loadStep, logNote, SEQUENCE_COLUMNS, stopSequence } from '../_shared/follow-ups/store.ts';
 import { cors, json, myConsultantIds, requireFollowUpsCaller } from '../_shared/outreach/caller.ts';
@@ -171,7 +175,7 @@ Deno.serve(async (req): Promise<Response> => {
       return json({ ok: true, sequence: full, drafting, message: `Follow-ups started for ${contactName}. ${autoLine}` });
     }
 
-    if (action === 'skip' || action === 'done' || action === 'redraft' || action === 'mark_sent' || action === 'save_draft') {
+    if (action === 'skip' || action === 'snooze' || action === 'done' || action === 'redraft' || action === 'mark_sent' || action === 'save_draft') {
       const stepId = typeof b.stepId === 'string' && UUID.test(b.stepId) ? b.stepId : null;
       if (!stepId) return json({ error: 'stepId (uuid) is required' }, 400);
       const found = await loadStep(supabase, stepId);
@@ -188,6 +192,27 @@ Deno.serve(async (req): Promise<Response> => {
         await logNote(supabase, sequence, `Skipped follow-up ${describeStep(step)}.`, caller.userId, { action: 'skip', step_no: step.step_no });
         const done = await finishIfDone(supabase, sequence.id, now);
         return json({ ok: true, sequence: await loadSequence(supabase, sequence.id), message: done ? 'Skipped. That was the last step, so the follow-ups are finished.' : 'Skipped.' });
+      }
+
+      if (action === 'snooze') {
+        const until = typeof b.until === 'string' ? b.until.trim() : '';
+        const plan = planSnooze(sequence.steps, step.id, until, now);
+        if ('error' in plan) return json({ error: plan.error }, 409);
+        for (const m of plan.moves) {
+          const old = sequence.steps.find((x) => x.id === m.id);
+          const future = new Date(m.newDueAt).getTime() > now.getTime();
+          const patch: Record<string, unknown> = { due_at: m.newDueAt, auto_attempted_at: null, auto_note: null };
+          if (future && old?.status === 'due') patch.status = 'scheduled';
+          const { error } = await supabase.from('follow_up_steps').update(patch).eq('id', m.id);
+          if (error) return json({ error: error.message }, 500);
+        }
+        const byNo = new Map(plan.moves.map((m) => [m.stepNo, m.newDueAt]));
+        const newPlan = (Array.isArray(sequence.plan) ? sequence.plan as Array<Record<string, unknown>> : []).map((p) => byNo.has(Number(p.step_no)) ? { ...p, due_at: byNo.get(Number(p.step_no)) } : p);
+        await supabase.from('follow_up_sequences').update({ plan: newPlan }).eq('id', sequence.id);
+        const first = plan.moves[0];
+        const later = plan.moves.length - 1;
+        await logNote(supabase, sequence, `Snoozed follow-up ${describeStep(step)} to ${describeDue(new Date(first.newDueAt))}${later ? `; the ${later} step${later === 1 ? '' : 's'} after it moved by the same gaps` : ''}.`, caller.userId, { action: 'snooze', step_no: step.step_no, until });
+        return json({ ok: true, sequence: await loadSequence(supabase, sequence.id), message: `Moved to ${describeDue(new Date(first.newDueAt))}${later ? `, and the ${later} step${later === 1 ? '' : 's'} after it moved too` : ''}.` });
       }
 
       // The consultant copied the email into Outlook and sent it there
@@ -320,7 +345,7 @@ Deno.serve(async (req): Promise<Response> => {
       return json({ ok: true, sequence: await loadSequence(supabase, sequence.id), message: `Follow-ups stopped: ${reason}.` });
     }
 
-    return json({ error: 'action must be one of plan, start, skip, done, mark_sent, stop, redraft' }, 400);
+    return json({ error: 'action must be one of plan, start, skip, snooze, done, mark_sent, stop, redraft' }, 400);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error('follow-ups failed:', { action, message: msg });

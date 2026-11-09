@@ -8,6 +8,7 @@ import { activeFollowUpsKey, callFollowUps, useActiveFollowUps } from "@/lib/fol
 import type { PatchCompany } from "@/lib/patch";
 import { EmailContactDialog } from "@/components/EmailContactDialog";
 import { FollowUpDraftPreview } from "@/components/FollowUpDraftPreview";
+import { SnoozeButton } from "@/components/SnoozeButton";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -48,11 +49,13 @@ export function FollowUpsDueCard({ companies }: { companies: PatchCompany[] }) {
     setBusy(key);
     try {
       const { status, data: reply } = await callFollowUps(body);
-      if (status >= 400) { toast({ title: "Not done", description: reply.error || `HTTP ${status}`, variant: "destructive" }); return; }
+      if (status >= 400) { toast({ title: "Not done", description: reply.error || `HTTP ${status}`, variant: "destructive" }); return false; }
       toast({ title: okTitle, description: reply.message });
       refresh();
+      return true;
     } catch (e) {
       toast({ title: "Not done", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+      return false;
     } finally {
       setBusy(null);
     }
@@ -103,6 +106,7 @@ export function FollowUpsDueCard({ companies }: { companies: PatchCompany[] }) {
                     </>
                   )}
                   <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={() => void act(`replied-${key}`, { action: "stop", sequenceId: r.sequence.id, outcomeKind: "replied" }, "Logged as replied")} disabled={!!busy} title="Logs a reply on the Calls tab and stops the follow-ups">{busy === `replied-${key}` && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" aria-hidden="true" />}They replied</Button>
+                  <SnoozeButton busy={!!busy} working={busy === `snooze-${key}`} onSnooze={(until) => act(`snooze-${key}`, { action: "snooze", stepId: r.step.id, until }, "Snoozed")} />
                   <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={() => void act(`skip-${key}`, { action: "skip", stepId: r.step.id }, "Skipped")} disabled={!!busy}>Skip</Button>
                 </span>
                 {previewing[key] && r.step.kind === "email" && <FollowUpDraftPreview step={r.step} />}

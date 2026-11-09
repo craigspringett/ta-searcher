@@ -39,3 +39,10 @@ describe("dayHeading", () => {
     expect(dayHeading("2026-09-17", now, false)).toBe("Thursday 17 Sep");
   });
 });
+
+describe("snoozeChoices", () => {
+  it("gives tomorrow, three days, a week and a fortnight from today", async () => {
+    const { snoozeChoices } = await import("../followUps");
+    expect(snoozeChoices("2026-11-28").map((c) => c.date)).toEqual(["2026-11-29", "2026-12-01", "2026-12-05", "2026-12-12"]);
+  });
+});
