@@ -1108,6 +1108,63 @@ export type Database = {
         }
         Relationships: []
       }
+      follow_up_campaigns: {
+        Row: {
+          angle: string | null
+          auto_after_first: boolean
+          consultant_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          plan: Json
+          status: string
+          updated_at: string
+          write_alike: boolean
+        }
+        Insert: {
+          angle?: string | null
+          auto_after_first?: boolean
+          consultant_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          plan?: Json
+          status?: string
+          updated_at?: string
+          write_alike?: boolean
+        }
+        Update: {
+          angle?: string | null
+          auto_after_first?: boolean
+          consultant_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          plan?: Json
+          status?: string
+          updated_at?: string
+          write_alike?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "follow_up_campaigns_consultant_id_fkey"
+            columns: ["consultant_id"]
+            isOneToOne: false
+            referencedRelation: "consultants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "follow_up_campaigns_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       follow_up_sequences: {
         Row: {
           consultant_id: string | null
@@ -1115,6 +1172,7 @@ export type Database = {
           contact_name: string
           contact_role: string | null
           auto_send: boolean
+          campaign_id: string | null
           created_at: string
           created_by: string | null
           ended_at: string | null
@@ -1133,6 +1191,7 @@ export type Database = {
           contact_name: string
           contact_role?: string | null
           auto_send?: boolean
+          campaign_id?: string | null
           created_at?: string
           created_by?: string | null
           ended_at?: string | null
@@ -1151,6 +1210,7 @@ export type Database = {
           contact_name?: string
           contact_role?: string | null
           auto_send?: boolean
+          campaign_id?: string | null
           created_at?: string
           created_by?: string | null
           ended_at?: string | null
@@ -1164,6 +1224,13 @@ export type Database = {
           vacancy_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "follow_up_sequences_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "follow_up_campaigns"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "follow_up_sequences_consultant_id_fkey"
             columns: ["consultant_id"]
@@ -1208,6 +1275,7 @@ export type Database = {
           sent_automatically: boolean
           auto_attempted_at: string | null
           auto_note: string | null
+          campaign_approved_at: string | null
           notes: string | null
           due_at: string
           hook: string | null
@@ -1235,6 +1303,7 @@ export type Database = {
           sent_automatically?: boolean
           auto_attempted_at?: string | null
           auto_note?: string | null
+          campaign_approved_at?: string | null
           notes?: string | null
           due_at: string
           hook?: string | null
@@ -1262,6 +1331,7 @@ export type Database = {
           sent_automatically?: boolean
           auto_attempted_at?: string | null
           auto_note?: string | null
+          campaign_approved_at?: string | null
           notes?: string | null
           due_at?: string
           hook?: string | null

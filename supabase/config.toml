@@ -109,3 +109,6 @@ verify_jwt = true
 
 [functions.find-contacts]
 verify_jwt = true
+
+[functions.campaigns]
+verify_jwt = true

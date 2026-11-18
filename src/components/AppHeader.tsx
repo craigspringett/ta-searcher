@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { NavLink } from "react-router-dom";
-import { Activity, Bell, Home, Radar, Search, Users, CalendarClock, KanbanSquare, Landmark } from "lucide-react";
+import { Activity, Bell, Home, Radar, Search, Users, CalendarClock, KanbanSquare, Landmark, Layers } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { hasFeature } from "@/lib/features";
 import { BrandMark } from "@/components/BrandMark";
@@ -14,6 +14,7 @@ import { UserMenu } from "@/components/UserMenu";
 export function AppHeader({ title, subtitle, actions }: { title: string; subtitle?: ReactNode; actions?: ReactNode }) {
   const { isManager, profile } = useAuth();
   const followUps = hasFeature(profile, "follow_ups");
+  const campaigns = hasFeature(profile, "follow_up_campaigns");
   const link = "inline-flex h-8 items-center gap-1.5 rounded-md border border-input bg-background px-2.5 text-xs font-medium text-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-[current=page]:bg-primary aria-[current=page]:text-primary-foreground aria-[current=page]:border-primary";
   const items: Array<{ to: string; label: string; icon: typeof Home; managers?: boolean; end?: boolean; hidden?: boolean }> = [
     { to: "/", label: "My patch", icon: Home, end: true },
@@ -22,6 +23,8 @@ export function AppHeader({ title, subtitle, actions }: { title: string; subtitl
     { to: "/pipeline", label: "Pipeline", icon: KanbanSquare },
     { to: "/investors", label: "Investors", icon: Landmark },
     { to: "/follow-ups", label: "Follow-ups", icon: CalendarClock, hidden: !followUps },
+    // Follow-up campaigns (18 November 2026): only with the per-user flag.
+    { to: "/campaigns", label: "Campaigns", icon: Layers, hidden: !(followUps && campaigns) },
     { to: "/alerts", label: "Alerts", icon: Bell, managers: true },
     { to: "/consultants", label: "Consultants", icon: Users, managers: true },
     { to: "/pipeline-monitoring", label: "Monitoring", icon: Activity, managers: true },

@@ -16,6 +16,9 @@ import MyPatch from "./pages/MyPatch";
 import Alerts from "./pages/Alerts";
 import Prospects from "./pages/Prospects";
 import FollowUps from "./pages/FollowUps";
+import Campaigns from "./pages/Campaigns";
+import CampaignNew from "./pages/CampaignNew";
+import Campaign from "./pages/Campaign";
 import Pipeline from "./pages/Pipeline";
 import Investors from "./pages/Investors";
 import { RequireFeature } from "./components/RequireFeature";
@@ -52,6 +55,12 @@ const App = () => (
               {/* Hidden behind profiles.features.follow_ups */}
               <Route element={<RequireFeature feature="follow_ups" />}>
                 <Route path="/follow-ups" element={<FollowUps />} />
+              </Route>
+              {/* Hidden behind profiles.features.follow_up_campaigns (18 November 2026); the function also needs follow_ups */}
+              <Route element={<RequireFeature feature="follow_up_campaigns" />}>
+                <Route path="/campaigns" element={<Campaigns />} />
+                <Route path="/campaigns/new" element={<CampaignNew />} />
+                <Route path="/campaigns/:id" element={<Campaign />} />
               </Route>
             </Route>
             <Route path="*" element={<NotFound />} />

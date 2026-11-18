@@ -6,7 +6,7 @@ import type { Json } from "@/integrations/supabase/types";
  * checking a flag costs no query. Off is the default for everyone: a
  * missing column, a null, a non-object or any value but `true` is off.
  */
-export type FeatureName = "crm_shortlister" | "follow_ups";
+export type FeatureName = "crm_shortlister" | "follow_ups" | "follow_up_campaigns";
 
 export function hasFeature(profile: { features?: Json | null } | null | undefined, name: FeatureName): boolean {
   const f = profile?.features;

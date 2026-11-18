@@ -24,6 +24,7 @@
 // (a manual run from the app). Optional { limitDrafts, sequenceId }.
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { campaignHoldsEmail, emailIsClean } from '../_shared/follow-ups/campaign.ts';
 import { draftSequenceSteps } from '../_shared/follow-ups/draft.ts';
 import { inEmailWindow, londonDate } from '../_shared/follow-ups/schedule.ts';
 import { outcomeConcernsRun, secondCallScript, stopDecision } from '../_shared/follow-ups/stop.ts';
@@ -124,7 +125,9 @@ Deno.serve(async (req) => {
         const { data: fresh } = await supabase.from('follow_up_steps').select('*').eq('sequence_id', seq.id).eq('kind', 'email').eq('status', 'due').order('step_no');
         for (const step of ((fresh || []) as StepRow[])) {
           if (!step.body || !step.subject) continue;
-          const clean = !(step.draft_flags || []).length || !!step.edited_at;
+          // A campaign email goes by itself only once a person has read and approved it (Craig, 18 November 2026); an approved one goes even if its checks flagged something, since they saw the flags.
+          if (campaignHoldsEmail(seq.campaign_id, step.campaign_approved_at)) continue;
+          const clean = emailIsClean(step.draft_flags, step.edited_at, step.campaign_approved_at);
           const changedSince = (t: string | null | undefined) => !!t && (!step.auto_attempted_at || t > step.auto_attempted_at);
           const retry = !step.auto_attempted_at || changedSince(step.draft_generated_at) || changedSince(step.edited_at) || londonDate(new Date(step.auto_attempted_at)) < today;
           if (!retry) continue;
