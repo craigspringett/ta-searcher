@@ -284,7 +284,7 @@ Deno.serve(async (req): Promise<Response> => {
         const editor = (caller.profile.display_name || caller.email || 'a consultant').trim();
         // The first edit keeps the draft the writer produced, once, so it can learn from what was changed (14 October 2026).
         const keepOriginal = !step.edited_at && !step.original_body && step.body ? { original_subject: step.subject, original_body: step.body } : {};
-        const { error: upErr } = await supabase.from('follow_up_steps').update({ subject, body, draft_flags: [], edited_at: now.toISOString(), edited_by_name: editor, ...keepOriginal }).eq('id', step.id).in('status', ['scheduled', 'due']);
+        const { error: upErr } = await supabase.from('follow_up_steps').update({ subject, body, draft_flags: [], edited_at: now.toISOString(), edited_by_name: editor, ...(subject !== (step.subject || '') || body !== (step.body || '') ? { campaign_approved_at: null } : {}), ...keepOriginal }).eq('id', step.id).in('status', ['scheduled', 'due']);
         if (upErr) return json({ error: upErr.message }, 500);
         if (subject !== (step.subject || '') || body !== (step.body || '')) {
           await logNote(supabase, sequence, `Edited the draft of follow-up ${describeStep(step)} by hand.`, caller.userId, { action: 'save_draft', step_no: step.step_no, before_subject: step.subject, after_subject: subject });

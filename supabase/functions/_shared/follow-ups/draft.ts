@@ -263,6 +263,7 @@ export async function draftSequenceSteps(supabase: Supabase, sequenceId: string,
         edited_by_name: null,
         original_subject: null,
         original_body: null,
+        campaign_approved_at: null,
       }).eq('id', step.id).in('status', ['scheduled', 'due']);
       if (upErr) throw new FollowUpDraftError(`could not store the draft: ${upErr.message}`);
       step.subject = gen.draft.subject; step.body = gen.draft.body; step.hook = gen.draft.hook;

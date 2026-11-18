@@ -36,6 +36,7 @@ INBOX="$ROOT/supabase/migrations/20260922120000_inbox.sql"
 PARKED="$ROOT/supabase/migrations/20260923100000_parked_prospects.sql"
 STEP_EDITS="$ROOT/supabase/migrations/20261006120000_follow_up_step_edits.sql"
 AUTO_SEND="$ROOT/supabase/migrations/20261008150000_follow_ups_auto_send.sql"
+CAMPAIGNS="$ROOT/supabase/migrations/20261118100000_follow_up_campaigns.sql"
 GEN_TYPES=0
 KEEP=0
 for arg in "$@"; do
@@ -54,6 +55,7 @@ done
 [[ -f "$FOLLOW_UPS" ]] || { echo "local-db-test: $FOLLOW_UPS not found" >&2; exit 2; }
 [[ -f "$PIPELINE" ]] || { echo "local-db-test: $PIPELINE not found" >&2; exit 2; }
 [[ -f "$INBOX" ]] || { echo "local-db-test: $INBOX not found" >&2; exit 2; }
+[[ -f "$CAMPAIGNS" ]] || { echo "local-db-test: $CAMPAIGNS not found" >&2; exit 2; }
 
 WORK="$(mktemp -d)"
 PGDATA="$WORK/data"
@@ -147,6 +149,8 @@ echo "== apply $(basename "$STEP_EDITS")"
 psqlq -f "$STEP_EDITS" >"$WORK/apply-step-edits.log" 2>&1 || { cat "$WORK/apply-step-edits.log"; exit 1; }
 echo "== apply $(basename "$AUTO_SEND")"
 psqlq -f "$AUTO_SEND" >"$WORK/apply-auto-send.log" 2>&1 || { cat "$WORK/apply-auto-send.log"; exit 1; }
+echo "== apply $(basename "$CAMPAIGNS")"
+psqlq -f "$CAMPAIGNS" >"$WORK/apply-campaigns.log" 2>&1 || { cat "$WORK/apply-campaigns.log"; exit 1; }
 grep -i "error" "$WORK/apply-funding-news.log" && exit 1
 echo "   applied"
 
@@ -218,12 +222,12 @@ echo "== assertions"
 # Structure
 check "every public table has row security on" \
   "select count(*) = 0 from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind in ('r','p') and not c.relrowsecurity"
-check "33 public tables" \
-  "select count(*) = 39 from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind in ('r','p')"
+check "40 public tables" \
+  "select count(*) = 40 from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind in ('r','p')"
 check "no education table survived the port (school, gias, cfr, ofsted, tender, pupil, shortlist, follow_up, trust, board_fetch, probe)" \
   "select count(*) = 0 from pg_tables where schemaname = 'public' and (tablename ~ '^(school|gias|cfr|ofsted|tender|pupil|shortlist|bh_|trust|board_|probe|agency)')"
 check "the tables the code names exist" \
-  "select bool_and(to_regclass('public.' || t) is not null) from unnest(array['company_searches','company_consultants','company_refresh_runs','company_facts','company_signals','company_scores','company_copy','company_contact_edits','company_records','ch_officers','ch_filings','ats_boards','analyze_company_queue','analyze_company_requests','copy_queue','vacancies','outcomes','profiles','consultants','app_settings','email_send_log','email_send_state','email_events','email_signatures','suppressed_emails','email_unsubscribe_tokens','pipeline_runs','vacancy_alert_settings','alert_deliveries','vacancy_feedback','contact_feedback','ai_usage','funding_news','prospects','follow_up_sequences','follow_up_steps','mail_connections','oauth_states','inbox_replies']) t"
+  "select bool_and(to_regclass('public.' || t) is not null) from unnest(array['company_searches','company_consultants','company_refresh_runs','company_facts','company_signals','company_scores','company_copy','company_contact_edits','company_records','ch_officers','ch_filings','ats_boards','analyze_company_queue','analyze_company_requests','copy_queue','vacancies','outcomes','profiles','consultants','app_settings','email_send_log','email_send_state','email_events','email_signatures','suppressed_emails','email_unsubscribe_tokens','pipeline_runs','vacancy_alert_settings','alert_deliveries','vacancy_feedback','contact_feedback','ai_usage','funding_news','prospects','follow_up_sequences','follow_up_steps','follow_up_campaigns','mail_connections','oauth_states','inbox_replies']) t"
 check "vacancy_source has the eight values in order" \
   "select array_agg(enumlabel order by enumsortorder)::text[] = array['ashby','greenhouse','lever','workable','careers_page','llm','consultant','other'] from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'vacancy_source'"
 check "company_searches has company_number and company_name, no urn" \
@@ -439,6 +443,22 @@ check "the monitoring job list names only scheduled jobs" \
 echo
 check "auto-send columns and the manager switch (8 October 2026)" "select (select count(*) = 1 from information_schema.columns where table_schema = 'public' and table_name = 'follow_up_sequences' and column_name = 'auto_send') and (select count(*) = 3 from information_schema.columns where table_schema = 'public' and table_name = 'follow_up_steps' and column_name in ('sent_automatically', 'auto_attempted_at', 'auto_note')) and (select value->>'auto_send' = 'true' from public.app_settings where key = 'follow_ups')"
 check "follow_up_steps carries the edit columns (6 October 2026)" "select count(*) = 3 from information_schema.columns where table_schema = 'public' and table_name = 'follow_up_steps' and column_name in ('edited_at', 'edited_by_name', 'notes')"
+
+# Follow-up campaigns (18 November 2026): rows are readable only with the follow_up_campaigns flag and only your own (a manager's: all).
+CAMP1=eeeeeeee-0000-0000-0000-000000000001
+CAMP2=eeeeeeee-0000-0000-0000-000000000002
+check "campaign columns: campaign_id, campaign_approved_at, write_alike, auto_after_first" "select (select count(*) = 1 from information_schema.columns where table_schema = 'public' and table_name = 'follow_up_sequences' and column_name = 'campaign_id') and (select count(*) = 1 from information_schema.columns where table_schema = 'public' and table_name = 'follow_up_steps' and column_name = 'campaign_approved_at') and (select count(*) = 2 from information_schema.columns where table_schema = 'public' and table_name = 'follow_up_campaigns' and column_name in ('write_alike', 'auto_after_first'))"
+check "service role makes two campaigns (mine and the manager's)" "set local role service_role; select set_config('request.jwt.claims', '{\"role\":\"service_role\"}', true); insert into public.follow_up_campaigns (id, name, plan, created_by) values ('$CAMP1', 'Mine', '[]', '$U_CONSULTANT'), ('$CAMP2', 'Managers', '[]', '$U_MANAGER'); select count(*) = 2 from public.follow_up_campaigns"
+expect_fail "a campaign's status is active, paused or stopped" "insert into public.follow_up_campaigns (name, status) values ('X', 'running')"
+check "without the flag a consultant reads no campaign" "update public.profiles set features = '{\"follow_ups\": true}' where id = '$U_CONSULTANT'; $as_consultant select count(*) = 0 from public.follow_up_campaigns"
+check "with the flag a consultant reads only their own campaign" "update public.profiles set features = '{\"follow_ups\": true, \"follow_up_campaigns\": true}' where id = '$U_CONSULTANT'; $as_consultant select count(*) = 1 and bool_and(name = 'Mine') from public.follow_up_campaigns"
+check "a manager without the flag reads none" "update public.profiles set features = '{}' where id = '$U_MANAGER'; $as_manager select count(*) = 0 from public.follow_up_campaigns"
+check "a manager with the flag reads every campaign" "update public.profiles set features = '{\"follow_up_campaigns\": true}' where id = '$U_MANAGER'; $as_manager select count(*) = 2 from public.follow_up_campaigns"
+check "a signed-in user without a profile reads none" "$as_nobody select count(*) = 0 from public.follow_up_campaigns"
+expect_fail "anon cannot read campaigns" "$as_anon select count(*) from public.follow_up_campaigns"
+check "authenticated has no write privilege on campaigns" "select not (has_table_privilege('authenticated', 'public.follow_up_campaigns', 'INSERT') or has_table_privilege('authenticated', 'public.follow_up_campaigns', 'UPDATE') or has_table_privilege('authenticated', 'public.follow_up_campaigns', 'DELETE')) and not has_table_privilege('anon', 'public.follow_up_campaigns', 'SELECT')"
+check "updating a campaign touches updated_at" "update public.follow_up_campaigns set status = 'paused' where id = '$CAMP1'; select updated_at >= created_at and status = 'paused' from public.follow_up_campaigns where id = '$CAMP1'"
+check "deleting a campaign keeps its sequences (campaign_id becomes null)" "insert into public.company_searches (id, url, company_name, analysis_result) values ('cccccccc-1111-1111-1111-111111111111', 'https://camp.example', 'Camp Ltd', '{}'); insert into public.follow_up_sequences (id, company_search_id, contact_name, contact_email, campaign_id) values ('eeeeeeee-0000-0000-0000-0000000000a1', 'cccccccc-1111-1111-1111-111111111111', 'Pat', 'pat@camp.example', '$CAMP2'); delete from public.follow_up_campaigns where id = '$CAMP2'; select campaign_id is null from public.follow_up_sequences where id = 'eeeeeeee-0000-0000-0000-0000000000a1'"
 
 echo "== $PASS passed, $FAIL failed"
 

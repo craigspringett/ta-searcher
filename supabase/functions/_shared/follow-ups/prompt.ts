@@ -356,6 +356,8 @@ export interface SequenceRow {
   status: string;
   started_at: string;
   auto_send?: boolean | null;
+  /** The campaign this run belongs to (18 November 2026), when it was started from one. */
+  campaign_id?: string | null;
 }
 
 export interface StepRow {
@@ -384,6 +386,8 @@ export interface StepRow {
   sent_automatically?: boolean | null;
   auto_attempted_at?: string | null;
   auto_note?: string | null;
+  /** A campaign email read and approved by a person; only then does it go by itself (18 November 2026). */
+  campaign_approved_at?: string | null;
 }
 
 export interface SequenceContext {
